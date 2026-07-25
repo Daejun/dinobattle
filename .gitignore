@@ -36,6 +36,9 @@
 .vsconfig
 .gradle/
 
+# IL2CPP / ninja scratch written next to the project during an Android build.
+/.utmp/
+
 # Crashlytics / Unity Services
 crashlytics-build.properties
 /[Aa]ssets/[Ss]cripts/[Gg]enerated/

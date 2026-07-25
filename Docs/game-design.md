@@ -68,6 +68,38 @@ ScriptableObject에 있습니다. **프리팹에는 밸런스 수치를 두지 �
 | `aggroRange` | 탐지 거리 |
 | `cost` | 배치 예산 소모량 |
 
+### 이동 — Reynolds steering behaviors
+
+순수 Seek 하나로는 무리가 한 줄로 접근한 뒤 제자리에서 때리기만 했습니다.
+현재는 [Craig Reynolds의 steering behaviors](https://www.gamedeveloper.com/design/introduction-to-steering-behaviours)(1999)를
+가중 합성합니다 — [`SteeringBehaviors.cs`](../Assets/Scripts/Units/SteeringBehaviors.cs).
+
+| 동작 | 역할 |
+|---|---|
+| **Arrive** | 목표 근처에서 감속. 순수 Seek는 오버슈트 후 되돌아오며 진동합니다 |
+| **Pursue** | 타깃의 미래 위치를 겨냥. 현재 위치를 쫓으면 영원히 뒤를 따릅니다 |
+| **Separation** | 이웃을 밀어냄. 없으면 무리가 한 점으로 무너집니다 |
+
+**Separation은 접근용과 교전용 가중치가 다릅니다.** 접근 중에는 무리를 흩어 여러 방향에서 오게 하지만,
+접촉 후에도 유지하면 서로 밀어내 "정중한 거리"가 생깁니다. 레퍼런스 영상에서는 공격자들이
+몸을 깊게 겹친 채 쌓여 싸웁니다.
+
+### 사거리는 몸통 간 거리입니다
+
+`attackRange` 는 **루트 대 루트** 거리이며, 여기에 **상대의 `footprintRadius` 가 더해집니다**
+([`MeleeAttack.EffectiveRange`](../Assets/Scripts/Units/MeleeAttack.cs)).
+
+두 가지를 방지합니다:
+- aim점끼리 재면 선회 중 서로 등을 돌릴 때 거리가 오히려 멀어져 영영 사거리에 못 듭니다
+- 중심 간 거리만 쓰면 랩터(사거리 1.8)가 몸길이 5인 T-Rex를 때리려면 그 몸 안으로 들어가야 합니다
+
+### 체급 상호작용
+
+작은 개체는 큰 개체를 **기어올라 물어뜯습니다** ([`PounceCling`](../Assets/Scripts/Units/PounceCling.cs)).
+질량비 4배 이상일 때 발동하고, 호스트의 `Shoulders / Torso / Back / Neck / Hips` 본에
+최대 5마리가 서로 다른 자리에 매달립니다 ([`ClingAnchors`](../Assets/Scripts/Units/ClingAnchors.cs)).
+일정 시간 후 호스트가 털어냅니다.
+
 ### 초기 밸런스 (플레이스홀더)
 
 [`SampleContentBuilder`](../Assets/Editor/SampleContentBuilder.cs) 의 `Blueprints` 배열:

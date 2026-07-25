@@ -12,19 +12,30 @@
 
 | 애셋 | 제작자 | 라이선스 | 출처 | 사용처 |
 |---|---|---|---|---|
-| _(아직 없음 — 현재는 코드 생성 플레이스홀더 프리팹 사용)_ | | | | |
+| Dinosaur Animated Pack (Dec 2018) | [@Quaternius](https://www.patreon.com/quaternius) | **CC0 1.0** | https://quaternius.itch.io/animated-lowpoly-dinosaurs | Trex, Triceratops, Velociraptor, Stegosaurus, Parasaurolophus 모델 + `Idle/Walk/Run/Attack/Death/Jump` 애니메이션 |
+
+CC0라 표기 의무는 없지만 출처 추적을 위해 기록합니다. 원본 `License.txt` 는
+`.assets-cache/quaternius-dinosaurs/` 에 함께 보관돼 있습니다 (gitignore).
+
+같은 팩의 Apatosaurus FBX는 임포트돼 있으나 로스터에는 없습니다 — 대형 유닛 후보로 보관 중입니다.
+이 파일은 자체 Death 클립 대신 `Stegosaurus_Death` 를 담고 있는 팩 자체의 오류가 있으며,
+임포터가 종 접두어를 무시하고 동작 접미어로 매칭하므로 문제없이 동작합니다.
 
 ## 사운드 / 음악
 
 | 애셋 | 제작자 | 라이선스 | 출처 | 사용처 |
 |---|---|---|---|---|
-| _(아직 없음)_ | | | | |
+| `sfx_bite/roar/death_{small,large}.wav` | 이 프로젝트 (절차적 생성) | 해당 없음 (자체 생성물) | [`ProceduralAudioBuilder.cs`](Assets/Editor/ProceduralAudioBuilder.cs) | 물기·포효·사망 효과음 |
+
+**서드파티 오디오를 쓰지 않았습니다.** 모든 효과음은 `Dino Battle > 5. Generate Creature Audio`
+가 합성해 WAV로 씁니다. 녹음 음원으로 교체할 때는 [`Docs/assets.md`](Docs/assets.md) 의
+CC0 소스를 쓰고 이 표에 한 줄 추가하세요.
 
 ## 텍스처 / VFX
 
 | 애셋 | 제작자 | 라이선스 | 출처 | 사용처 |
 |---|---|---|---|---|
-| _(아직 없음)_ | | | | |
+| _(없음 — 머티리얼은 전부 단색, 코드 생성)_ | | | | |
 
 ---
 

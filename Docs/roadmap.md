@@ -23,7 +23,19 @@
 
 ---
 
-## M1 — "실제로 공룡처럼 보인다"
+## M1 — "실제로 공룡처럼 보인다" ✅
+
+- [x] [Quaternius Animated Dinosaur Pack](https://quaternius.com/packs/animateddinosaurs.html) (CC0) 임포트
+- [x] Generic 리그, 루트 모션 off, 바운즈 기반 자동 스케일
+- [x] `Speed` 블렌드 트리 + `Attack`/`Die` 트리거 Animator Controller 종별 생성
+- [x] 6종 프리팹 비주얼 교체 — 로스터를 팩이 제공하는 종에 맞춰 재정의
+- [x] 사운드 — 외부 팩 대신 코드 합성 (물기/포효/사망 × 대·소)
+- [x] 아레나 배경 — 언덕·바위·지면 변화·거리 안개
+- [x] 자동 프레이밍 관전 카메라
+
+CC0 합성 오디오라 `ATTRIBUTIONS.md` 항목은 모델 팩만 필요합니다.
+
+## M1-b — 이전 M1 계획 (참고용)
 
 플레이스홀더 캡슐을 실물로 교체.
 
@@ -53,6 +65,17 @@
 - [ ] 저장 데이터 (`PlayerPrefs` → JSON)
 - [ ] 로스터 확장: Giganotosaurus, Carnotaurus, Pteranodon(공중 유닛)
 - [ ] 변종 시스템 — Bio / Zombie / Armored 접두어로 스탯 모디파이어
+
+## M2 — "전투가 재밌다" (부분 완료)
+
+- [x] 사망 애니메이션 (래그돌 대신 — 레퍼런스도 래그돌을 쓰지 않습니다)
+- [x] Reynolds steering 기반 전투 이동 (Arrive / Pursue / Separation)
+- [x] 체급 상호작용 — 작은 개체가 큰 개체에 기어올라 물어뜯기
+- [x] 전투 사운드 (합성)
+- [x] 자동 프레이밍 카메라
+- [ ] 타격 VFX — 피, 먼지, 히트 플래시
+- [ ] 배틀 로그 — "T-Rex가 Velociraptor를 물어 죽였다"
+- [ ] 밸런스 패스: 배속 x4로 각 매치업 10회 반복 후 조정
 
 ## M4 — "출시 가능"
 

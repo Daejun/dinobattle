@@ -4,6 +4,26 @@
 
 ## 0. 현재 상태
 
+**Android APK 빌드가 검증되었습니다.** 이 머신에서 실제로 생성·검사했습니다:
+
+```
+Build/Android/*.apk      약 22 MB
+minSdkVersion            26        (Unity 6.5 최소값)
+targetSdkVersion         36
+ABI                      arm64-v8a (네이티브 .so 7개)
+백엔드                    IL2CPP
+빌드 시간                 약 3분    (에러 0)
+```
+
+**실기 설치는 아직 못 했습니다** — `adb devices` 에 연결된 기기가 없습니다.
+USB 디버깅을 켠 기기를 연결하고 아래로 설치하세요:
+
+```bash
+"C:\Program Files\Unity\Hub\Editor\6000.5.0f1\Editor\Data\PlaybackEngines\AndroidPlayer\SDK\platform-tools\adb.exe" install -r Build/Android/dino-battle-1.0.apk
+```
+
+### 이전 상태 기록
+
 프로젝트 스캐폴드는 완성되어 있고, **툴체인은 아직 설치되지 않았습니다.**
 2026-07-25 시점 이 머신에서 확인된 상태:
 
@@ -96,10 +116,23 @@ Safe Mode로 진입했다면 manifest에 이 줄이 있는지 먼저 확인하�
 
 에디터 메뉴에서 **순서대로**:
 
-1. **Dino Battle → 1. Generate Sample Content**
-   → 공룡 6종의 `CreatureDefinition` + 플레이스홀더 프리팹 + 로스터 생성
-2. **Dino Battle → 2. Build Battle Scene**
-   → `Assets/Scenes/Arena.unity` 생성 (지형/조명/카메라/매니저/HUD 전부 배선됨) + Build Settings 등록
+| # | 메뉴 | 결과 |
+|---|---|---|
+| 4b | `Copy FBX From Cache` | 받은 팩에서 `.fbx`만 선별 복사 |
+| 4c | `Prepare Creature Animation` | 클립 루프 설정 + 종별 Animator Controller 생성 |
+| 5 | `Generate Creature Audio` | 물기·포효·사망 SFX 6종 합성 → WAV |
+| **1** | `Generate Sample Content` | 위 산출물을 써서 정의·프리팹·로스터 생성 |
+| **2** | `Build Battle Scene` | `Arena.unity` 생성 + Build Settings 등록 |
+| 3 | `Build Android APK / AAB` | 안드로이드 빌드 |
+
+번호가 순서와 어긋나는 건 메뉴가 나중에 늘어났기 때문입니다 — **위 표의 위에서 아래 순서**를 따르세요.
+1번과 2번만 실행해도 플레이는 됩니다 (모델·오디오 없이 플레이스홀더 캡슐).
+
+애셋 팩을 받지 않았다면 4b/4c는 건너뛰세요. **오디오는 외부 다운로드 없이 코드로 합성**되므로
+5번은 언제나 실행 가능합니다.
+
+자동화용으로는 `Dino Battle → Advanced → Build Battle Scene (no prompt)` 를 쓰세요 —
+2번은 확인 다이얼로그가 있어 배치 모드·CI·MCP 에이전트를 멈춰 세웁니다.
 
 씬을 손으로 고치지 말고, 레이아웃을 바꾸려면
 [`BattleSceneBuilder.cs`](../Assets/Editor/BattleSceneBuilder.cs) 를 수정하고 2번을 다시 실행하세요.
