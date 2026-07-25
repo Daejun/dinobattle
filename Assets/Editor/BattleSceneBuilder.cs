@@ -20,7 +20,12 @@ namespace DinoBattle.EditorTools
     public static class BattleSceneBuilder
     {
         private const string ScenePath = "Assets/Scenes/Arena.unity";
+
+        /// <summary>Playable area, bounded by invisible walls.</summary>
         private const float ArenaSize = 120f;
+
+        /// <summary>Ground plane size as a multiple of the arena, so scenery has land to stand on.</summary>
+        private const float GroundExtent = 4f;
 
         [MenuItem("Dino Battle/2. Build Battle Scene", priority = 101)]
         public static void Build()
@@ -65,9 +70,11 @@ namespace DinoBattle.EditorTools
 
         private static void CreateEnvironment()
         {
+            // Extends well past the playable arena. Sized to ArenaSize the plane ended right where the
+            // hills begin, so the horizon dressing floated over open space with a hard edge under it.
             var ground = GameObject.CreatePrimitive(PrimitiveType.Plane);
             ground.name = "Ground";
-            ground.transform.localScale = Vector3.one * (ArenaSize / 10f);
+            ground.transform.localScale = Vector3.one * (ArenaSize * GroundExtent / 10f);
             Tint(ground, new Color(0.24f, 0.28f, 0.20f));
 
             // Invisible walls so knockback cannot punt a raptor out of the arena.
@@ -100,6 +107,112 @@ namespace DinoBattle.EditorTools
             RenderSettings.ambientEquatorColor = new Color(0.42f, 0.44f, 0.42f);
             RenderSettings.ambientGroundColor = new Color(0.24f, 0.26f, 0.22f);
             RenderSettings.ambientIntensity = 1f;
+
+            // Distance fog hides the hard edge where the ground plane stops, which otherwise reads as
+            // the world simply ending a short walk away.
+            RenderSettings.fog = true;
+            RenderSettings.fogMode = FogMode.Linear;
+            RenderSettings.fogColor = new Color(0.62f, 0.66f, 0.70f);
+            RenderSettings.fogStartDistance = ArenaSize * 0.9f;
+            RenderSettings.fogEndDistance = ArenaSize * 2.6f;
+
+            CreateTerrainDressing();
+            RenderSettings.ambientIntensity = 1f;
+        }
+
+        /// <summary>
+        /// Rocks, boulders and a ring of hills, placed procedurally.
+        ///
+        /// Deterministic: the random stream is seeded, so rebuilding the scene reproduces the same
+        /// arena rather than reshuffling it under a diff. All of it is decoration parented under one
+        /// object and pushed outside the fighting area — the arena floor stays clear, since the
+        /// steering has no obstacle avoidance and would walk creatures straight into anything placed
+        /// in the middle.
+        /// </summary>
+        private static void CreateTerrainDressing()
+        {
+            var root = new GameObject("Environment").transform;
+
+            var random = new System.Random(20260725);
+            float Range(float min, float max) => min + (float)random.NextDouble() * (max - min);
+
+            float half = ArenaSize * 0.5f;
+
+            // Ring of hills beyond the boundary walls, giving the horizon something to sit against.
+            const int hillCount = 22;
+            for (int i = 0; i < hillCount; i++)
+            {
+                float angle = (i / (float)hillCount) * Mathf.PI * 2f + Range(-0.06f, 0.06f);
+                float radius = half * Range(1.3f, 2.2f);
+                float height = Range(18f, 42f);
+                float width = Range(60f, 130f);
+
+                var hill = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                hill.name = $"Hill_{i}";
+                Object.DestroyImmediate(hill.GetComponent<Collider>());
+                hill.transform.SetParent(root, false);
+
+                // Wide and mostly buried, so only a shallow cap shows. Narrow spheres sitting high
+                // read as beach balls on the horizon rather than landforms.
+                //
+                // The sphere's half-height is scale.y/2 = height * 1.5, so the cap that stays above
+                // ground is height * (1.5 - sink). Sink must be under 1.5 or the hill vanishes
+                // entirely — at 1.5-2.2 they were all at or below the ground plane, invisible.
+                float sink = Range(1.15f, 1.35f);
+                hill.transform.localPosition = new Vector3(
+                    Mathf.Cos(angle) * radius, -height * sink, Mathf.Sin(angle) * radius);
+                hill.transform.localScale = new Vector3(width, height * 3f, width * Range(0.8f, 1.3f));
+
+                TintShared(hill, Color.Lerp(
+                    new Color(0.26f, 0.31f, 0.24f), new Color(0.36f, 0.34f, 0.28f), (float)random.NextDouble()));
+            }
+
+            // Boulders hugging the arena edge. Colliders left on so a creature shoved outward hits
+            // something solid instead of sliding along an invisible wall.
+            const int boulderCount = 26;
+            for (int i = 0; i < boulderCount; i++)
+            {
+                float angle = Range(0f, Mathf.PI * 2f);
+                float radius = half * Range(0.82f, 0.97f);
+                // Kept small relative to the creatures. At 1.6-4.4 units against a 5-unit T-Rex these
+                // read as outbuildings rather than rocks.
+                float size = Range(0.9f, 2.4f);
+
+                var rock = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                rock.name = $"Boulder_{i}";
+                rock.transform.SetParent(root, false);
+                rock.transform.localPosition = new Vector3(
+                    Mathf.Cos(angle) * radius, size * Range(0.15f, 0.35f), Mathf.Sin(angle) * radius);
+                rock.transform.localRotation = Quaternion.Euler(Range(-18f, 18f), Range(0f, 360f), Range(-18f, 18f));
+                rock.transform.localScale = new Vector3(size, size * Range(0.5f, 0.9f), size * Range(0.7f, 1.2f));
+
+                // Darker than the ground, not lighter. Pale grey against green made them glow.
+                TintShared(rock, Color.Lerp(
+                    new Color(0.20f, 0.20f, 0.19f), new Color(0.30f, 0.29f, 0.26f), (float)random.NextDouble()));
+            }
+
+            // Flat scatter across the floor for a sense of scale underfoot. No colliders: these must
+            // never trip a charging creature.
+            const int patchCount = 40;
+            for (int i = 0; i < patchCount; i++)
+            {
+                float angle = Range(0f, Mathf.PI * 2f);
+                float radius = half * Range(0.05f, 0.9f);
+                float size = Range(2.5f, 7f);
+
+                var patch = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+                patch.name = $"GroundPatch_{i}";
+                Object.DestroyImmediate(patch.GetComponent<Collider>());
+                patch.transform.SetParent(root, false);
+                patch.transform.localPosition = new Vector3(
+                    Mathf.Cos(angle) * radius, 0.02f, Mathf.Sin(angle) * radius);
+                patch.transform.localScale = new Vector3(size, 0.01f, size * Range(0.6f, 1.4f));
+
+                // Kept close to the ground colour. Higher contrast turned these into obvious pale
+                // discs stamped on the field rather than subtle variation underfoot.
+                TintShared(patch, Color.Lerp(
+                    new Color(0.22f, 0.26f, 0.19f), new Color(0.27f, 0.30f, 0.21f), (float)random.NextDouble()));
+            }
         }
 
         private static OrbitCameraController CreateCamera()
@@ -112,7 +225,10 @@ namespace DinoBattle.EditorTools
             camera.farClipPlane = 600f;
 
             cameraObject.AddComponent<AudioListener>();
-            return cameraObject.AddComponent<OrbitCameraController>();
+
+            var rig = cameraObject.AddComponent<OrbitCameraController>();
+            cameraObject.AddComponent<BattleCameraDirector>();
+            return rig;
         }
 
         // ---------------------------------------------------------------- managers
@@ -326,6 +442,40 @@ namespace DinoBattle.EditorTools
             rect.anchorMax = anchorMax;
             rect.offsetMin = Vector2.zero;
             rect.offsetMax = Vector2.zero;
+        }
+
+        /// <summary>
+        /// Colour a decoration using a shared, quantised palette material.
+        ///
+        /// The dressing is ~90 objects. One material asset each would mean ninety near-identical
+        /// files and ninety draw-call batches; rounding the colour to a coarse step collapses them
+        /// onto a handful of reused assets instead, which also lets them batch.
+        /// </summary>
+        private static void TintShared(GameObject target, Color color)
+        {
+            if (!target.TryGetComponent<Renderer>(out var renderer)) return;
+
+            int r = Mathf.RoundToInt(color.r * 12f);
+            int g = Mathf.RoundToInt(color.g * 12f);
+            int b = Mathf.RoundToInt(color.b * 12f);
+
+            SampleContentBuilder.EnsureFolder("Assets/Art");
+            SampleContentBuilder.EnsureFolder("Assets/Art/Materials");
+            string path = $"Assets/Art/Materials/Env_Palette_{r}_{g}_{b}.mat";
+
+            var material = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (material == null)
+            {
+                material = new Material(renderer.sharedMaterial);
+                AssetDatabase.CreateAsset(material, path);
+            }
+
+            var quantised = new Color(r / 12f, g / 12f, b / 12f);
+            if (material.HasProperty("_BaseColor")) material.SetColor("_BaseColor", quantised);
+            if (material.HasProperty("_Color")) material.SetColor("_Color", quantised);
+            EditorUtility.SetDirty(material);
+
+            renderer.sharedMaterial = material;
         }
 
         private static void Tint(GameObject target, Color color)

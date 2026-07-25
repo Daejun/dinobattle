@@ -16,7 +16,11 @@ namespace DinoBattle.UI
         [Tooltip("Hide the bar entirely while the creature is at full health.")]
         [SerializeField] private bool hideWhenFull = true;
 
-        [SerializeField] private Gradient colorByHealth;
+        [Tooltip("Fill colour at full health.")]
+        [SerializeField] private Color healthyColor = new(0.30f, 0.80f, 0.25f);
+
+        [Tooltip("Fill colour as health approaches zero.")]
+        [SerializeField] private Color criticalColor = new(0.85f, 0.18f, 0.10f);
 
         private Camera activeCamera;
         private Vector3 fillBaseScale = Vector3.one;
@@ -53,9 +57,10 @@ namespace DinoBattle.UI
 
             if (fillRenderer == null) return;
 
-            Color tint = colorByHealth != null && colorByHealth.colorKeys.Length > 0
-                ? colorByHealth.Evaluate(normalized)
-                : Color.Lerp(Color.red, Color.green, normalized);
+            // Two plain colours rather than a Gradient. A serialized Gradient defaults to two WHITE
+            // keys, so "has any colour keys" was always true and every bar evaluated to white — the
+            // fill looked unpainted no matter what the prefab builder set.
+            Color tint = Color.Lerp(criticalColor, healthyColor, normalized);
 
             if (fillRenderer.material.HasProperty("_BaseColor")) fillRenderer.material.SetColor("_BaseColor", tint);
             else if (fillRenderer.material.HasProperty("_Color")) fillRenderer.material.SetColor("_Color", tint);

@@ -26,7 +26,7 @@ Transform:
   m_GameObject: {fileID: 176616891618139173}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 3.8, z: 0}
+  m_LocalPosition: {x: 0, y: 2.4699998, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -49,37 +49,9 @@ MonoBehaviour:
   health: {fileID: 693728245895814818}
   fill: {fileID: 3159208125603093070}
   fillRenderer: {fileID: 5234341670416471597}
-  hideWhenFull: 1
-  colorByHealth:
-    serializedVersion: 2
-    key0: {r: 1, g: 1, b: 1, a: 1}
-    key1: {r: 1, g: 1, b: 1, a: 1}
-    key2: {r: 0, g: 0, b: 0, a: 0}
-    key3: {r: 0, g: 0, b: 0, a: 0}
-    key4: {r: 0, g: 0, b: 0, a: 0}
-    key5: {r: 0, g: 0, b: 0, a: 0}
-    key6: {r: 0, g: 0, b: 0, a: 0}
-    key7: {r: 0, g: 0, b: 0, a: 0}
-    ctime0: 0
-    ctime1: 65535
-    ctime2: 0
-    ctime3: 0
-    ctime4: 0
-    ctime5: 0
-    ctime6: 0
-    ctime7: 0
-    atime0: 0
-    atime1: 65535
-    atime2: 0
-    atime3: 0
-    atime4: 0
-    atime5: 0
-    atime6: 0
-    atime7: 0
-    m_Mode: 0
-    m_ColorSpace: -1
-    m_NumColorKeys: 2
-    m_NumAlphaKeys: 2
+  hideWhenFull: 0
+  healthyColor: {r: 0.3, g: 0.8, b: 0.25, a: 1}
+  criticalColor: {r: 0.85, g: 0.18, b: 0.1, a: 1}
 --- !u!1 &2870443527841078448
 GameObject:
   m_ObjectHideFlags: 0
@@ -244,6 +216,7 @@ MonoBehaviour:
   circleSpeedFactor: 0.45
   separationRadius: 3.5
   separationWeight: 1.1
+  meleeSeparationWeight: 0.15
   slowingRadius: 6
   animator: {fileID: 7821530261151726921}
   speedParameterName: Speed
@@ -334,7 +307,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 4, y: 0.28, z: 1}
+  m_LocalScale: {x: 2, y: 0.14, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 2021502157977800936}
@@ -452,8 +425,8 @@ Transform:
   m_GameObject: {fileID: 5669831482600790380}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -2, y: 0, z: -0.02}
-  m_LocalScale: {x: 3.8999999, y: 0.22, z: 1}
+  m_LocalPosition: {x: -1, y: 0, z: -0.02}
+  m_LocalScale: {x: 2, y: 0.112, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 835934291254633752}

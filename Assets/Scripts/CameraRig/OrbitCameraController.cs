@@ -37,6 +37,7 @@ namespace DinoBattle.CameraRig
         private float targetDistance;
         private Vector2 lastPointer;
         private float lastPinchDistance;
+        private Camera attachedCamera;
 
         private void Awake()
         {
@@ -44,6 +45,7 @@ namespace DinoBattle.CameraRig
             targetYaw = yaw;
             targetPitch = pitch;
             targetDistance = distance;
+            attachedCamera = GetComponent<Camera>();
         }
 
         /// <summary>Re-center the orbit, e.g. on the creature that just won.</summary>
@@ -52,6 +54,17 @@ namespace DinoBattle.CameraRig
             targetPivot = ClampToArena(worldPoint);
             if (newDistance.HasValue) targetDistance = Mathf.Clamp(newDistance.Value, minDistance, maxDistance);
         }
+
+        /// <summary>Time.unscaledTime of the last orbit, pan or zoom the player performed.</summary>
+        public float LastManualInputTime { get; private set; } = float.NegativeInfinity;
+
+        /// <summary>Vertical field of view, needed to work out how far back a given radius has to sit.</summary>
+        public float VerticalFieldOfView => attachedCamera != null ? attachedCamera.fieldOfView : 60f;
+
+        public float Aspect => attachedCamera != null ? attachedCamera.aspect : 16f / 9f;
+
+        public float MinDistance => minDistance;
+        public float MaxDistance => maxDistance;
 
         private void Update()
         {
@@ -121,17 +134,23 @@ namespace DinoBattle.CameraRig
 
         private void Orbit(Vector2 delta)
         {
+            if (delta.sqrMagnitude > 0.01f) LastManualInputTime = Time.unscaledTime;
+
             targetYaw += delta.x * orbitSensitivity;
             targetPitch -= delta.y * orbitSensitivity;
         }
 
         private void Zoom(float amount)
         {
+            if (Mathf.Abs(amount) > 0.001f) LastManualInputTime = Time.unscaledTime;
+
             targetDistance += amount * Mathf.Max(1f, targetDistance * 0.05f);
         }
 
         private void Pan(Vector2 delta)
         {
+            if (delta.sqrMagnitude > 0.01f) LastManualInputTime = Time.unscaledTime;
+
             // Pan in the camera's ground plane, scaled by distance so it feels the same at any zoom.
             Quaternion flat = Quaternion.Euler(0f, targetYaw, 0f);
             Vector3 move = flat * new Vector3(-delta.x, 0f, -delta.y) * (targetDistance * 0.0015f);

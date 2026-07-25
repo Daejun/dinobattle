@@ -301,20 +301,31 @@ namespace DinoBattle.EditorTools
 
         private static void AddHealthBar(GameObject root, CreatureBlueprint blueprint, string safeName)
         {
+            // Styled after the reference game: a short bar at mid-body height, not a wide banner over
+            // the head. Sized to a fraction of body length so a raptor's marker is not as wide as a
+            // T-Rex's, and kept small enough that a scrum of creatures does not become a wall of bars.
+            const float barLength = 0.4f;
+            const float barThickness = 0.14f;
+
             var bar = new GameObject(CreatureRig.HealthBar);
             bar.transform.SetParent(root.transform, false);
-            bar.transform.localPosition = new Vector3(0f, blueprint.BodySize.y + 1.2f, 0f);
+            bar.transform.localPosition = new Vector3(0f, blueprint.BodySize.y * 0.95f, 0f);
+
+            float width = blueprint.BodySize.z * barLength;
 
             var background = GameObject.CreatePrimitive(PrimitiveType.Quad);
             background.name = "Background";
             Object.DestroyImmediate(background.GetComponent<Collider>());
             background.transform.SetParent(bar.transform, false);
-            background.transform.localScale = new Vector3(blueprint.BodySize.z * 0.8f, 0.28f, 1f);
-            TintRenderer(background, new Color(0.06f, 0.06f, 0.08f), safeName);
+            background.transform.localScale = new Vector3(width, barThickness, 1f);
+
+            // Warm dark red behind the fill, so the drained portion reads as damage taken rather than
+            // as empty space — the same green-over-orange treatment the reference uses.
+            TintRenderer(background, new Color(0.42f, 0.13f, 0.06f), safeName);
 
             var fillPivot = new GameObject("FillPivot");
             fillPivot.transform.SetParent(bar.transform, false);
-            fillPivot.transform.localPosition = new Vector3(-blueprint.BodySize.z * 0.4f, 0f, -0.02f);
+            fillPivot.transform.localPosition = new Vector3(-width * 0.5f, 0f, -0.02f);
 
             var fill = GameObject.CreatePrimitive(PrimitiveType.Quad);
             fill.name = "Fill";
@@ -323,15 +334,19 @@ namespace DinoBattle.EditorTools
             // Pivot the quad at its left edge so scaling X drains the bar from the right.
             fill.transform.localPosition = new Vector3(0.5f, 0f, 0f);
             fill.transform.localScale = Vector3.one;
-            TintRenderer(fill, new Color(0.25f, 0.85f, 0.35f), safeName);
+            TintRenderer(fill, new Color(0.30f, 0.80f, 0.25f), safeName);
 
-            fillPivot.transform.localScale = new Vector3(blueprint.BodySize.z * 0.78f, 0.22f, 1f);
+            fillPivot.transform.localScale = new Vector3(width, barThickness * 0.8f, 1f);
 
             var billboard = bar.AddComponent<HealthBarBillboard>();
             var serialized = new SerializedObject(billboard);
             serialized.FindProperty("health").objectReferenceValue = root.GetComponent<Health>();
             serialized.FindProperty("fill").objectReferenceValue = fillPivot.transform;
             serialized.FindProperty("fillRenderer").objectReferenceValue = fill.GetComponent<Renderer>();
+
+            // Always on, like the reference. Hiding full bars makes a fresh army look unselectable and
+            // gives no read on who has not been touched yet.
+            serialized.FindProperty("hideWhenFull").boolValue = false;
             serialized.ApplyModifiedPropertiesWithoutUndo();
         }
 
