@@ -71,3 +71,21 @@ The two bites share a source deliberately: built from different takes they came 
 one darker than the large, because the loudest slice of one happened to be duller. Sharing a source
 makes the size difference a property of the pitch alone. Every pair is now verified small-brighter:
 roar 1.86x, bite 1.52x, death 1.56x.
+
+## Arena vegetation
+
+Models: **Quaternius** — [Ultimate Stylized Nature Pack](https://quaternius.com/packs/ultimatestylizednature.html),
+CC0 1.0 Universal (public domain). Same author as the dinosaur pack, which is why the scenery and the
+creatures look like they belong in the same game.
+
+Fetched from the mirror [walterpalladino/godot-quaternius-ultimate-stylized-nature](https://github.com/walterpalladino/godot-quaternius-ultimate-stylized-nature)
+(repackaging MIT © 2025 Walter H. Palladino; the models themselves remain Quaternius CC0).
+
+17 FBX files, 588 KB total: `PalmTree_1..5`, `Plant_1..2`, `Bush`, `Bush_Large`, `Bush_Small`,
+`Grass_Large`, `Grass_Small`, `Rock_1..5`. In `Assets/Art/Models/Nature/`.
+
+**Textures were deliberately not downloaded** — the pack's bark maps are over 20 MB each, and the
+creatures are flat-shaded, so photographic bark beside them would look like two games spliced
+together. `BattleSceneBuilder.PaintModel` assigns flat colours per material slot instead, splitting
+foliage from wood by material name. Colours are quantised to a 12-step palette so several hundred
+scenery objects share 21 materials and still static-batch.

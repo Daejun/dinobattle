@@ -40,6 +40,9 @@ namespace DinoBattle.EditorTools
         /// <summary>Ground plane size as a multiple of the arena, so scenery has land to stand on.</summary>
         private const float GroundExtent = 4f;
 
+        /// <summary>CC0 vegetation used to dress the arena. See ATTRIBUTIONS.md.</summary>
+        private const string NatureFolder = "Assets/Art/Models/Nature";
+
         [MenuItem("Dino Battle/2. Build Battle Scene", priority = 101)]
         public static void Build()
         {
@@ -90,7 +93,7 @@ namespace DinoBattle.EditorTools
             var ground = GameObject.CreatePrimitive(PrimitiveType.Plane);
             ground.name = "Ground";
             ground.transform.localScale = Vector3.one * (ArenaSize * GroundExtent / 10f);
-            Tint(ground, new Color(0.24f, 0.28f, 0.20f));
+            Tint(ground, new Color(0.19f, 0.22f, 0.14f));
 
             CreateCircularBoundary();
 
@@ -101,7 +104,8 @@ namespace DinoBattle.EditorTools
             // Hard, not soft. Soft shadows are among the most expensive things a mobile GPU can be
             // asked for, and against flat-shaded low-poly models the difference barely registers.
             light.shadows = LightShadows.Hard;
-            light.color = new Color(1f, 0.96f, 0.88f);
+            // Warm and faintly green — daylight that has come through a canopy, not open sky.
+            light.color = new Color(1f, 0.97f, 0.82f);
             sun.transform.rotation = Quaternion.Euler(48f, 34f, 0f);
 
             // A code-built scene has no skybox, and Unity's default ambient source IS the skybox — so
@@ -109,16 +113,18 @@ namespace DinoBattle.EditorTools
             // black. The creatures looked like silhouettes for exactly this reason. An explicit
             // trilight gradient restores the fill light a skybox would normally provide.
             RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Trilight;
-            RenderSettings.ambientSkyColor = new Color(0.55f, 0.60f, 0.68f);
-            RenderSettings.ambientEquatorColor = new Color(0.42f, 0.44f, 0.42f);
-            RenderSettings.ambientGroundColor = new Color(0.24f, 0.26f, 0.22f);
+            RenderSettings.ambientSkyColor = new Color(0.50f, 0.58f, 0.52f);
+            RenderSettings.ambientEquatorColor = new Color(0.36f, 0.42f, 0.33f);
+            RenderSettings.ambientGroundColor = new Color(0.20f, 0.23f, 0.17f);
             RenderSettings.ambientIntensity = 1f;
 
             // Distance fog hides the hard edge where the ground plane stops, which otherwise reads as
             // the world simply ending a short walk away.
             RenderSettings.fog = true;
             RenderSettings.fogMode = FogMode.Linear;
-            RenderSettings.fogColor = new Color(0.62f, 0.66f, 0.70f);
+            // Humid green haze. A grey-blue fog reads as an overcast field; the colour of the air is
+            // most of what separates "jungle" from "somewhere with trees on it".
+            RenderSettings.fogColor = new Color(0.58f, 0.66f, 0.56f);
             RenderSettings.fogStartDistance = ArenaSize * 0.9f;
             RenderSettings.fogEndDistance = ArenaSize * 2.6f;
 
@@ -237,6 +243,155 @@ namespace DinoBattle.EditorTools
             }
         }
 
+        private static readonly string[] RockModels = { "Rock_1", "Rock_2", "Rock_3", "Rock_4", "Rock_5" };
+        private static readonly string[] PalmModels = { "PalmTree_1", "PalmTree_2", "PalmTree_3", "PalmTree_4", "PalmTree_5" };
+        private static readonly string[] BushModels = { "Bush", "Bush_Large", "Bush_Small" };
+        private static readonly string[] GroundModels = { "Grass_Large", "Grass_Small", "Plant_1", "Plant_2" };
+
+        /// <summary>
+        /// Dress the arena as a jungle clearing.
+        ///
+        /// The old dressing was tinted primitives — spheres for hills, cubes for rocks — and it read
+        /// as exactly that. What makes somewhere feel like jungle is not detail on the floor but
+        /// enclosure: a wall of canopy on every side, so the arena is a clearing that something cut
+        /// out of a forest rather than an open field with objects on it.
+        ///
+        /// Hence the layout. A dense double ring of palms just past the boundary forms the wall,
+        /// undergrowth banks up in front of it to hide the join between trunk and ground, and only
+        /// small flat things go inside the ring.
+        ///
+        /// Nothing here gets a collider, inside the ring or out. The steering has no obstacle
+        /// avoidance, and the arena's hard-won rule is that a creature can never meet anything solid
+        /// except the boundary wall.
+        /// </summary>
+        private static void CreateJungle(Transform root, System.Random random, System.Func<float, float, float> Range)
+        {
+            if (AssetDatabase.LoadAssetAtPath<GameObject>($"{NatureFolder}/PalmTree_1.fbx") == null)
+            {
+                Debug.LogWarning($"[BattleSceneBuilder] No vegetation in {NatureFolder}; " +
+                                 "the arena will be bare. See ATTRIBUTIONS.md for the source models.");
+                return;
+            }
+
+            // Canopy wall. Two staggered rings rather than one: a single ring of trunks has gaps you
+            // can see straight through, and the horizon showing between them undoes the enclosure the
+            // trees are there to create.
+            const int palmCount = 56;
+            for (int i = 0; i < palmCount; i++)
+            {
+                float angle = i / (float)palmCount * Mathf.PI * 2f + Range(-0.04f, 0.04f);
+                // Both rings clear the camera. The placement view orbits out to about 28 units
+                // horizontally, and at 1.16/1.40 the rings landed at 25.5 and 30.8 — putting the
+                // camera between them, so half the screen was foreground fronds and the fight was
+                // behind a tree. Everything the player looks through has to sit outside that.
+                float ring = i % 2 == 0 ? 1.50f : 1.80f;
+                float radius = ArenaRadius * ring * Range(0.97f, 1.05f);
+
+                var palm = PlaceModel(root, PalmModels[random.Next(PalmModels.Length)], $"Palm_{i}",
+                    new Vector3(Mathf.Cos(angle) * radius, -0.2f, Mathf.Sin(angle) * radius),
+                    Range(0f, 360f), Range(1.5f, 2.6f));
+
+                if (palm == null) continue;
+
+                // Leaves vary a lot, trunks barely at all. Real canopy is a patchwork of greens
+                // because every crown catches a different amount of light, while the trunks below are
+                // all in the same shade.
+                PaintModel(palm,
+                    Color.Lerp(new Color(0.13f, 0.30f, 0.14f), new Color(0.28f, 0.46f, 0.19f), (float)random.NextDouble()),
+                    Color.Lerp(new Color(0.24f, 0.19f, 0.14f), new Color(0.32f, 0.26f, 0.19f), (float)random.NextDouble()));
+            }
+
+            // Undergrowth banked against the treeline, covering where the trunks meet the ground.
+            const int bushCount = 60;
+            for (int i = 0; i < bushCount; i++)
+            {
+                float angle = Range(0f, Mathf.PI * 2f);
+                float radius = ArenaRadius * Range(1.38f, 1.75f);
+
+                var bush = PlaceModel(root, BushModels[random.Next(BushModels.Length)], $"Bush_{i}",
+                    new Vector3(Mathf.Cos(angle) * radius, -0.1f, Mathf.Sin(angle) * radius),
+                    Range(0f, 360f), Range(1.4f, 3.2f));
+
+                if (bush == null) continue;
+
+                Color leaf = Color.Lerp(new Color(0.11f, 0.26f, 0.13f), new Color(0.24f, 0.40f, 0.17f), (float)random.NextDouble());
+                PaintModel(bush, leaf, leaf);
+            }
+
+            // Inside the ring: only low ground cover, and none of it near the middle where the fight
+            // happens. Anything tall enough to hide a creature defeats the point of watching.
+            const int groundCount = 44;
+            for (int i = 0; i < groundCount; i++)
+            {
+                float angle = Range(0f, Mathf.PI * 2f);
+                float radius = ArenaRadius * Range(0.45f, 0.97f);
+
+                var plant = PlaceModel(root, GroundModels[random.Next(GroundModels.Length)], $"Undergrowth_{i}",
+                    new Vector3(Mathf.Cos(angle) * radius, 0f, Mathf.Sin(angle) * radius),
+                    Range(0f, 360f), Range(0.8f, 1.6f));
+
+                if (plant == null) continue;
+
+                Color leaf = Color.Lerp(new Color(0.16f, 0.31f, 0.15f), new Color(0.30f, 0.44f, 0.20f), (float)random.NextDouble());
+                PaintModel(plant, leaf, leaf);
+            }
+        }
+
+        /// <summary>
+        /// Drop a nature model into the scene, stripped of anything that could interfere with play.
+        /// Returns null when the model is missing, so a clone without the art degrades to a bare
+        /// arena instead of throwing.
+        /// </summary>
+        private static GameObject PlaceModel(
+            Transform parent, string modelName, string instanceName, Vector3 position, float yaw, float scale)
+        {
+            var source = AssetDatabase.LoadAssetAtPath<GameObject>($"{NatureFolder}/{modelName}.fbx");
+            if (source == null) return null;
+
+            var instance = (GameObject)PrefabUtility.InstantiatePrefab(source, parent);
+            instance.name = instanceName;
+            instance.transform.localPosition = position;
+            instance.transform.localRotation = Quaternion.Euler(0f, yaw, 0f);
+            instance.transform.localScale = Vector3.one * scale;
+
+            // Belt and braces: FBX import does not generate colliders by default, but a single
+            // stray collider inside the ring is the bug that made fights silently stall, and it is
+            // not worth depending on an import setting nobody will remember to check.
+            foreach (var collider in instance.GetComponentsInChildren<Collider>(true))
+            {
+                Object.DestroyImmediate(collider);
+            }
+
+            return instance;
+        }
+
+        /// <summary>
+        /// Flat-colour a nature model, splitting foliage from wood by material name.
+        ///
+        /// The source pack is textured, and its textures are 20MB bark maps we deliberately did not
+        /// download — so the materials arrive with nothing bound and render white. Painting them flat
+        /// is not a workaround for that, it is the point: the creatures are flat-shaded, and scenery
+        /// carrying photographic bark next to them would look like two games spliced together.
+        /// </summary>
+        private static void PaintModel(GameObject target, Color foliage, Color wood)
+        {
+            foreach (var renderer in target.GetComponentsInChildren<Renderer>(true))
+            {
+                var materials = renderer.sharedMaterials;
+                var painted = new Material[materials.Length];
+
+                for (int i = 0; i < materials.Length; i++)
+                {
+                    string name = materials[i] != null ? materials[i].name : string.Empty;
+
+                    bool isWood = name.Contains("Trunk") || name.Contains("Bark") || name.Contains("Wood");
+                    painted[i] = SharedEnvironmentMaterial(isWood ? wood : foliage);
+                }
+
+                renderer.sharedMaterials = painted;
+            }
+        }
+
         private static void CreateTerrainDressing()
         {
             var root = new GameObject("Environment").transform;
@@ -275,7 +430,7 @@ namespace DinoBattle.EditorTools
                 hill.transform.localScale = new Vector3(width, height * 3f, width * Range(0.8f, 1.3f));
 
                 TintShared(hill, Color.Lerp(
-                    new Color(0.26f, 0.31f, 0.24f), new Color(0.36f, 0.34f, 0.28f), (float)random.NextDouble()));
+                    new Color(0.17f, 0.26f, 0.17f), new Color(0.25f, 0.33f, 0.21f), (float)random.NextDouble()));
             }
 
             // Boulders ringing the arena from OUTSIDE the boundary, so they dress the edge without
@@ -292,30 +447,19 @@ namespace DinoBattle.EditorTools
                 // screen with no explanation.
                 float radius = half * Range(1.5f, 2.1f);
 
-                // Kept small relative to the creatures. At 1.6-4.4 units against a 5-unit T-Rex these
-                // read as outbuildings rather than rocks.
-                float size = Range(0.9f, 2.4f);
+                var rock = PlaceModel(root, RockModels[i % RockModels.Length], $"Boulder_{i}",
+                    new Vector3(Mathf.Cos(angle) * radius, -0.15f, Mathf.Sin(angle) * radius),
+                    Range(0f, 360f), Range(1.2f, 2.6f));
 
-                var rock = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                rock.name = $"Boulder_{i}";
-                Object.DestroyImmediate(rock.GetComponent<Collider>());
-                rock.transform.SetParent(root, false);
-
-                float height = size * Range(0.5f, 0.9f);
-                float tilt = Range(-18f, 18f);
-
-                // Bed them into the ground. Positioning by an arbitrary fraction of size left rocks
-                // hovering with daylight underneath; half the height minus a bite sinks them so the
-                // base is buried whatever the tilt does to the corners.
-                rock.transform.localPosition = new Vector3(
-                    Mathf.Cos(angle) * radius, height * 0.5f - size * 0.18f, Mathf.Sin(angle) * radius);
-                rock.transform.localRotation = Quaternion.Euler(tilt, Range(0f, 360f), tilt * 0.5f);
-                rock.transform.localScale = new Vector3(size, height, size * Range(0.7f, 1.2f));
-
-                // Darker than the ground, not lighter. Pale grey against green made them glow.
-                TintShared(rock, Color.Lerp(
-                    new Color(0.20f, 0.20f, 0.19f), new Color(0.30f, 0.29f, 0.26f), (float)random.NextDouble()));
+                if (rock != null)
+                {
+                    Color stone = Color.Lerp(
+                        new Color(0.26f, 0.25f, 0.22f), new Color(0.36f, 0.34f, 0.29f), (float)random.NextDouble());
+                    PaintModel(rock, stone, stone);
+                }
             }
+
+            CreateJungle(root, random, Range);
 
             // Flat scatter across the floor for a sense of scale underfoot. No colliders: these must
             // never trip a charging creature.
@@ -351,7 +495,7 @@ namespace DinoBattle.EditorTools
                 // Within a hair of the ground colour (0.24, 0.28, 0.20). The previous spread was wide
                 // enough to see each disc's outline, which is what made them read as stains.
                 TintShared(patch, Color.Lerp(
-                    new Color(0.235f, 0.272f, 0.196f), new Color(0.252f, 0.290f, 0.208f), (float)random.NextDouble()));
+                    new Color(0.155f, 0.175f, 0.105f), new Color(0.175f, 0.200f, 0.125f), (float)random.NextDouble()));
             }
         }
 
@@ -370,7 +514,7 @@ namespace DinoBattle.EditorTools
             // the horizon genuinely dissolve — the ground fades into a sky of the same value and
             // there is no edge left to see. Ambient light is Trilight, so nothing needs the skybox.
             camera.clearFlags = CameraClearFlags.SolidColor;
-            camera.backgroundColor = new Color(0.62f, 0.66f, 0.70f);
+            camera.backgroundColor = new Color(0.58f, 0.66f, 0.56f);
 
             // 200, not 600. Nothing in this scene is further away than the outer hills at roughly 60
             // units, and a 0.3-to-600 depth range wastes precision on empty space — precision that
@@ -637,6 +781,19 @@ namespace DinoBattle.EditorTools
         {
             if (!target.TryGetComponent<Renderer>(out var renderer)) return;
 
+            renderer.sharedMaterial = SharedEnvironmentMaterial(color);
+        }
+
+        /// <summary>
+        /// A shared opaque material for the requested colour, created once and reused.
+        ///
+        /// Colours are quantised to a 12-step palette before lookup, so the hundreds of randomised
+        /// tints across the scenery collapse onto a few dozen assets. That is what lets the whole
+        /// environment static-batch: two objects only ever share a batch if they share a material,
+        /// and a unique material per rock would mean a draw call per rock.
+        /// </summary>
+        private static Material SharedEnvironmentMaterial(Color color)
+        {
             int r = Mathf.RoundToInt(color.r * 12f);
             int g = Mathf.RoundToInt(color.g * 12f);
             int b = Mathf.RoundToInt(color.b * 12f);
@@ -648,16 +805,21 @@ namespace DinoBattle.EditorTools
             var material = AssetDatabase.LoadAssetAtPath<Material>(path);
             if (material == null)
             {
-                material = new Material(renderer.sharedMaterial);
+                material = new Material(Shader.Find("Standard"));
                 AssetDatabase.CreateAsset(material, path);
             }
 
             var quantised = new Color(r / 12f, g / 12f, b / 12f);
             if (material.HasProperty("_BaseColor")) material.SetColor("_BaseColor", quantised);
             if (material.HasProperty("_Color")) material.SetColor("_Color", quantised);
-            EditorUtility.SetDirty(material);
 
-            renderer.sharedMaterial = material;
+            // Vegetation and rock are matte. Standard defaults to half smoothness, which put a
+            // plastic sheen on every leaf in the canopy.
+            if (material.HasProperty("_Glossiness")) material.SetFloat("_Glossiness", 0.05f);
+            if (material.HasProperty("_Smoothness")) material.SetFloat("_Smoothness", 0.05f);
+
+            EditorUtility.SetDirty(material);
+            return material;
         }
 
         private static void Tint(GameObject target, Color color)
