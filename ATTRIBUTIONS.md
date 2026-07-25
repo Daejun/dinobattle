@@ -45,3 +45,25 @@ CC0 소스를 쓰고 이 표에 한 줄 추가하세요.
 | Animated Dinosaur Pack | Quaternius | CC0 1.0 | https://quaternius.com/packs/animateddinosaurs.html | 공룡 6종 모델 + 애니메이션 |
 | CC0 Deep Monster Roar | rubberduck | CC0 1.0 | https://opengameart.org/content/cc0-deep-monster-roar | T-Rex 포효 SFX |
 ```
+
+## Creature audio
+
+Source: [CC0-Public-Domain-Sounds](https://github.com/lavenderdotpet/CC0-Public-Domain-Sounds)
+by lavender.pet — CC0 1.0 Universal (public domain, no attribution required; recorded here anyway).
+
+Only the six files below were taken; the rest of the ~1.2 GB library was never downloaded. Originals
+are cached in `.assets-cache/cc0-sounds/` (gitignored) and are unmodified.
+
+| In-game slot | Original file | Length | Spectral centroid |
+|---|---|---|---|
+| `sfx_roar_large`  | `80-CC0-creature-SFX/monster_04.ogg`   | 1.28s | 135 Hz |
+| `sfx_roar_small`  | `80-CC0-creature-SFX/roar_03.ogg`      | 0.46s | 701 Hz |
+| `sfx_bite_large`  | `80-CC0-creature-sfx-2/attack_01.ogg`  | 0.19s | 502 Hz |
+| `sfx_bite_small`  | `80-CC0-creature-sfx-2/attack_05.ogg`  | 0.13s | 784 Hz |
+| `sfx_death_large` | `80-CC0-creature-sfx-2/die_03.ogg`     | 0.66s | 259 Hz |
+| `sfx_death_small` | `80-CC0-creature-sfx-2/die_01.ogg`     | 0.47s | 592 Hz |
+
+Chosen by measurement rather than by ear — duration, RMS and spectral centroid across 22 candidates,
+picking the deepest and longest for the heavy creatures and shorter, brighter ones for the light.
+The large/small roar pair differs by 5.2x in centroid, which is what carries the size difference.
+Nobody has listened to these yet; swap any that do not suit.

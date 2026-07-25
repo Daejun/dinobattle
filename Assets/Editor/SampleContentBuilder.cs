@@ -273,7 +273,17 @@ namespace DinoBattle.EditorTools
         private static AudioClip LoadClip(CreatureBlueprint blueprint, string kind)
         {
             string size = blueprint.Mass >= 4000f ? "large" : "small";
-            return AssetDatabase.LoadAssetAtPath<AudioClip>($"Assets/Audio/SFX/sfx_{kind}_{size}.wav");
+
+            // .ogg first. The real CC0 recordings land as .ogg and the procedural fallback writes
+            // .wav, so preferring ogg means downloaded audio wins automatically wherever it exists
+            // and a fresh clone without it still gets sound from the generator.
+            foreach (string extension in new[] { "ogg", "wav" })
+            {
+                var clip = AssetDatabase.LoadAssetAtPath<AudioClip>($"Assets/Audio/SFX/sfx_{kind}_{size}.{extension}");
+                if (clip != null) return clip;
+            }
+
+            return null;
         }
 
         /// <summary>

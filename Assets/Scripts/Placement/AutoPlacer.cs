@@ -138,6 +138,34 @@ namespace DinoBattle.Placement
         /// which is both how you would actually deploy and what stops a pack of raptors being
         /// deleted before the bruisers arrive.
         /// </summary>
+        /// <summary>
+        /// A clear spot on the given bearing, searched outward and inward from the ideal radius.
+        ///
+        /// Outward first: the deployment line faces the enemy, so pushing a crowded creature back
+        /// deepens the formation, while pulling it forward would shove it out in front alone.
+        /// </summary>
+        private bool TryFindFreeSpot(float angle, float idealRadius, float footprint, out Vector3 position)
+        {
+            Vector3 ray = new(Mathf.Cos(angle), 0f, Mathf.Sin(angle));
+            float step = footprint * 0.9f + 0.4f;
+
+            for (int attempt = 0; attempt < 10; attempt++)
+            {
+                // 0, +1, -1, +2, -2 ... in steps along the ray. Integer division gives the pair index
+                // and the sign alternates, so the search fans out evenly from the ideal spot.
+                float offset = (attempt + 1) / 2 * step * (attempt % 2 == 1 ? 1f : -1f);
+
+                float radius = idealRadius + offset;
+                if (radius < footprint || radius > arenaRadius - footprint) continue;
+
+                position = ray * radius;
+                if (battleManager.Loadout.IsSpotFree(position, footprint)) return true;
+            }
+
+            position = ray * idealRadius;
+            return false;
+        }
+
         private void PlaceArmy(List<CreatureDefinition> army, Team team, float facingDegrees)
         {
             if (army.Count == 0) return;
@@ -162,7 +190,13 @@ namespace DinoBattle.Placement
 
                 Vector3 position = new(Mathf.Cos(angle) * radius, 0f, Mathf.Sin(angle) * radius);
 
-                if (!battleManager.Loadout.IsSpotFree(position, definition.footprintRadius)) continue;
+                // Shuffle along the ray rather than dropping the creature.
+                //
+                // This used to skip any pick whose slot was taken, which quietly deleted units the
+                // budget had already been spent on. It also defeated the equal-headcount rule: the
+                // two armies have different footprints, so they collided a different number of times
+                // and 5-a-side came out as 4 against 5 on the field.
+                if (!TryFindFreeSpot(angle, radius, definition.footprintRadius, out position)) continue;
 
                 battleManager.Loadout.Add(new PlacedCreature
                 {

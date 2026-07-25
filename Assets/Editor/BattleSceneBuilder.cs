@@ -461,45 +461,21 @@ namespace DinoBattle.EditorTools
                 typeof(UnityEngine.EventSystems.StandaloneInputModule));
 
             // ---- placement panel (bottom bar) ----
-            // The roster is the control the player uses most, so it gets roughly half the bar.
+            //
+            // Two buttons: fill the arena, and start. Nothing else.
+            //
+            // The bar used to carry a team toggle, undo, mirror, a budget readout and a row of six
+            // species buttons, all in service of hand-placing an army one creature at a time. In a
+            // spectator game that is a chore standing between the player and the only part they came
+            // for, and a playtester never worked out that any of it did anything. Auto-fill IS the
+            // setup step, so it is the setup UI.
             var placementPanel = CreatePanel(canvasObject.transform, "PlacementPanel",
-                new Vector2(0f, 0f), new Vector2(1f, 0.28f));
+                new Vector2(0f, 0f), new Vector2(1f, 0.16f));
 
-            var teamButton = CreateButton(placementPanel.transform, "TeamToggle", "TEAM: RED",
-                new Vector2(0.02f, 0.72f), new Vector2(0.22f, 0.97f));
-            var undoButton = CreateButton(placementPanel.transform, "Undo", "UNDO",
-                new Vector2(0.24f, 0.72f), new Vector2(0.38f, 0.97f));
-
-            // Auto-setup sits next to Start, because for most matches it IS the setup step —
-            // hand-placing a whole army to reach the fight is a chore in a spectator game.
             var autoFillButton = CreateButton(placementPanel.transform, "AutoFill", "AUTO FILL",
-                new Vector2(0.40f, 0.72f), new Vector2(0.56f, 0.97f));
-            var mirrorButton = CreateButton(placementPanel.transform, "Mirror", "MIRROR",
-                new Vector2(0.58f, 0.72f), new Vector2(0.72f, 0.97f));
+                new Vector2(0.06f, 0.18f), new Vector2(0.47f, 0.82f));
             var startButton = CreateButton(placementPanel.transform, "Start", "START BATTLE",
-                new Vector2(0.74f, 0.72f), new Vector2(0.98f, 0.97f));
-
-            var budgetLabel = CreateLabel(placementPanel.transform, "Budget", "1000 / 1000",
-                new Vector2(0.02f, 0.55f), new Vector2(0.55f, 0.70f), TextAnchor.MiddleLeft);
-
-            var rosterContainer = CreatePanel(placementPanel.transform, "RosterContainer",
-                new Vector2(0.02f, 0.03f), new Vector2(0.98f, 0.52f));
-            var layout = rosterContainer.AddComponent<HorizontalLayoutGroup>();
-            layout.spacing = 8f;
-            layout.padding = new RectOffset(8, 8, 4, 4);
-
-            // childControl* defaults to false, which makes the group position children but leave their
-            // size alone. A button instantiated from the stretched template then computes a preferred
-            // size of zero and renders as nothing -- present in the hierarchy, invisible on screen.
-            // childControl* must be true for childForceExpand* to actually divide the row up.
-            layout.childControlWidth = true;
-            layout.childControlHeight = true;
-            layout.childForceExpandWidth = true;
-            layout.childForceExpandHeight = true;
-
-            var rosterTemplate = CreateButton(rosterContainer.transform, "RosterButtonTemplate", "Creature",
-                Vector2.zero, Vector2.one);
-            rosterTemplate.gameObject.SetActive(false);
+                new Vector2(0.53f, 0.18f), new Vector2(0.94f, 0.82f));
 
             // ---- fighting panel (top bar) ----
             var fightingPanel = CreatePanel(canvasObject.transform, "FightingPanel",
@@ -553,14 +529,12 @@ namespace DinoBattle.EditorTools
             s.FindProperty("resultPanel").objectReferenceValue = resultPanel;
             s.FindProperty("autoPlacer").objectReferenceValue = autoPlacer;
             s.FindProperty("autoFillButton").objectReferenceValue = autoFillButton;
-            s.FindProperty("mirrorButton").objectReferenceValue = mirrorButton;
             s.FindProperty("startButton").objectReferenceValue = startButton;
-            s.FindProperty("undoButton").objectReferenceValue = undoButton;
-            s.FindProperty("teamToggleButton").objectReferenceValue = teamButton;
-            s.FindProperty("teamLabel").objectReferenceValue = teamButton.GetComponentInChildren<Text>();
-            s.FindProperty("budgetLabel").objectReferenceValue = budgetLabel;
-            s.FindProperty("rosterContainer").objectReferenceValue = rosterContainer.transform;
-            s.FindProperty("rosterButtonTemplate").objectReferenceValue = rosterTemplate;
+
+            // The mirror, undo, team-toggle, budget and roster references stay in BattleHUD and stay
+            // null. Every serialized reference there is optional by design, so the HUD simply skips
+            // the controls that no longer exist — and putting the manual-placement bar back is a
+            // matter of recreating the widgets here, with no runtime code to rewrite.
             s.FindProperty("speedButton").objectReferenceValue = speedButton;
             s.FindProperty("speedLabel").objectReferenceValue = speedLabel;
             s.FindProperty("redCountLabel").objectReferenceValue = redCount;
