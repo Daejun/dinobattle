@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c28d35c407bc3d54e9f95971f3375aa2, type: 3}
+  m_Name: Creature_IndominusRex
+  m_EditorClassIdentifier: Assembly-CSharp::DinoBattle.Data.CreatureDefinition
+  displayName: Indominus Rex
+  description: Placeholder stat block for Indominus Rex.
+  icon: {fileID: 0}
+  prefab: {fileID: 8834134575500624983, guid: 9819eb84eeed6aa489dfae5842b06d7e, type: 3}
+  cost: 3000
+  footprintRadius: 6.9
+  maxHealth: 42000
+  armor: 70
+  moveSpeed: 5.4
+  turnSpeedDegrees: 165
+  mass: 60000
+  attackDamage: 900
+  attackInterval: 1.9
+  attackRange: 7.5
+  attackWindup: 0.475
+  aggroRange: 90

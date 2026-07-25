@@ -30,6 +30,9 @@ namespace DinoBattle.UI
         [SerializeField] private Button autoFillButton;
         [SerializeField] private Button mirrorButton;
         [SerializeField] private Button startButton;
+
+        [Tooltip("Sets up one boss against a pack, instead of two even teams.")]
+        [SerializeField] private Button bossButton;
         [SerializeField] private Button undoButton;
         [SerializeField] private Button teamToggleButton;
         [SerializeField] private Text teamLabel;
@@ -41,8 +44,17 @@ namespace DinoBattle.UI
         [SerializeField] private Button rosterButtonTemplate;
 
         [Header("Fight controls")]
+        [Tooltip("Speed control. Left in place but no longer built into the scene — matches resolve " +
+                 "in well under a minute, and a button that fast-forwards the thing you came to watch " +
+                 "earns little. Wire it back up in BattleSceneBuilder if that changes.")]
         [SerializeField] private Button speedButton;
         [SerializeField] private Text speedLabel;
+
+        [Tooltip("Mid-fight: run the same match again from the start.")]
+        [SerializeField] private Button fightReplayButton;
+
+        [Tooltip("Mid-fight: stop and go back to setup.")]
+        [SerializeField] private Button fightQuitButton;
         [SerializeField] private Text redCountLabel;
         [SerializeField] private Text blueCountLabel;
 
@@ -53,6 +65,9 @@ namespace DinoBattle.UI
                  "like every other reference here.")]
         [SerializeField] private Text resultSummaryLabel;
         [SerializeField] private Button rematchButton;
+
+        [Tooltip("Runs the same two armies again, rather than returning to setup.")]
+        [SerializeField] private Button replayButton;
 
         /// <summary>Buttons this HUD instantiated, so a rebuild can clean up exactly what it created.</summary>
         private readonly List<Button> spawnedRosterButtons = new();
@@ -84,6 +99,10 @@ namespace DinoBattle.UI
             HookButton(teamToggleButton, () => { placement?.ToggleActiveTeam(); RefreshPlacementLabels(); });
             HookButton(speedButton, () => { battleManager.CycleSpeed(); RefreshSpeedLabel(); });
             HookButton(rematchButton, () => battleManager.EnterPlacement());
+            HookButton(replayButton, () => battleManager.Replay());
+            HookButton(bossButton, () => autoPlacer?.BossBattle());
+            HookButton(fightReplayButton, () => battleManager.Replay());
+            HookButton(fightQuitButton, () => battleManager.EnterPlacement());
 
             BuildRosterButtons();
             HandlePhaseChanged(battleManager.Phase);

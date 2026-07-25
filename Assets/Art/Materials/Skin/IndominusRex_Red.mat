@@ -7,7 +7,7 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: Stegosaurus_DarkBrown
+  m_Name: IndominusRex_Red
   m_Shader: {fileID: 4800000, guid: 8c3acd51094197d48b8b166576045492, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
@@ -26,6 +26,6 @@ Material:
     m_Ints: []
     m_Floats: []
     m_Colors:
-    - _Color: {r: 0.23398076, g: 0.14820065, b: 0.052816086, a: 1}
+    - _Color: {r: 0.86885047, g: 0.8277, b: 0.7922622, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1

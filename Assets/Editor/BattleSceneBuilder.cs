@@ -562,6 +562,8 @@ namespace DinoBattle.EditorTools
             var autoSerialized = new SerializedObject(autoPlacer);
             autoSerialized.FindProperty("battleManager").objectReferenceValue = manager;
             autoSerialized.FindProperty("arenaRadius").floatValue = ArenaRadius;
+            autoSerialized.FindProperty("bossRoster").objectReferenceValue =
+                AssetDatabase.LoadAssetAtPath<CreatureRoster>(SampleContentBuilder.BossRosterPath);
             autoSerialized.ApplyModifiedPropertiesWithoutUndo();
 
             // Translucent disc showing where the next creature will land.
@@ -617,9 +619,11 @@ namespace DinoBattle.EditorTools
                 new Vector2(0f, 0f), new Vector2(1f, 0.16f));
 
             var autoFillButton = CreateButton(placementPanel.transform, "AutoFill", "자동 배치",
-                new Vector2(0.06f, 0.18f), new Vector2(0.47f, 0.82f));
+                new Vector2(0.04f, 0.18f), new Vector2(0.35f, 0.82f));
+            var bossButton = CreateButton(placementPanel.transform, "BossBattle", "보스 전투",
+                new Vector2(0.37f, 0.18f), new Vector2(0.63f, 0.82f));
             var startButton = CreateButton(placementPanel.transform, "Start", "전투 시작",
-                new Vector2(0.53f, 0.18f), new Vector2(0.94f, 0.82f));
+                new Vector2(0.65f, 0.18f), new Vector2(0.96f, 0.82f));
 
             // ---- fighting panel (top bar) ----
             var fightingPanel = CreatePanel(canvasObject.transform, "FightingPanel",
@@ -633,9 +637,14 @@ namespace DinoBattle.EditorTools
                 new Vector2(0.78f, 0.1f), new Vector2(0.98f, 0.9f), TextAnchor.MiddleRight);
             blueCount.color = new Color(0.45f, 0.70f, 1f);
 
-            var speedButton = CreateButton(fightingPanel.transform, "Speed", "1배속",
-                new Vector2(0.40f, 0.1f), new Vector2(0.60f, 0.9f));
-            var speedLabel = speedButton.GetComponentInChildren<Text>();
+            // Mid-fight controls, where a spectator actually wants them: restart this same match, or
+            // stop watching. The speed control that used to sit here is gone — in a match that
+            // resolves in under a minute it was a button that changed how fast the thing you came to
+            // watch went past, and nothing else.
+            var fightReplayButton = CreateButton(fightingPanel.transform, "FightReplay", "다시 하기",
+                new Vector2(0.30f, 0.08f), new Vector2(0.545f, 0.92f));
+            var fightQuitButton = CreateButton(fightingPanel.transform, "FightQuit", "종료",
+                new Vector2(0.565f, 0.08f), new Vector2(0.72f, 0.92f));
 
             // ---- result panel (center) ----
             // Sits high on the screen, not across the middle.
@@ -657,8 +666,13 @@ namespace DinoBattle.EditorTools
             var resultSummary = CreateLabel(resultPanel.transform, "Summary", "",
                 new Vector2(0.05f, 0.34f), new Vector2(0.95f, 0.58f), TextAnchor.MiddleCenter);
 
-            var rematchButton = CreateButton(resultPanel.transform, "Rematch", "다시 하기",
-                new Vector2(0.30f, 0.04f), new Vector2(0.70f, 0.30f));
+            // Two endings, because they are different wishes. "Again" re-runs the same two armies,
+            // which is what you want after a close result; "new setup" throws the arrangement away.
+            // One button labelled "rematch" used to do the second while reading as the first.
+            var replayButton = CreateButton(resultPanel.transform, "Replay", "한 번 더",
+                new Vector2(0.08f, 0.04f), new Vector2(0.48f, 0.30f));
+            var rematchButton = CreateButton(resultPanel.transform, "Rematch", "새로 짜기",
+                new Vector2(0.52f, 0.04f), new Vector2(0.92f, 0.30f));
 
             resultPanel.SetActive(false);
             fightingPanel.SetActive(false);
@@ -674,13 +688,17 @@ namespace DinoBattle.EditorTools
             s.FindProperty("autoPlacer").objectReferenceValue = autoPlacer;
             s.FindProperty("autoFillButton").objectReferenceValue = autoFillButton;
             s.FindProperty("startButton").objectReferenceValue = startButton;
+            s.FindProperty("bossButton").objectReferenceValue = bossButton;
+            s.FindProperty("replayButton").objectReferenceValue = replayButton;
 
             // The mirror, undo, team-toggle, budget and roster references stay in BattleHUD and stay
             // null. Every serialized reference there is optional by design, so the HUD simply skips
             // the controls that no longer exist — and putting the manual-placement bar back is a
             // matter of recreating the widgets here, with no runtime code to rewrite.
-            s.FindProperty("speedButton").objectReferenceValue = speedButton;
-            s.FindProperty("speedLabel").objectReferenceValue = speedLabel;
+            // speedButton / speedLabel intentionally left null — the control was removed and every
+            // HUD reference is optional, so the code that would drive it simply never runs.
+            s.FindProperty("fightReplayButton").objectReferenceValue = fightReplayButton;
+            s.FindProperty("fightQuitButton").objectReferenceValue = fightQuitButton;
             s.FindProperty("redCountLabel").objectReferenceValue = redCount;
             s.FindProperty("blueCountLabel").objectReferenceValue = blueCount;
             s.FindProperty("winnerLabel").objectReferenceValue = winnerLabel;

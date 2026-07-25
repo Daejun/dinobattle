@@ -152,7 +152,11 @@ namespace DinoBattle.EditorTools
         /// prefix is unreliable — Trex.fbx uses "TRex_", and Apatosaurus.fbx ships a clip actually named
         /// "Stegosaurus_Death". Matching on the suffix alone sidesteps both problems.
         /// </summary>
-        private static readonly string[] LoopingActions = { "_Idle", "_Walk", "_Run" };
+        /// <summary>
+        /// _Flying is here because the boss dragon has no idle: its locomotion clip is the wing beat,
+        /// and a wing beat that plays once and freezes leaves the creature hanging mid-flap.
+        /// </summary>
+        private static readonly string[] LoopingActions = { "_Idle", "_Walk", "_Run", "_Flying" };
 
         [MenuItem("Dino Battle/4c. Prepare Creature Animation", priority = 122)]
         public static void PrepareAnimation()
@@ -230,17 +234,33 @@ namespace DinoBattle.EditorTools
             AnimationClip Find(string suffix) =>
                 clips.FirstOrDefault(c => c.name.EndsWith(suffix, System.StringComparison.OrdinalIgnoreCase));
 
-            var idle = Find("_Idle");
-            var walk = Find("_Walk");
-            var run = Find("_Run");
-            var attack = Find("_Attack");
-            var death = Find("_Death");
+            // Fall back through alternatives per state rather than requiring the dinosaur pack's exact
+            // naming. The boss dragon comes from a different pack and has no Idle, Walk or Run at all
+            // — it has Flying, because it is a flying creature. Insisting on the dinosaur vocabulary
+            // would have meant either no boss or a boss with no animation, when the honest mapping is
+            // that a hovering dragon's idle IS its flap.
+            AnimationClip FindAny(params string[] suffixes)
+            {
+                foreach (string suffix in suffixes)
+                {
+                    var found = Find(suffix);
+                    if (found != null) return found;
+                }
+
+                return null;
+            }
+
+            var idle = FindAny("_Idle", "_Flying", "_Hover");
+            var walk = FindAny("_Walk", "_Flying");
+            var run = FindAny("_Run", "_Flying");
+            var attack = FindAny("_Attack", "_Hit");
+            var death = FindAny("_Death", "_Die");
 
             string species = Path.GetFileNameWithoutExtension(modelPath);
 
             if (idle == null)
             {
-                Debug.LogWarning($"[CreatureArtImporter] {species}: no _Idle clip; skipping controller.");
+                Debug.LogWarning($"[CreatureArtImporter] {species}: no idle-like clip; skipping controller.");
                 return null;
             }
 

@@ -77,6 +77,14 @@ namespace DinoBattle.Units
         [Min(1f)]
         [SerializeField] private float hitAndRunMassRatio = 3f;
 
+        [Tooltip("Only creatures under this mass skirmish — on the current roster, the Velociraptor " +
+                 "at 900 and nothing else; the next lightest is the Parasaurolophus at 3200. " +
+                 "Without a ceiling the rule was purely relative, so against a 60-tonne boss even a " +
+                 "Triceratops counted as a light harasser, and a ring of heavy dinosaurs all darting " +
+                 "in and out read as a standoff rather than a fight. Darting is what you do when you " +
+                 "are too fragile to trade, not merely smaller than the other thing.")]
+        [SerializeField] private float harasserMassCeiling = 1500f;
+
         [Tooltip("Seconds spent backing off after landing a bite, before turning in for another pass. " +
                  "Scaled down when the creature is in little danger.")]
         [SerializeField] private float retreatDuration = 1.1f;
@@ -268,7 +276,10 @@ namespace DinoBattle.Units
         /// </summary>
         private void TickCombat()
         {
-            bool inRange = attack != null && attack.IsInRange(target);
+            // Sticky engagement. Entering and leaving on the same threshold meant a creature
+            // sitting exactly at its reach flickered between Attack and Seek every frame, braking
+            // and re-approaching without ever committing. Commit tight, disengage loose.
+            bool inRange = attack != null && attack.IsInRange(target, Current == State.Attack);
             float maxSpeed = locomotion != null ? locomotion.MoveSpeed : 6f;
             float fightDistance = FightDistanceTo(target);
 
@@ -575,6 +586,7 @@ namespace DinoBattle.Units
             var mine = self.Definition;
             var theirs = enemy != null ? enemy.Definition : null;
             if (mine == null || theirs == null || mine.mass <= 0f) return false;
+            if (mine.mass > harasserMassCeiling) return false;
 
             return theirs.mass / mine.mass >= hitAndRunMassRatio;
         }

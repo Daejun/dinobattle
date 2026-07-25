@@ -178,8 +178,9 @@ MonoBehaviour:
   teamTintRenderers: []
   teamTintStrength: 0
   teamRingOpacity: 0.2
-  skinHueVariation: 0.04
-  skinValueVariation: 0.18
+  deadRingFade: 0.35
+  skinHueVariation: 0.09
+  skinValueVariation: 0.26
   corpseLifetime: 12
   voice: {fileID: 66196815698126629}
   deathClip: {fileID: 8300000, guid: 62ffec89bc738544a93d68b420f48b86, type: 3}
@@ -241,6 +242,7 @@ MonoBehaviour:
   maxAlignWait: 0.9
   lungeAttackAngle: 60
   woundedCaution: 1.4
+  maxContinuousFlee: 2.5
   standoffFactor: 2.6
   packTurnThreshold: 3
   turnDuration: 1.8

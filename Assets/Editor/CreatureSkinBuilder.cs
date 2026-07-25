@@ -26,13 +26,20 @@ namespace DinoBattle.EditorTools
         private const string MaterialFolder = "Assets/Art/Materials/Skin";
 
         /// <summary>Darkest the top of the back gets, as a multiplier on the region colour.</summary>
-        private const float DorsalShade = 0.52f;
+        private const float DorsalShade = 0.66f;
 
         /// <summary>Extra darkening inside a band. Bands fade out toward the belly.</summary>
         private const float BandShade = 0.72f;
 
-        /// <summary>Bands per world unit along the body's long axis.</summary>
-        private const float BandFrequency = 2.3f;
+        /// <summary>Bands along the body, counted across the whole animal rather than per unit.</summary>
+        private const float BandCount = 6f;
+
+        /// <summary>Hue the irregular patches pull toward, and how strongly.</summary>
+        private static readonly Color BlotchTint = new(1.15f, 0.86f, 0.62f);
+        private const float BlotchStrength = 0.85f;
+
+        /// <summary>Warm throat and lower jaw, as most reptiles and birds have.</summary>
+        private static readonly Color ThroatTint = new(1.2f, 0.78f, 0.62f);
 
         /// <summary>Amplitude of the fine per-vertex mottling that stops flat areas reading as plastic.</summary>
         private const float Mottle = 0.10f;
@@ -46,7 +53,13 @@ namespace DinoBattle.EditorTools
         /// blended toward it rather than replaced by it — painting every slot the same colour is
         /// exactly the flattening this class exists to undo.
         /// </param>
-        public static void Apply(GameObject visual, string speciesKey, Color? tint = null)
+        /// <param name="shape">
+        /// Proportion changes to apply before baking, or null to leave the model as imported. This is
+        /// how one base model becomes a different animal: uniform scaling only reads as "the same
+        /// dinosaur, nearer the camera", whereas changing which parts are big changes the species.
+        /// </param>
+        internal static void Apply(GameObject visual, string speciesKey, Color? tint = null, BodyShape shape = null,
+            float tintStrength = 0.6f)
         {
             if (visual == null || string.IsNullOrEmpty(speciesKey)) return;
 
@@ -65,8 +78,8 @@ namespace DinoBattle.EditorTools
 
             foreach (var skinned in visual.GetComponentsInChildren<SkinnedMeshRenderer>(true))
             {
-                skinned.sharedMesh = EnsureBakedMesh(skinned.sharedMesh, speciesKey);
-                skinned.sharedMaterials = EnsureSkinMaterials(skinned.sharedMaterials, speciesKey, shader, tint);
+                skinned.sharedMesh = EnsureBakedMesh(skinned.sharedMesh, speciesKey, shape, skinned.bones);
+                skinned.sharedMaterials = EnsureSkinMaterials(skinned.sharedMaterials, speciesKey, shader, tint, tintStrength);
             }
 
             // Not every creature in the roster is necessarily skinned — a static prop rigged as a
@@ -75,8 +88,9 @@ namespace DinoBattle.EditorTools
             {
                 if (!filter.TryGetComponent<MeshRenderer>(out var renderer)) continue;
 
-                filter.sharedMesh = EnsureBakedMesh(filter.sharedMesh, speciesKey);
-                renderer.sharedMaterials = EnsureSkinMaterials(renderer.sharedMaterials, speciesKey, shader, tint);
+                // No shape pass: reshaping is driven by bone weights, and an unskinned mesh has none.
+                filter.sharedMesh = EnsureBakedMesh(filter.sharedMesh, speciesKey, null, null);
+                renderer.sharedMaterials = EnsureSkinMaterials(renderer.sharedMaterials, speciesKey, shader, tint, tintStrength);
             }
         }
 
@@ -86,7 +100,7 @@ namespace DinoBattle.EditorTools
         /// A copy because the original lives inside the .fbx and cannot be written to. The copies are
         /// cached as assets, so this is a one-off cost per species rather than per prefab rebuild.
         /// </summary>
-        private static Mesh EnsureBakedMesh(Mesh source, string speciesKey)
+        private static Mesh EnsureBakedMesh(Mesh source, string speciesKey, BodyShape shape, Transform[] bones)
         {
             if (source == null) return null;
 
@@ -97,10 +111,114 @@ namespace DinoBattle.EditorTools
 
             var baked = Object.Instantiate(source);
             baked.name = $"{speciesKey}_{source.name}_skin";
+
+            // Reshape before colouring: the vertex colours are baked from vertex positions, so the
+            // shading has to be computed against the silhouette the creature will actually have.
+            if (shape != null && bones != null)
+            {
+                foreach (var part in shape.Parts) ScaleBoneGroup(baked, bones, part.Bones, part.Scale);
+            }
+
             baked.colors = BakeVertexColors(baked, speciesKey);
 
             AssetDatabase.CreateAsset(baked, path);
             return baked;
+        }
+
+        /// <summary>
+        /// Reshape one part of the body, blending out wherever the rig blends.
+        ///
+        /// Each vertex is pushed away from its own driving bone's bind-pose position, in proportion
+        /// to how much that bone controls it. Using the skin weight as the falloff is what makes the
+        /// result look deliberate rather than like a bulge: a vertex fully weighted to the skull
+        /// scales fully, one shared between skull and neck scales partly, and the body does not move
+        /// at all. The seam takes care of itself, because smooth falloff is exactly what the weights
+        /// already encode.
+        ///
+        /// Each vertex resolves its own pivot from its dominant bone in the group, which is what
+        /// makes a left and a right arm both work from one call — a single shared pivot would swing
+        /// one of them across the body.
+        ///
+        /// Only positions change, so bone weights, bind poses and the triangle list stay valid and
+        /// the mesh animates exactly as it did before.
+        /// </summary>
+        private static void ScaleBoneGroup(Mesh mesh, Transform[] bones, string[] nameContains, Vector3 scale)
+        {
+            var group = new System.Collections.Generic.Dictionary<int, Vector3>();
+
+            for (int i = 0; i < bones.Length && i < mesh.bindposes.Length; i++)
+            {
+                if (bones[i] == null) continue;
+
+                foreach (string fragment in nameContains)
+                {
+                    if (bones[i].name.IndexOf(fragment, System.StringComparison.OrdinalIgnoreCase) < 0) continue;
+
+                    // The bind pose is the mesh-to-bone matrix, so its inverse puts the bone's origin
+                    // back into mesh space — the point this part should grow around.
+                    group[i] = mesh.bindposes[i].inverse.MultiplyPoint3x4(Vector3.zero);
+                    break;
+                }
+            }
+
+            if (group.Count == 0) return;
+
+            var weights = mesh.boneWeights;
+            var vertices = mesh.vertices;
+            if (weights.Length != vertices.Length) return;
+
+            for (int i = 0; i < vertices.Length; i++)
+            {
+                if (!TryResolveGroup(weights[i], group, out float influence, out Vector3 pivot)) continue;
+
+                Vector3 offset = vertices[i] - pivot;
+
+                vertices[i] = pivot + new Vector3(
+                    offset.x * (1f + (scale.x - 1f) * influence),
+                    offset.y * (1f + (scale.y - 1f) * influence),
+                    offset.z * (1f + (scale.z - 1f) * influence));
+            }
+
+            mesh.vertices = vertices;
+            mesh.RecalculateNormals();
+            mesh.RecalculateBounds();
+        }
+
+        /// <summary>
+        /// Total influence this vertex takes from the group, and the pivot of whichever member drives
+        /// it hardest.
+        /// </summary>
+        private static bool TryResolveGroup(
+            BoneWeight weight,
+            System.Collections.Generic.Dictionary<int, Vector3> group,
+            out float influence,
+            out Vector3 pivot)
+        {
+            // Locals rather than writing straight to the out parameters: C# will not let a local
+            // function capture them, and four near-identical inline blocks would be worse.
+            float total = 0f;
+            float strongest = 0f;
+            Vector3 best = Vector3.zero;
+
+            var indices = new[] { weight.boneIndex0, weight.boneIndex1, weight.boneIndex2, weight.boneIndex3 };
+            var amounts = new[] { weight.weight0, weight.weight1, weight.weight2, weight.weight3 };
+
+            for (int i = 0; i < indices.Length; i++)
+            {
+                if (!group.TryGetValue(indices[i], out Vector3 bonePivot)) continue;
+
+                total += amounts[i];
+
+                if (amounts[i] <= strongest) continue;
+
+                strongest = amounts[i];
+                best = bonePivot;
+            }
+
+            influence = Mathf.Clamp01(total);
+            pivot = best;
+
+            return influence > 0.001f;
         }
 
         /// <summary>
@@ -124,26 +242,51 @@ namespace DinoBattle.EditorTools
             // Per-species offset so two species do not end up wearing identical stripes.
             float phase = (Mathf.Abs(speciesKey.GetHashCode()) % 1000) * 0.01f;
 
-            float spanY = Mathf.Max(0.0001f, bounds.size.y);
+            // Everything below works in NORMALISED mesh space — 0 to 1 across the model's own bounds
+            // — not in absolute units.
+            //
+            // This was the bug that made every creature look plain. The frequencies were per world
+            // unit, but these meshes are authored tiny and scaled up on the prefab: a body is about
+            // 0.15 units long, so "2.3 bands per unit" worked out at a third of one band across the
+            // whole animal. The pattern code ran on every creature and produced nothing to see.
+            Vector3 span = new(
+                Mathf.Max(0.0001f, bounds.size.x),
+                Mathf.Max(0.0001f, bounds.size.y),
+                Mathf.Max(0.0001f, bounds.size.z));
 
             for (int i = 0; i < vertices.Length; i++)
             {
                 Vector3 v = vertices[i];
 
-                // 0 at the belly, 1 at the spine.
-                float height = Mathf.Clamp01((v.y - bounds.min.y) / spanY);
-                float dorsal = Mathf.SmoothStep(0f, 1f, height);
+                Vector3 n = new(
+                    (v.x - bounds.min.x) / span.x,
+                    (v.y - bounds.min.y) / span.y,
+                    (v.z - bounds.min.z) / span.z);
 
-                // Warm and pale underneath, cool and dark on top. Tinting the channels differently
-                // is what makes this read as two colours rather than one colour plus shadow.
-                Color belly = new(1f, 0.97f, 0.88f);
-                Color back = new(DorsalShade, DorsalShade * 1.06f, DorsalShade * 0.88f);
+                float dorsal = Mathf.SmoothStep(0f, 1f, n.y);
+
+                // Counter-shading: pale warm belly, dark cool back. The commonest colour scheme in
+                // land animals and the one that most makes a shape read as alive.
+                Color belly = new(1f, 0.95f, 0.84f);
+                Color back = new(DorsalShade, DorsalShade * 1.06f, DorsalShade * 0.84f);
                 Color tone = Color.Lerp(belly, back, dorsal);
 
-                // Bands across the body, strongest along the spine and gone by the belly.
-                float wave = Mathf.Sin(v.z * BandFrequency + phase) * 0.5f + 0.5f;
-                float band = Mathf.SmoothStep(0.45f, 0.9f, wave) * dorsal;
+                // Cross-body bands, strongest along the spine and gone by the belly. Now counted
+                // across the body rather than per unit, so a creature actually gets BandCount of them.
+                float wave = Mathf.Sin(n.z * BandCount * Mathf.PI * 2f + phase) * 0.5f + 0.5f;
+                float band = Mathf.SmoothStep(0.4f, 0.92f, wave) * dorsal;
                 tone *= Mathf.Lerp(1f, BandShade, band);
+
+                // Irregular blotching, on top of the regular bands. Bands alone read as a painted
+                // pattern; real hide has large soft patches that ignore the banding, and the two
+                // together are what stops it looking printed on.
+                float blotch = Blotch(n, phase);
+                tone = MultiplyRgb(tone, Color.Lerp(Color.white, BlotchTint, blotch * BlotchStrength));
+
+                // A warm throat and jaw, which most reptiles and birds have and which gives the head
+                // somewhere brighter than the body to read against.
+                float throat = Mathf.SmoothStep(0.75f, 1f, n.z) * (1f - dorsal);
+                tone = MultiplyRgb(tone, Color.Lerp(Color.white, ThroatTint, throat));
 
                 // Fine noise so large flat panels do not look moulded.
                 tone *= 1f - Mottle * Hash01(v);
@@ -154,6 +297,29 @@ namespace DinoBattle.EditorTools
             return colors;
         }
 
+        /// <summary>
+        /// Smooth low-frequency field over the body, 0 to 1, used for irregular patches.
+        ///
+        /// Summed sines rather than real value noise: it needs to be smooth, deterministic and cheap,
+        /// and at this scale — a handful of patches over one animal — nobody can tell the difference.
+        /// The axes use different frequencies so the result does not fall into visible stripes.
+        /// </summary>
+        private static float Blotch(Vector3 n, float phase)
+        {
+            float a = Mathf.Sin(n.z * 7.3f + phase) * Mathf.Sin(n.y * 5.1f - phase * 0.6f);
+            float b = Mathf.Sin(n.x * 9.7f - phase * 1.3f) * Mathf.Sin(n.z * 3.9f + phase * 0.4f);
+
+            return Mathf.Clamp01(Mathf.InverseLerp(-1.3f, 1.3f, a + b * 0.7f));
+        }
+
+        /// <summary>
+        /// Per-channel multiply. Tints here deliberately carry channels above 1 so a patch can
+        /// brighten as well as darken; Color's own operator would be fine, but naming it makes the
+        /// intent obvious next to the Lerps.
+        /// </summary>
+        private static Color MultiplyRgb(Color a, Color b) =>
+            new(a.r * b.r, a.g * b.g, a.b * b.b, 1f);
+
         /// <summary>Deterministic 0..1 noise from a position. Same vertex, same value, every rebuild.</summary>
         private static float Hash01(Vector3 v)
         {
@@ -162,7 +328,7 @@ namespace DinoBattle.EditorTools
         }
 
         private static Material[] EnsureSkinMaterials(
-            Material[] sources, string speciesKey, Shader shader, Color? tint)
+            Material[] sources, string speciesKey, Shader shader, Color? tint, float tintStrength)
         {
             var result = new Material[sources.Length];
 
@@ -183,7 +349,7 @@ namespace DinoBattle.EditorTools
                 material.shader = shader;
 
                 Color regionColor = Readable(source.color);
-                if (tint.HasValue) regionColor = Color.Lerp(regionColor, tint.Value, 0.6f);
+                if (tint.HasValue) regionColor = Color.Lerp(regionColor, tint.Value, tintStrength);
                 material.color = regionColor;
 
                 EditorUtility.SetDirty(material);
@@ -213,9 +379,12 @@ namespace DinoBattle.EditorTools
 
             // Floor, so pure black regions (claws, eyes at 0.004) become visible dark detail rather
             // than holes in the silhouette.
-            v = Mathf.Max(v, 0.16f);
+            v = Mathf.Max(v, 0.26f);
 
-            s = Mathf.Clamp01(s * 1.35f);
+            // Hard saturation push. The pack's colours are not just dark, they are nearly grey, and
+            // a lifted grey is still grey — against a dim green jungle the creatures read as mud
+            // unless the hue is forced to actually assert itself.
+            s = Mathf.Clamp01(s * 1.9f + 0.12f);
 
             return Color.HSVToRGB(h, s, v);
         }

@@ -42,6 +42,68 @@ namespace DinoBattle.EditorTools
 
         /// <summary>Placeholder colour, and the reskin colour when <see cref="Recolor"/> is set.</summary>
         public Color Tint = Color.gray;
+
+        /// <summary>
+        /// Mesh proportion changes, or null to use the model as imported. Lets one base rig carry
+        /// more than one species — see <see cref="BodyShape"/>.
+        /// </summary>
+        public BodyShape Shape;
+
+        /// <summary>
+        /// How far <see cref="Tint"/> overrides the pack's own region colours, when
+        /// <see cref="Recolor"/> is set. The default keeps the artist's light and dark regions
+        /// clearly readable; push it near 1 for a creature that is meant to be one colour all over,
+        /// where leaving the regions showing reads as a two-tone paint job rather than as skin.
+        /// </summary>
+        [UnityEngine.Range(0f, 1f)]
+        public float TintStrength = 0.6f;
+    }
+
+    /// <summary>
+    /// Bosses: one enormous creature for a whole team to bring down.
+    ///
+    /// Kept in their own list rather than in the roster. Everything that fills a team — AUTO FILL,
+    /// mirror matches — walks the roster, and a boss turning up as an ordinary pick would not be a
+    /// fight, it would be a rout with the budget spent on one model.
+    ///
+    /// LICENSING, read before shipping this: "Indominus Rex" is a Universal / Jurassic World
+    /// trademark, and Docs/legal.md and CLAUDE.md both rule it out for exactly that reason — a Play
+    /// Store listing using it is removed and the account is at risk. It is here because the owner of
+    /// this project asked for it for a build that only ever goes on their own phone, where trademark
+    /// does not bite: the concern is use in commerce, and there is none. Rename this entry before any
+    /// public release. The model is not Universal's either — no free Indominus model exists — it is
+    /// the CC0 T-Rex scaled up and painted bone white, which is what the animal looks like anyway.
+    /// </summary>
+    internal static class BossBlueprints
+    {
+        public static readonly CreatureBlueprint[] All =
+        {
+            new()
+            {
+                Name = "Indominus Rex", Model = "Trex", Recolor = true,
+                Cost = 3000, Health = 42000f, Armor = 70f,
+                Damage = 900f, Interval = 1.9f, Range = 7.5f,
+                Speed = 5.4f, Mass = 60000f,
+                BodySize = new Vector3(4.6f, 6.4f, 11.5f),
+                Tint = new Color(0.90f, 0.89f, 0.85f),
+                // Near-total override: the hybrid is described as a uniform whitish-grey, and at
+                // the default strength the pack's dark body region stayed dark enough that it
+                // came out cream-headed with an olive body.
+                TintStrength = 0.93f,
+                Shape = BodyShape.Hybrid,
+            },
+            new()
+            {
+                // The other pack's dragon, for variety. Genuinely a different silhouette rather than
+                // a second big theropod, and it comes with its own wing-beat animation.
+                Name = "Wyrm Titan", Model = "Dragon", Recolor = true,
+                Cost = 3000, Health = 38000f, Armor = 60f,
+                Damage = 820f, Interval = 1.7f, Range = 7f,
+                Speed = 6.2f, Mass = 52000f,
+                BodySize = new Vector3(5.0f, 5.6f, 10.5f),
+                Tint = new Color(0.30f, 0.16f, 0.20f),
+            },
+        };
     }
 
     /// <summary>

@@ -29,6 +29,20 @@ namespace DinoBattle.Placement
         [Tooltip("Stop trying once the cheapest remaining creature no longer fits.")]
         [SerializeField] private int maxPerTeam = 12;
 
+        [Tooltip("Bosses the boss-battle button can pick from. Separate from the main roster so a " +
+                 "boss can never turn up as an ordinary auto-fill pick.")]
+        [SerializeField] private CreatureRoster bossRoster;
+
+        [Tooltip("How many hunters face the boss. Ignores the budget on purpose — the mode is about " +
+                 "the swarm, and a boss is not something you buy your way past.")]
+        [Min(1)]
+        [SerializeField] private int bossPackSize = 10;
+
+        [Tooltip("Radius of the hunters' ring, as a fraction of the arena. Wide enough to clear the " +
+                 "boss's own footprint at the centre, tight enough that the encirclement is obvious.")]
+        [Range(0.3f, 0.95f)]
+        [SerializeField] private float bossRingFactor = 0.62f;
+
         private void Awake()
         {
             if (battleManager == null) battleManager = BattleManager.Instance;
@@ -73,6 +87,69 @@ namespace DinoBattle.Placement
             var picks = ChooseArmy(null);
             PlaceArmy(picks, Team.Red, 180f);
             PlaceArmy(picks, Team.Blue, 0f);
+        }
+
+        /// <summary>
+        /// One enormous creature against a whole pack.
+        ///
+        /// The boss is placed alone at the far side and the players' side is filled with as many
+        /// bodies as the roster allows rather than the usual budget, because the point of the mode is
+        /// the swarm. It also happens to be where the pack AI is at its best: turn-taking, flanking
+        /// and desperation were all written for exactly this shape of fight and rarely all fire at
+        /// once in an even match.
+        /// </summary>
+        public void BossBattle()
+        {
+            if (battleManager == null) battleManager = BattleManager.Instance;
+            if (battleManager == null || battleManager.Phase != BattlePhase.Placement) return;
+            if (bossRoster == null || bossRoster.Creatures.Count == 0)
+            {
+                Debug.LogWarning("[AutoPlacer] No boss roster assigned; run 'Dino Battle > 1. Generate Sample Content'.");
+                return;
+            }
+
+            battleManager.Loadout.Clear();
+
+            // Boss in the middle, hunters in a ring facing inward.
+            //
+            // Not the normal two-sides-of-a-field layout, and not by accident. Reusing that put the
+            // boss on one bearing and the pack on another 90 degrees away — neither surrounded nor
+            // opposed, just two groups standing oddly apart. A ring states the situation the moment
+            // the screen appears: one thing in the middle, everything else closing on it. It also
+            // gives the pack AI what it was written for, since the attackers already start spread
+            // across every side rather than having to work their way around.
+            var boss = bossRoster.Creatures[Random.Range(0, bossRoster.Creatures.Count)];
+
+            battleManager.Loadout.Add(new PlacedCreature
+            {
+                Definition = boss,
+                Team = Team.Blue,
+                Position = Vector3.zero,
+                YawDegrees = 0f,
+            });
+
+            // The hunters ignore the budget: a boss is not something you buy your way past.
+            var roster = battleManager.Roster;
+            if (roster == null || roster.Creatures.Count == 0) return;
+
+            float ring = arenaRadius * bossRingFactor;
+
+            for (int i = 0; i < bossPackSize; i++)
+            {
+                float angle = i / (float)bossPackSize * Mathf.PI * 2f;
+                Vector3 position = new(Mathf.Cos(angle) * ring, 0f, Mathf.Sin(angle) * ring);
+
+                battleManager.Loadout.Add(new PlacedCreature
+                {
+                    Definition = roster.Creatures[Random.Range(0, roster.Creatures.Count)],
+                    Team = Team.Red,
+
+                    // Every hunter looks at the middle, so the ring reads as a closing circle rather
+                    // than as creatures that happen to be standing around one.
+                    Position = position,
+                    YawDegrees = Quaternion.LookRotation(-position.normalized, Vector3.up).eulerAngles.y,
+                });
+            }
         }
 
         /// <summary>Clear one team and refill only it, leaving the opponent alone.</summary>

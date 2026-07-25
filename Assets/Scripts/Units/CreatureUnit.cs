@@ -40,12 +40,12 @@ namespace DinoBattle.Units
         [Tooltip("How far this individual's hue may drift from the species palette. Small: enough " +
                  "that two of the same species are not clones, not so much that a Triceratops turns up purple.")]
         [Range(0f, 0.2f)]
-        [SerializeField] private float skinHueVariation = 0.04f;
+        [SerializeField] private float skinHueVariation = 0.09f;
 
         [Tooltip("How far this individual's brightness may drift. Does more visible work than hue — " +
                  "a paler and a darker animal of the same species read apart instantly.")]
         [Range(0f, 0.5f)]
-        [SerializeField] private float skinValueVariation = 0.18f;
+        [SerializeField] private float skinValueVariation = 0.26f;
 
 
         [Tooltip("Seconds the corpse stays in the arena after dying. Negative keeps it forever.")]

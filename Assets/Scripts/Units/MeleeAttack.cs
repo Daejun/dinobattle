@@ -115,7 +115,11 @@ namespace DinoBattle.Units
         /// standing right next to it. Every creature then stalled in Seek and never attacked.
         /// Distance between two bodies should not depend on which way either is looking.
         /// </summary>
-        public bool IsInRange(CreatureUnit target)
+        /// <param name="alreadyEngaged">
+        /// True when this creature is already attacking the target. Relaxes the check to full
+        /// reach, so an engagement is harder to leave than it was to start.
+        /// </param>
+        public bool IsInRange(CreatureUnit target, bool alreadyEngaged = false)
         {
             if (target == null || self == null) return false;
 
@@ -127,7 +131,7 @@ namespace DinoBattle.Units
             // and every whiff is a bite the player watched land with no health lost. Requiring the
             // creature to close first means normal jostling stays comfortably inside the slack, and
             // it has the side benefit of putting the two bodies nearer for the actual exchange.
-            float reach = EffectiveRange(target) * commitRangeFactor;
+            float reach = EffectiveRange(target) * (alreadyEngaged ? 1f : commitRangeFactor);
             return offset.sqrMagnitude <= reach * reach;
         }
 

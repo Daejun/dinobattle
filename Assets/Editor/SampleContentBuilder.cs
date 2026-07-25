@@ -22,6 +22,12 @@ namespace DinoBattle.EditorTools
     {
         private const string CreatureDataPath = "Assets/GameData/Creatures";
         private const string RosterPath = "Assets/GameData/Rosters/Roster_Default.asset";
+
+        /// <summary>
+        /// Bosses live in their own roster. Anything that fills a team walks the default roster, and
+        /// a boss appearing as an ordinary pick would spend the whole budget on one model.
+        /// </summary>
+        public const string BossRosterPath = "Assets/GameData/Rosters/Roster_Bosses.asset";
         private const string PrefabPath = "Assets/Prefabs/Creatures";
 
         [MenuItem("Dino Battle/1. Generate Sample Content", priority = 100)]
@@ -43,27 +49,23 @@ namespace DinoBattle.EditorTools
                 definitions.Add(definition);
             }
 
-            var roster = AssetDatabase.LoadAssetAtPath<CreatureRoster>(RosterPath);
-            if (roster == null)
+            var bosses = new List<CreatureDefinition>();
+
+            foreach (var blueprint in BossBlueprints.All)
             {
-                roster = ScriptableObject.CreateInstance<CreatureRoster>();
-                AssetDatabase.CreateAsset(roster, RosterPath);
+                string safeName = blueprint.Name.Replace(" ", "").Replace("-", "");
+                GameObject prefab = CreatePlaceholderPrefab(blueprint, safeName);
+                bosses.Add(CreateDefinition(blueprint, safeName, prefab));
             }
 
-            // creatures is private; write through SerializedObject so the change is recorded properly.
-            var serialized = new SerializedObject(roster);
-            var list = serialized.FindProperty("creatures");
-            list.arraySize = definitions.Count;
-            for (int i = 0; i < definitions.Count; i++)
-            {
-                list.GetArrayElementAtIndex(i).objectReferenceValue = definitions[i];
-            }
-            serialized.ApplyModifiedPropertiesWithoutUndo();
+            var roster = WriteRoster(RosterPath, definitions);
+            WriteRoster(BossRosterPath, bosses);
 
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
 
-            Debug.Log($"[SampleContentBuilder] Generated {definitions.Count} creatures and the default roster.");
+            Debug.Log($"[SampleContentBuilder] Generated {definitions.Count} creatures and " +
+                      $"{bosses.Count} boss(es).");
             Selection.activeObject = roster;
         }
 
@@ -231,7 +233,8 @@ namespace DinoBattle.EditorTools
             // rendered as the same dark silhouette and neither species nor team was readable.
             // CreatureSkinBuilder lifts the palette and bakes counter-shading into the vertex stream;
             // a deliberate reskin passes its tint through to be blended in rather than pasted over.
-            CreatureSkinBuilder.Apply(visual, safeName, blueprint.Recolor ? blueprint.Tint : (Color?)null);
+            CreatureSkinBuilder.Apply(visual, safeName, blueprint.Recolor ? blueprint.Tint : (Color?)null,
+                blueprint.Shape, blueprint.TintStrength);
 
             var animator = visual.GetComponent<Animator>();
             if (animator == null) animator = visual.AddComponent<Animator>();
@@ -488,6 +491,30 @@ namespace DinoBattle.EditorTools
         {
             var existing = target.GetComponent<T>();
             return existing != null ? existing : target.AddComponent<T>();
+        }
+
+        /// <summary>Create or overwrite a roster asset listing exactly these definitions.</summary>
+        private static CreatureRoster WriteRoster(string path, List<CreatureDefinition> definitions)
+        {
+            var roster = AssetDatabase.LoadAssetAtPath<CreatureRoster>(path);
+            if (roster == null)
+            {
+                roster = ScriptableObject.CreateInstance<CreatureRoster>();
+                AssetDatabase.CreateAsset(roster, path);
+            }
+
+            // creatures is private; write through SerializedObject so the change is recorded properly.
+            var serialized = new SerializedObject(roster);
+            var list = serialized.FindProperty("creatures");
+            list.arraySize = definitions.Count;
+
+            for (int i = 0; i < definitions.Count; i++)
+            {
+                list.GetArrayElementAtIndex(i).objectReferenceValue = definitions[i];
+            }
+
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+            return roster;
         }
 
         internal static void EnsureFolder(string path)

@@ -111,6 +111,35 @@ namespace DinoBattle.Core
             UnitCountChanged?.Invoke();
         }
 
+        /// <summary>
+        /// Fight the same match again, immediately.
+        ///
+        /// Distinct from <see cref="EnterPlacement"/>, which clears the arrangement and sends the
+        /// player back to set up — the button for that was labelled "rematch" and did not do what
+        /// anyone expected of the word. Watching the same two armies again is the natural thing to
+        /// want after a close result, and the loadout is still sitting there; only the creatures on
+        /// the field need replacing.
+        /// </summary>
+        public bool Replay()
+        {
+            if (Phase == BattlePhase.Placement) return StartBattle();
+
+            Time.timeScale = 1f;
+            Winner = Team.Neutral;
+
+            DetachUnitEvents();
+            activeUnits.Clear();
+            UnitRegistry.Clear();
+            PackTactics.Clear();
+            spawner.DespawnAll();
+
+            // Back to Placement first so StartBattle's guard passes and every listener sees the
+            // normal Placement -> Fighting transition rather than Finished -> Fighting.
+            SetPhase(BattlePhase.Placement);
+
+            return StartBattle();
+        }
+
         /// <summary>Spawn the loadout and let the AI take over. Requires creatures on both sides.</summary>
         public bool StartBattle()
         {
