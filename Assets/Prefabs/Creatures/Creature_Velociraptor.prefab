@@ -512,6 +512,8 @@ MonoBehaviour:
   teamTintRenderers: []
   teamTintStrength: 0
   teamRingOpacity: 0.2
+  skinHueVariation: 0.04
+  skinValueVariation: 0.18
   corpseLifetime: 12
   voice: {fileID: 1960315335337910300}
   deathClip: {fileID: 8300000, guid: 4e5104b4607fbc6419f69f79cdbb5f4f, type: 3}
@@ -615,6 +617,8 @@ MonoBehaviour:
   range: 1.8
   windup: 0.175
   windupRangeSlack: 1.5
+  commitRangeFactor: 0.8
+  attackRecovery: 0.35
   knockback: 4
   animator: {fileID: 5504059301969475509}
   attackTriggerName: Attack
@@ -782,6 +786,22 @@ PrefabInstance:
       propertyPath: m_Name
       value: Visual_Model
       objectReference: {fileID: 0}
+    - target: {fileID: 6217198063962460544, guid: a118365bf73ced04f81edf2fe7897a25, type: 3}
+      propertyPath: m_Mesh
+      value: 
+      objectReference: {fileID: 4300000, guid: ffccf0f50dcffc34893f28f0701234b3, type: 2}
+    - target: {fileID: 6217198063962460544, guid: a118365bf73ced04f81edf2fe7897a25, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 52b2956908a9692469fd069512c18a35, type: 2}
+    - target: {fileID: 6217198063962460544, guid: a118365bf73ced04f81edf2fe7897a25, type: 3}
+      propertyPath: 'm_Materials.Array.data[1]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 8dcb85746a68ebd4bace26342abea008, type: 2}
+    - target: {fileID: 6217198063962460544, guid: a118365bf73ced04f81edf2fe7897a25, type: 3}
+      propertyPath: 'm_Materials.Array.data[2]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 4adb837e8db98da4bab4f9085735a7e0, type: 2}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []

@@ -179,6 +179,8 @@ MonoBehaviour:
   teamTintRenderers: []
   teamTintStrength: 0
   teamRingOpacity: 0.2
+  skinHueVariation: 0.04
+  skinValueVariation: 0.18
   corpseLifetime: 12
   voice: {fileID: 66196815698126629}
   deathClip: {fileID: 8300000, guid: 62ffec89bc738544a93d68b420f48b86, type: 3}
@@ -282,6 +284,8 @@ MonoBehaviour:
   range: 4
   windup: 0.4
   windupRangeSlack: 1.5
+  commitRangeFactor: 0.8
+  attackRecovery: 0.35
   knockback: 4
   animator: {fileID: 6097124398930591878}
   attackTriggerName: Attack
@@ -782,6 +786,30 @@ PrefabInstance:
       propertyPath: m_Name
       value: Visual_Model
       objectReference: {fileID: 0}
+    - target: {fileID: 5129614949983553865, guid: 44c94a1623f34f84a925d7fe94c7e9e0, type: 3}
+      propertyPath: m_Mesh
+      value: 
+      objectReference: {fileID: 4300000, guid: 5a575301651a4764f9b46346a5363709, type: 2}
+    - target: {fileID: 5129614949983553865, guid: 44c94a1623f34f84a925d7fe94c7e9e0, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: f5f41bae4d3c4144492d12d5f1b41992, type: 2}
+    - target: {fileID: 5129614949983553865, guid: 44c94a1623f34f84a925d7fe94c7e9e0, type: 3}
+      propertyPath: 'm_Materials.Array.data[1]'
+      value: 
+      objectReference: {fileID: 2100000, guid: a1ccc233235c8a44081af204dfc15d00, type: 2}
+    - target: {fileID: 5129614949983553865, guid: 44c94a1623f34f84a925d7fe94c7e9e0, type: 3}
+      propertyPath: 'm_Materials.Array.data[2]'
+      value: 
+      objectReference: {fileID: 2100000, guid: f7e7681c94212cd4fac6bb63ab926f0d, type: 2}
+    - target: {fileID: 5129614949983553865, guid: 44c94a1623f34f84a925d7fe94c7e9e0, type: 3}
+      propertyPath: 'm_Materials.Array.data[3]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 95984f893c839ea4bb0e0b6ad5bd0c06, type: 2}
+    - target: {fileID: 5129614949983553865, guid: 44c94a1623f34f84a925d7fe94c7e9e0, type: 3}
+      propertyPath: 'm_Materials.Array.data[4]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 7ef90abdeefe5aa48a7696f58079afbe, type: 2}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []

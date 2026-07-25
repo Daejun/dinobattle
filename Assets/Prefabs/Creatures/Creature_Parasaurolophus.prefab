@@ -179,6 +179,8 @@ MonoBehaviour:
   teamTintRenderers: []
   teamTintStrength: 0
   teamRingOpacity: 0.2
+  skinHueVariation: 0.04
+  skinValueVariation: 0.18
   corpseLifetime: 12
   voice: {fileID: 5969145485752616968}
   deathClip: {fileID: 8300000, guid: 4e5104b4607fbc6419f69f79cdbb5f4f, type: 3}
@@ -282,6 +284,8 @@ MonoBehaviour:
   range: 3.4
   windup: 0.4
   windupRangeSlack: 1.5
+  commitRangeFactor: 0.8
+  attackRecovery: 0.35
   knockback: 4
   animator: {fileID: 7821530261151726921}
   attackTriggerName: Attack
@@ -782,6 +786,26 @@ PrefabInstance:
       propertyPath: m_Name
       value: Visual_Model
       objectReference: {fileID: 0}
+    - target: {fileID: 4298909964794969083, guid: 19d6365aa341721469edb2bcd9f09899, type: 3}
+      propertyPath: m_Mesh
+      value: 
+      objectReference: {fileID: 4300000, guid: 88a80aa3c9b1f844d8d36dc691dc39d2, type: 2}
+    - target: {fileID: 4298909964794969083, guid: 19d6365aa341721469edb2bcd9f09899, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 2d00002d751bd7242a014d4420e8da62, type: 2}
+    - target: {fileID: 4298909964794969083, guid: 19d6365aa341721469edb2bcd9f09899, type: 3}
+      propertyPath: 'm_Materials.Array.data[1]'
+      value: 
+      objectReference: {fileID: 2100000, guid: b4479bb51dc14284e915b0300dd40f85, type: 2}
+    - target: {fileID: 4298909964794969083, guid: 19d6365aa341721469edb2bcd9f09899, type: 3}
+      propertyPath: 'm_Materials.Array.data[2]'
+      value: 
+      objectReference: {fileID: 2100000, guid: e3bdae34418da5c4f97357bc0337365d, type: 2}
+    - target: {fileID: 4298909964794969083, guid: 19d6365aa341721469edb2bcd9f09899, type: 3}
+      propertyPath: 'm_Materials.Array.data[3]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 438f60adeb7bd194cb220cac785cb931, type: 2}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []

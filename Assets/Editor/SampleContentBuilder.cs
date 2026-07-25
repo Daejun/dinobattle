@@ -222,16 +222,12 @@ namespace DinoBattle.EditorTools
             float scale = measured.z > 0.001f ? blueprint.BodySize.z / measured.z : 1f;
             visual.transform.localScale = Vector3.one * scale;
 
-            // Leave the imported materials alone unless this entry is a deliberate reskin. Flattening
-            // every model to one blueprint colour threw away the shading the pack ships with, which is
-            // the whole reason the creatures stopped looking like real animals.
-            if (blueprint.Recolor)
-            {
-                foreach (var renderer in visual.GetComponentsInChildren<Renderer>(true))
-                {
-                    TintRenderer(renderer.gameObject, blueprint.Tint, safeName);
-                }
-            }
+            // Re-skin every creature, reskin or not. The imported materials are not merely flat, they
+            // are nearly black — the T-Rex body colour ships at (0.06, 0.07, 0.06) — so every species
+            // rendered as the same dark silhouette and neither species nor team was readable.
+            // CreatureSkinBuilder lifts the palette and bakes counter-shading into the vertex stream;
+            // a deliberate reskin passes its tint through to be blended in rather than pasted over.
+            CreatureSkinBuilder.Apply(visual, safeName, blueprint.Recolor ? blueprint.Tint : (Color?)null);
 
             var animator = visual.GetComponent<Animator>();
             if (animator == null) animator = visual.AddComponent<Animator>();

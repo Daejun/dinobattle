@@ -32,6 +32,16 @@ namespace DinoBattle.Units
         [Range(0f, 1f)]
         [SerializeField] private float teamRingOpacity = 0.2f;
 
+        [Tooltip("How far this individual's hue may drift from the species palette. Small: enough " +
+                 "that two of the same species are not clones, not so much that a Triceratops turns up purple.")]
+        [Range(0f, 0.2f)]
+        [SerializeField] private float skinHueVariation = 0.04f;
+
+        [Tooltip("How far this individual's brightness may drift. Does more visible work than hue — " +
+                 "a paler and a darker animal of the same species read apart instantly.")]
+        [Range(0f, 0.5f)]
+        [SerializeField] private float skinValueVariation = 0.18f;
+
 
         [Tooltip("Seconds the corpse stays in the arena after dying. Negative keeps it forever.")]
         [SerializeField] private float corpseLifetime = -1f;
@@ -48,6 +58,9 @@ namespace DinoBattle.Units
         private float roarTimer;
         private CreatureBrain brain;
         private CreatureLocomotion locomotion;
+
+        /// <summary>Shader property both the skin shader and the built-in Standard shader expose.</summary>
+        private static readonly int BaseColorId = Shader.PropertyToID("_Color");
 
         public Team Team => team;
         public CreatureDefinition Definition => definition;
@@ -115,6 +128,7 @@ namespace DinoBattle.Units
             }
 
             ApplyTeamTint(teamColor);
+            ApplyIndividualVariation();
             gameObject.name = $"{(definition != null ? definition.displayName : "Creature")} [{team}]";
 
             EnsureRegistered();
@@ -236,6 +250,53 @@ namespace DinoBattle.Units
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// Nudge this individual's skin off the species palette.
+        ///
+        /// Without it every Velociraptor in a pack is pixel-identical, which reads as copy-paste
+        /// rather than as a group of animals. Applied through a MaterialPropertyBlock rather than by
+        /// touching renderer.material: instancing a material per creature would multiply the material
+        /// count by the size of the army for what is a single colour change.
+        ///
+        /// Rolled once at spawn and never again — a creature that shimmered through hues as it
+        /// walked would be far worse than clones.
+        /// </summary>
+        private void ApplyIndividualVariation()
+        {
+            var model = transform.Find(CreatureRig.ModelVisual);
+            if (model == null) return;
+
+            float hueShift = UnityEngine.Random.Range(-skinHueVariation, skinHueVariation);
+            float valueScale = 1f + UnityEngine.Random.Range(-skinValueVariation, skinValueVariation);
+
+            var block = new MaterialPropertyBlock();
+
+            foreach (var renderer in model.GetComponentsInChildren<Renderer>(true))
+            {
+                var materials = renderer.sharedMaterials;
+
+                for (int i = 0; i < materials.Length; i++)
+                {
+                    if (materials[i] == null || !materials[i].HasProperty(BaseColorId)) continue;
+
+                    renderer.GetPropertyBlock(block, i);
+                    block.SetColor(BaseColorId, Vary(materials[i].GetColor(BaseColorId), hueShift, valueScale));
+                    renderer.SetPropertyBlock(block, i);
+                }
+            }
+        }
+
+        private static Color Vary(Color source, float hueShift, float valueScale)
+        {
+            Color.RGBToHSV(source, out float h, out float s, out float v);
+
+            // Hue wraps, so a shift off either end of the wheel stays a valid colour.
+            h = Mathf.Repeat(h + hueShift, 1f);
+            v = Mathf.Clamp01(v * valueScale);
+
+            return Color.HSVToRGB(h, s, v);
         }
 
         private static void SetRendererColor(Renderer renderer, Color color)
