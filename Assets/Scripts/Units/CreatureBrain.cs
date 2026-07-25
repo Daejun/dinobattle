@@ -212,19 +212,20 @@ namespace DinoBattle.Units
                 return;
             }
 
-            // Being swarmed: bite whoever is in front of you.
+            // Bite what you can already reach.
             //
-            // A pack circles faster than a heavy dinosaur can turn — measured at 113 degrees of
-            // facing error against a raptor whose bearing was changing at ~145 deg/s, versus 177
-            // deg/s of turn rate. Chasing that one target means spinning on the spot forever while
-            // the other four work on its flanks. If something else is already in reach and needs
-            // far less turning, that is the one worth biting.
-            if (attack != null && FacingErrorTo(target) > lungeAttackAngle)
+            // This outranks every other consideration and it is the rule that was missing. Measured
+            // mid-fight: a T-Rex standing 1.96 from the centre of the raptor pack — with raptors
+            // close enough to hit — sprinting at 5.8 m/s after a different one 5.51 away. The old
+            // escape hatch needed the target to be 8+ units off before it would reconsider, so
+            // surrounded by enemies it never triggered. Reachability, not absolute distance, is what
+            // decides whether chasing is even sensible.
+            if (attack != null && !attack.IsInRange(target))
             {
-                var inFront = BestAlignedEnemyInReach();
-                if (inFront != null)
+                var reachable = BestEnemyInReach();
+                if (reachable != null)
                 {
-                    target = inFront;
+                    target = reachable;
                     return;
                 }
             }
@@ -409,16 +410,27 @@ namespace DinoBattle.Units
             Vector3 pursue = SteeringBehaviors.Pursue(
                 transform.position, anchor, targetVelocity, maxSpeed, slowingRadius);
 
+            // Face the target while closing, not the direction of travel.
+            //
+            // Without this the creature looked wherever it was walking, and the approach is an arc,
+            // so it spent the whole pursuit staring off to one side — measured at 91 degrees from
+            // its own target while running past it. That is what reads as fleeing rather than
+            // hunting. Passing a face target also skips Steer's travel-direction gate, which was
+            // freezing the creature solid every time its desired heading swung more than 60 degrees
+            // off its nose; against a fast target that happens constantly, and the resulting
+            // stop-start-arc is the other half of what looked like running away.
             locomotion.Steer(SteeringBehaviors.Blend(maxSpeed,
                 (pursue, 1f),
-                (separation, separationWeight)));
+                (separation, separationWeight)),
+                target.transform.position);
         }
 
         /// <summary>
-        /// The enemy already within reach that needs the least turning, or null if none is in reach.
-        /// Used to break out of spinning after a target that keeps rotating around this creature.
+        /// The best enemy this creature can already hit from where it stands, or null if none is in
+        /// reach. Ranked by how far it would have to turn, since with a fast pivot the cost of
+        /// engaging something is mostly the turn, not the distance.
         /// </summary>
-        private CreatureUnit BestAlignedEnemyInReach()
+        private CreatureUnit BestEnemyInReach()
         {
             var enemies = UnitRegistry.AliveOf(self.Team.Opponent());
 
@@ -438,8 +450,7 @@ namespace DinoBattle.Units
                 best = candidate;
             }
 
-            // Only worth switching to something meaningfully easier to hit.
-            return bestError <= maxAttackAngle ? best : null;
+            return best;
         }
 
         /// <summary>Ground-plane distance to another creature, ignoring height.</summary>
@@ -618,7 +629,14 @@ namespace DinoBattle.Units
             toSelf.y = 0f;
             if (toSelf.sqrMagnitude < 0.0001f) toSelf = -transform.forward;
 
-            Quaternion offset = Quaternion.Euler(0f, flankAngle, 0f);
+            // Only spread out when there is someone to spread out from. Flanking exists so several
+            // attackers arrive on different sides; applied by a lone attacker it just aims it at a
+            // patch of ground up to 70 degrees off its target — and against a target quick enough to
+            // have left by the time you arrive, that is a permanent near-miss. Measured: velocity 44
+            // degrees off the target's bearing, closing on nothing.
+            float spread = PackTactics.AttackersOn(target, self.Team) > 1 ? flankAngle : 0f;
+
+            Quaternion offset = Quaternion.Euler(0f, spread, 0f);
             return target.transform.position + offset * toSelf.normalized * stopDistance;
         }
 
