@@ -141,6 +141,15 @@ namespace DinoBattle.Core
 
             Winner = red > 0 ? Team.Red : blue > 0 ? Team.Blue : Team.Neutral;
 
+            // Stand the survivors down. StartBattle switches combat on but nothing ever switched it
+            // back off, so the winning side kept running its full AI tick — and kept roaring — over a
+            // result screen with nothing left to fight.
+            foreach (var survivor in activeUnits)
+            {
+                if (survivor == null) continue;
+                foreach (var brain in survivor.GetComponentsInChildren<CreatureBrain>()) brain.CombatEnabled = false;
+            }
+
             Time.timeScale = 1f;
             SetPhase(BattlePhase.Finished);
             BattleEnded?.Invoke(Winner);

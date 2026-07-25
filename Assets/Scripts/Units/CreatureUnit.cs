@@ -46,9 +46,23 @@ namespace DinoBattle.Units
         [SerializeField] private Vector2 roarIntervalRange = new(6f, 14f);
 
         private float roarTimer;
+        private CreatureBrain brain;
+        private CreatureLocomotion locomotion;
 
         public Team Team => team;
         public CreatureDefinition Definition => definition;
+
+        /// <summary>
+        /// Cached siblings, so callers that need them every frame do not pay for a lookup.
+        ///
+        /// The camera director asks every living creature whether it is engaged, several times per
+        /// frame, and each question used to be a GetComponent — a few hundred lookups a frame with a
+        /// full arena, for components that never change. Both may be null: a creature is allowed to
+        /// exist without a brain or a body.
+        /// </summary>
+        public CreatureBrain Brain => brain;
+
+        public CreatureLocomotion Locomotion => locomotion;
         public Health Health { get; private set; }
         public bool IsDead => Health == null || Health.IsDead;
         public Transform AimPoint => aimPoint != null ? aimPoint : transform;
@@ -62,6 +76,8 @@ namespace DinoBattle.Units
         private void Awake()
         {
             Health = GetComponent<Health>();
+            brain = GetComponent<CreatureBrain>();
+            locomotion = GetComponent<CreatureLocomotion>();
 
             // Staggered, or an army spawned on the same frame all calls out in unison.
             roarTimer = UnityEngine.Random.Range(0f, roarIntervalRange.y);
@@ -149,6 +165,11 @@ namespace DinoBattle.Units
         private void Update()
         {
             if (voice == null || roarClip == null || IsDead) return;
+
+            // Only while there is a fight on. The timer used to run off nothing but IsDead, so the
+            // last creature standing carried on roaring over the result screen, and a placement
+            // screen full of creatures the player had not yet sent into battle was equally noisy.
+            if (brain != null && !brain.CombatEnabled) return;
 
             roarTimer -= Time.deltaTime;
             if (roarTimer > 0f) return;

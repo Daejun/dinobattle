@@ -180,7 +180,9 @@ namespace DinoBattle.CameraRig
         /// <summary>In contact with an enemy, rather than still walking toward one.</summary>
         private static bool IsEngaged(CreatureUnit unit)
         {
-            var brain = unit.GetComponent<CreatureBrain>();
+            // unit.Brain is cached on the creature. This runs for every survivor several times per
+            // LateUpdate, and a GetComponent here made framing cost scale with the size of the battle.
+            var brain = unit.Brain;
             return brain != null && brain.Current == CreatureBrain.State.Attack;
         }
 

@@ -98,7 +98,9 @@ namespace DinoBattle.EditorTools
             var light = sun.AddComponent<Light>();
             light.type = LightType.Directional;
             light.intensity = 1.1f;
-            light.shadows = LightShadows.Soft;
+            // Hard, not soft. Soft shadows are among the most expensive things a mobile GPU can be
+            // asked for, and against flat-shaded low-poly models the difference barely registers.
+            light.shadows = LightShadows.Hard;
             light.color = new Color(1f, 0.96f, 0.88f);
             sun.transform.rotation = Quaternion.Euler(48f, 34f, 0f);
 
@@ -122,6 +124,8 @@ namespace DinoBattle.EditorTools
 
             CreateTerrainDressing();
             RenderSettings.ambientIntensity = 1f;
+
+            MarkSceneryStatic();
         }
 
         /// <summary>
@@ -206,6 +210,33 @@ namespace DinoBattle.EditorTools
         /// and fights on that side of the arena simply stopped: attackers wedged on rock, never
         /// reached anyone, and no health drained. Only flat, collider-less ground decals go inside.
         /// </summary>
+        /// <summary>
+        /// Flag the scenery for static batching.
+        ///
+        /// Ground, boundary and dressing add up to nearly ninety renderers that never move, and every
+        /// one of them was being submitted individually — the scene had zero static geometry, so the
+        /// batcher had nothing to work with. They are combined into shared meshes at build time
+        /// instead. Creatures are excluded for the obvious reason.
+        ///
+        /// BatchingStatic only. ContributeGI would drag in lightmap baking, which this project does
+        /// not do, and OccluderStatic needs an occlusion bake that nothing here would benefit from.
+        /// </summary>
+        private static void MarkSceneryStatic()
+        {
+            foreach (string name in new[] { "Ground", "Boundary", "Environment" })
+            {
+                var root = GameObject.Find(name);
+                if (root == null) continue;
+
+                foreach (var child in root.GetComponentsInChildren<Transform>(true))
+                {
+                    GameObjectUtility.SetStaticEditorFlags(
+                        child.gameObject,
+                        StaticEditorFlags.BatchingStatic | StaticEditorFlags.OccludeeStatic);
+                }
+            }
+        }
+
         private static void CreateTerrainDressing()
         {
             var root = new GameObject("Environment").transform;
@@ -313,7 +344,13 @@ namespace DinoBattle.EditorTools
 
             var camera = cameraObject.AddComponent<Camera>();
             camera.backgroundColor = new Color(0.42f, 0.55f, 0.68f);
-            camera.farClipPlane = 600f;
+
+            // 200, not 600. Nothing in this scene is further away than the outer hills at roughly 60
+            // units, and a 0.3-to-600 depth range wastes precision on empty space — precision that
+            // the near-coplanar ground dressing needs. HDR off: there is no bloom or tonemapping to
+            // consume it, so it only costs a wider framebuffer and a resolve on mobile.
+            camera.farClipPlane = 200f;
+            camera.allowHDR = false;
 
             cameraObject.AddComponent<AudioListener>();
 

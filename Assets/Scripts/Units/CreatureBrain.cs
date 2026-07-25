@@ -209,8 +209,8 @@ namespace DinoBattle.Units
             // Approach a point offset around the target, so converging attackers spread across its
             // flanks rather than queuing up nose-to-tail on the near side.
             Vector3 anchor = FlankPosition(fightDistance);
-            Vector3 targetVelocity = target.GetComponent<CreatureLocomotion>() is { } targetLocomotion
-                ? targetLocomotion.HorizontalVelocity
+            Vector3 targetVelocity = target.Locomotion != null
+                ? target.Locomotion.HorizontalVelocity
                 : Vector3.zero;
 
             Vector3 pursue = SteeringBehaviors.Pursue(

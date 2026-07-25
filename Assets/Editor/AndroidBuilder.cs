@@ -30,6 +30,7 @@ namespace DinoBattle.EditorTools
         private static void Run(bool appBundle)
         {
             ApplyPlayerSettings(appBundle);
+            MobileQualityConfigurator.Apply();
 
             string[] scenes = EditorBuildSettings.scenes
                 .Where(s => s.enabled)
