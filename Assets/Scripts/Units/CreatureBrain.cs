@@ -18,10 +18,10 @@ namespace DinoBattle.Units
         [Tooltip("Seconds between target re-evaluations. Staggered per creature to spread the cost.")]
         [SerializeField] private float retargetInterval = 0.4f;
 
-        [Tooltip("Close to this fraction of attack range. Well under 1 so bodies actually meet — " +
-                 "stopping at the edge of reach made bites look like ranged attacks.")]
-        [Range(0.3f, 1f)]
-        [SerializeField] private float approachRangeFactor = 0.55f;
+        [Tooltip("Close to this fraction of attack range, which is a root-to-root distance. Under 1 " +
+                 "so bodies actually meet and overlap slightly instead of stopping at arm's length.")]
+        [Range(0.1f, 1f)]
+        [SerializeField] private float approachRangeFactor = 0.8f;
 
         [Tooltip("Degrees around the target this creature approaches from. Randomised per creature so " +
                  "a pack surrounds its prey instead of all piling onto the nearest face.")]
@@ -55,6 +55,7 @@ namespace DinoBattle.Units
         private CreatureUnit self;
         private CreatureLocomotion locomotion;
         private MeleeAttack attack;
+        private GrappleHold grapple;
         private CreatureDefinition definition;
 
         private CreatureUnit target;
@@ -71,6 +72,7 @@ namespace DinoBattle.Units
             self = GetComponent<CreatureUnit>();
             locomotion = GetComponent<CreatureLocomotion>();
             attack = GetComponentInChildren<MeleeAttack>();
+            grapple = GetComponent<GrappleHold>();
             if (animator == null) animator = GetComponentInChildren<Animator>();
 
             // Offset the first retarget tick so a hundred creatures do not all scan on the same frame.
@@ -134,9 +136,20 @@ namespace DinoBattle.Units
         {
             bool inRange = attack != null && attack.IsInRange(target);
             float maxSpeed = locomotion != null ? locomotion.MoveSpeed : 6f;
-            float fightDistance = (attack != null ? attack.Range : 3f) * approachRangeFactor;
+            // Effective range accounts for the target's body extent, so a small attacker closing on a
+            // large one aims for its surface rather than a point buried inside it.
+            float fightDistance = (attack != null ? attack.EffectiveRange(target) : 3f) * approachRangeFactor;
 
             Vector3 separation = SteeringBehaviors.Separation(self, separationRadius, maxSpeed);
+
+            // A creature with prey in its jaws plants itself and works on what it is holding. Letting
+            // it keep circling would drag the victim around and look like a bug rather than a kill.
+            if (grapple != null && grapple.IsHolding)
+            {
+                SetState(State.Attack);
+                locomotion?.Brake();
+                return;
+            }
 
             if (inRange)
             {

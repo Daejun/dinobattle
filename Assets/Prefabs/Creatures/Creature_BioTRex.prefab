@@ -15,6 +15,7 @@ GameObject:
   - component: {fileID: 2764824461360807341}
   - component: {fileID: 7516905573031741097}
   - component: {fileID: 1064123751079959254}
+  - component: {fileID: 5623028075223229350}
   - component: {fileID: 3822878787620081565}
   m_Layer: 0
   m_Name: Creature_BioTRex
@@ -62,7 +63,7 @@ CapsuleCollider:
   m_Enabled: 1
   serializedVersion: 2
   m_Radius: 0.63
-  m_Height: 3.6399999
+  m_Height: 2.6
   m_Direction: 2
   m_Center: {x: 0, y: 0.63, z: 0}
 --- !u!54 &4184132183527249870
@@ -157,7 +158,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DinoBattle.Units.CreatureBrain
   retargetInterval: 0.4
-  approachRangeFactor: 0.55
+  approachRangeFactor: 0.8
   maxFlankAngle: 70
   circleSpeedFactor: 0.45
   separationRadius: 3.5
@@ -166,6 +167,26 @@ MonoBehaviour:
   animator: {fileID: 122603680488124589}
   speedParameterName: Speed
   deathTriggerName: Die
+--- !u!114 &5623028075223229350
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 280449492566712496}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7fb170b74e8309944bd9532dbd05ad1a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DinoBattle.Units.GrappleHold
+  massRatioToSeize: 4
+  holdDuration: 2.2
+  crushDamagePerSecond: 140
+  throwSpeed: 9
+  shakeAmplitude: 0.35
+  shakeFrequency: 7
+  jawBoneName: Head
+  jawForwardOffset: 0.5
 --- !u!114 &3822878787620081565
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -180,7 +201,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::DinoBattle.Units.MeleeAttack
   damage: 560
   interval: 1.5
-  range: 5.2
+  range: 4.2
   windup: 0.375
   windupRangeSlack: 1.5
   knockback: 4

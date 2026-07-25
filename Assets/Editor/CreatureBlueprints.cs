@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 namespace DinoBattle.EditorTools
 {
@@ -28,6 +28,11 @@ namespace DinoBattle.EditorTools
         public float Armor;
         public float Damage = 100f;
         public float Interval = 1.5f;
+
+        /// <summary>
+        /// Attack reach as root-to-root distance, so roughly half this creature's body length plus
+        /// how far past its head it can bite. Not an aim-point offset — see MeleeAttack.IsInRange.
+        /// </summary>
         public float Range = 3f;
         public float Speed = 6f;
         public float Mass = 1000f;
@@ -59,7 +64,7 @@ namespace DinoBattle.EditorTools
             {
                 Name = "T-Rex", Model = "Trex",
                 Cost = 420, Health = 4200f, Armor = 12f,
-                Damage = 480f, Interval = 1.6f, Range = 5.0f,
+                Damage = 480f, Interval = 1.6f, Range = 4.0f,
                 Speed = 6.5f, Mass = 8000f,
                 BodySize = new Vector3(2.0f, 2.4f, 5.0f),
                 Tint = new Color(0.45f, 0.32f, 0.22f),
@@ -69,7 +74,7 @@ namespace DinoBattle.EditorTools
                 // Bio-engineered variant: the T-Rex model in a different skin, costed above it.
                 Name = "Bio T-Rex", Model = "Trex", Recolor = true,
                 Cost = 520, Health = 4800f, Armor = 20f,
-                Damage = 560f, Interval = 1.5f, Range = 5.2f,
+                Damage = 560f, Interval = 1.5f, Range = 4.2f,
                 Speed = 7.0f, Mass = 8600f,
                 BodySize = new Vector3(2.1f, 2.5f, 5.2f),
                 Tint = new Color(0.20f, 0.42f, 0.28f),
@@ -78,7 +83,7 @@ namespace DinoBattle.EditorTools
             {
                 Name = "Triceratops", Model = "Triceratops",
                 Cost = 300, Health = 4400f, Armor = 22f,
-                Damage = 300f, Interval = 1.9f, Range = 3.8f,
+                Damage = 300f, Interval = 1.9f, Range = 3.4f,
                 Speed = 5.8f, Mass = 7400f,
                 BodySize = new Vector3(2.2f, 1.9f, 4.4f),
                 Tint = new Color(0.52f, 0.44f, 0.30f),
@@ -88,7 +93,7 @@ namespace DinoBattle.EditorTools
                 // Cheap and fast. Four of these cost less than one T-Rex and should nearly beat it.
                 Name = "Velociraptor", Model = "Velociraptor",
                 Cost = 90, Health = 600f, Armor = 2f,
-                Damage = 110f, Interval = 0.7f, Range = 2.4f,
+                Damage = 110f, Interval = 0.7f, Range = 1.8f,
                 Speed = 11.0f, Mass = 900f,
                 BodySize = new Vector3(0.8f, 1.0f, 2.0f),
                 Tint = new Color(0.62f, 0.50f, 0.28f),

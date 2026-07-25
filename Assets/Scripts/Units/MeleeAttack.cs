@@ -30,6 +30,7 @@ namespace DinoBattle.Units
         private float windupRemaining = -1f;
         private CreatureUnit self;
         private CreatureUnit pendingTarget;
+        private GrappleHold grapple;
 
         public float Range => range;
         public bool IsSwinging => windupRemaining >= 0f;
@@ -43,6 +44,8 @@ namespace DinoBattle.Units
             // searching only upward finds nothing and attacks play silently with no animation.
             if (animator == null) animator = GetComponentInParent<Animator>();
             if (animator == null) animator = GetComponentInChildren<Animator>();
+
+            grapple = GetComponentInParent<GrappleHold>();
         }
 
         public void Configure(CreatureDefinition definition)
@@ -68,12 +71,41 @@ namespace DinoBattle.Units
             LandHit();
         }
 
-        /// <summary>True if <paramref name="target"/> is close enough to bite right now.</summary>
+        /// <summary>
+        /// True if <paramref name="target"/> is close enough to bite right now.
+        ///
+        /// Measured root-to-root on the horizontal plane, NOT between aim points. Aim points sit
+        /// forward of each creature, so an attacker circling its prey — facing its direction of
+        /// travel rather than the enemy — swung its aim point away and reported out of range while
+        /// standing right next to it. Every creature then stalled in Seek and never attacked.
+        /// Distance between two bodies should not depend on which way either is looking.
+        /// </summary>
         public bool IsInRange(CreatureUnit target)
         {
             if (target == null || self == null) return false;
-            float sqr = (target.AimPoint.position - self.AimPoint.position).sqrMagnitude;
-            return sqr <= range * range;
+
+            Vector3 offset = target.transform.position - self.transform.position;
+            offset.y = 0f;
+
+            float reach = EffectiveRange(target);
+            return offset.sqrMagnitude <= reach * reach;
+        }
+
+        /// <summary>
+        /// Reach against a specific target: this creature's own range plus the target's body extent.
+        ///
+        /// Range alone is centre-to-centre, which quietly makes small attackers unable to hit large
+        /// ones. A raptor's 1.8 reach against a T-Rex whose body is five units long required standing
+        /// inside it — the colliders forbade that, so the raptors circled a T-Rex forever and never
+        /// landed a blow. Reach is properly measured to the target's surface, not its pivot.
+        /// </summary>
+        public float EffectiveRange(CreatureUnit target)
+        {
+            float targetExtent = target != null && target.Definition != null
+                ? target.Definition.footprintRadius
+                : 0f;
+
+            return range + targetExtent;
         }
 
         /// <summary>Begin a swing at <paramref name="target"/>. No-op if still on cooldown.</summary>
@@ -110,13 +142,22 @@ namespace DinoBattle.Units
             if (target == null || target.IsDead || self == null) return;
 
             // The target may have walked out during the windup; allow a little slack, then whiff.
+            // Root-to-root for the same reason IsInRange uses it — see that method.
             float reach = range + windupRangeSlack;
-            Vector3 toTarget = target.AimPoint.position - self.AimPoint.position;
+            Vector3 toTarget = target.transform.position - self.transform.position;
+            toTarget.y = 0f;
             if (toTarget.sqrMagnitude > reach * reach) return;
 
             target.Health.TakeDamage(damage);
 
-            if (knockback > 0f && target.TryGetComponent<Rigidbody>(out var victimBody))
+            // A connecting bite on something far smaller becomes a grab: the victim is lifted, shaken
+            // and thrown rather than just losing hit points. Knockback is skipped in that case — you
+            // cannot both hold prey and punt it away.
+            if (grapple != null && grapple.CanSeize(target))
+            {
+                grapple.Seize(target);
+            }
+            else if (knockback > 0f && target.TryGetComponent<Rigidbody>(out var victimBody))
             {
                 Vector3 push = toTarget.normalized;
                 push.y = 0.15f;

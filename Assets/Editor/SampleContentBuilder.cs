@@ -115,7 +115,7 @@ namespace DinoBattle.EditorTools
             // apart and bites appeared to land from thin air. Undersizing lets them close and overlap
             // slightly, which is what a real scrap looks like.
             collider.radius = blueprint.BodySize.x * 0.3f;
-            collider.height = Mathf.Max(blueprint.BodySize.z * 0.7f, collider.radius * 2f);
+            collider.height = Mathf.Max(blueprint.BodySize.z * 0.5f, collider.radius * 2f);
 
             // center.y MUST equal the radius. This is a horizontal capsule, so its lowest point sits
             // (center.y - radius) above the root; anything higher and the creature settles that far
@@ -138,6 +138,7 @@ namespace DinoBattle.EditorTools
             var unit = EnsureComponent<CreatureUnit>(root);
             EnsureComponent<CreatureLocomotion>(root);
             EnsureComponent<CreatureBrain>(root);
+            EnsureComponent<GrappleHold>(root);
             var attack = EnsureComponent<MeleeAttack>(root);
 
             // Real art if the pack has been imported, blocked-out primitives otherwise. Keeping both

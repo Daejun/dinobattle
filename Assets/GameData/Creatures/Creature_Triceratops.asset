@@ -25,6 +25,6 @@ MonoBehaviour:
   mass: 7400
   attackDamage: 300
   attackInterval: 1.9
-  attackRange: 3.8
+  attackRange: 3.4
   attackWindup: 0.475
   aggroRange: 90
