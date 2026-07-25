@@ -21,7 +21,7 @@ MonoBehaviour:
   maxHealth: 2600
   armor: 6
   moveSpeed: 8.2
-  turnSpeedDegrees: 195.19481
+  turnSpeedDegrees: 273.7013
   mass: 3200
   attackDamage: 180
   attackInterval: 1.6

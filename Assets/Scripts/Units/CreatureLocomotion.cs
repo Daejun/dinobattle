@@ -26,8 +26,23 @@ namespace DinoBattle.Units
         [Tooltip("Distance below the pivot still considered grounded.")]
         [SerializeField] private float groundProbeDistance = 1.2f;
 
+        [Tooltip("How hard a stationary creature bleeds off leftover momentum.")]
+        [SerializeField] private float brakeDamping = 8f;
+
         private Rigidbody body;
         private bool stopped;
+
+        /// <summary>
+        /// The steering command from the most recent frame, applied on the physics tick.
+        ///
+        /// Kept as state rather than acted on immediately because <see cref="Steer"/> is called from
+        /// the brain's Update, and Update does not line up with FixedUpdate. Adding force straight
+        /// from Update meant a physics step could receive two frames' worth of force, or none at all,
+        /// depending on where the frame boundaries happened to fall — which showed up as creatures
+        /// visibly wobbling as they walked. A steering velocity is a continuous control signal, so
+        /// the latest value simply stands until it is replaced.
+        /// </summary>
+        private Vector3 desiredVelocity;
 
         public bool IsGrounded { get; private set; }
 
@@ -80,6 +95,32 @@ namespace DinoBattle.Units
             Vector3 horizontal = body.linearVelocity;
             horizontal.y = 0f;
             CurrentSpeed = horizontal.magnitude;
+
+            if (!stopped) ApplySteering();
+        }
+
+        /// <summary>
+        /// Drive the Rigidbody toward the steering velocity. Runs on the physics tick, exactly once
+        /// per step, which is the whole point of storing the command rather than applying it inline.
+        /// </summary>
+        private void ApplySteering()
+        {
+            Vector3 current = body.linearVelocity;
+
+            // A zero command means "stop here" — brake rather than coast. This is what holds an
+            // attacker still through a swing instead of letting it drift through its own animation.
+            if (desiredVelocity.sqrMagnitude < 0.0001f)
+            {
+                current.x = Mathf.Lerp(current.x, 0f, brakeDamping * Time.fixedDeltaTime);
+                current.z = Mathf.Lerp(current.z, 0f, brakeDamping * Time.fixedDeltaTime);
+                body.linearVelocity = current;
+                return;
+            }
+
+            if (!IsGrounded) return;
+
+            Vector3 change = new(desiredVelocity.x - current.x, 0f, desiredVelocity.z - current.z);
+            body.AddForce(Vector3.ClampMagnitude(change, moveSpeed) * acceleration, ForceMode.Acceleration);
         }
 
         /// <summary>
@@ -92,45 +133,23 @@ namespace DinoBattle.Units
         /// <paramref name="faceTarget"/> lets a creature keep its head on the enemy while sidestepping;
         /// pass null to face the direction of travel.
         /// </summary>
-        public void Steer(Vector3 desiredVelocity, Vector3? faceTarget = null)
+        public void Steer(Vector3 desired, Vector3? faceTarget = null)
         {
             if (stopped) return;
 
-            Vector3 flat = desiredVelocity;
+            Vector3 flat = desired;
             flat.y = 0f;
 
+            // Rotation stays on the frame tick. It is purely visual — nothing physical depends on it
+            // — and turning at the render rate is smoother than stepping it at 50Hz.
             Vector3 lookAt = faceTarget ?? (flat.sqrMagnitude > 0.01f ? transform.position + flat : transform.position);
             float angle = FaceTowards(lookAt);
 
-            if (flat.sqrMagnitude < 0.0001f || !IsGrounded) return;
-
             // Only gate on facing when steering by travel direction. While locked onto a target the
             // creature is expected to strafe sideways, which would otherwise never pass the check.
-            if (faceTarget == null && angle > moveFacingTolerance) return;
+            if (faceTarget == null && angle > moveFacingTolerance) flat = Vector3.zero;
 
-            Vector3 current = body.linearVelocity;
-            Vector3 change = new Vector3(flat.x - current.x, 0f, flat.z - current.z);
-
-            body.AddForce(Vector3.ClampMagnitude(change, moveSpeed) * acceleration, ForceMode.Acceleration);
-        }
-
-        /// <summary>Turn toward <paramref name="destination"/> and walk in once roughly facing it.</summary>
-        public void MoveTowards(Vector3 destination)
-        {
-            if (stopped) return;
-
-            Vector3 toTarget = destination - transform.position;
-            toTarget.y = 0f;
-            if (toTarget.sqrMagnitude < 0.0001f) return;
-
-            float angle = FaceTowards(destination);
-            if (angle > moveFacingTolerance || !IsGrounded) return;
-
-            Vector3 desired = transform.forward * moveSpeed;
-            Vector3 current = body.linearVelocity;
-            Vector3 change = new Vector3(desired.x - current.x, 0f, desired.z - current.z);
-
-            body.AddForce(Vector3.ClampMagnitude(change, moveSpeed) * acceleration, ForceMode.Acceleration);
+            desiredVelocity = flat;
         }
 
         /// <summary>Rotate toward a point. Returns the remaining angle in degrees.</summary>
@@ -150,15 +169,6 @@ namespace DinoBattle.Units
             return Quaternion.Angle(transform.rotation, desired);
         }
 
-        /// <summary>Bleed off horizontal momentum, e.g. while winding up an attack.</summary>
-        public void Brake(float damping = 8f)
-        {
-            Vector3 velocity = body.linearVelocity;
-            velocity.x = Mathf.Lerp(velocity.x, 0f, damping * Time.fixedDeltaTime);
-            velocity.z = Mathf.Lerp(velocity.z, 0f, damping * Time.fixedDeltaTime);
-            body.linearVelocity = velocity;
-        }
-
         /// <summary>
         /// Stop steering and let the death animation play. Rotation stays frozen on purpose: unfreezing
         /// it made the corpse tumble, which fights the death clip instead of reading as a fall.
@@ -167,6 +177,7 @@ namespace DinoBattle.Units
         public void OnUnitDied()
         {
             stopped = true;
+            desiredVelocity = Vector3.zero;
 
             body.linearVelocity = Vector3.zero;
             body.angularVelocity = Vector3.zero;

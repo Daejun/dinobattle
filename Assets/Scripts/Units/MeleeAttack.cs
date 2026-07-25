@@ -22,6 +22,12 @@ namespace DinoBattle.Units
         [Range(0.5f, 1f)]
         [SerializeField] private float commitRangeFactor = 0.8f;
 
+        [Tooltip("How much of the target's bulk counts as extra reach, as a multiple of this " +
+                 "creature's own range. Caps the credit so a small attacker cannot bite a large " +
+                 "target from open ground simply because the target is big.")]
+        [Range(0f, 2f)]
+        [SerializeField] private float targetExtentCredit = 0.6f;
+
         [Tooltip("Seconds after damage lands during which the creature stays planted. The attack clip " +
                  "keeps playing past the hit, and it animates the feet standing still — drifting " +
                  "through the rest of it is what makes a fighting creature look like it is skating.")]
@@ -139,7 +145,12 @@ namespace DinoBattle.Units
                 ? target.Definition.footprintRadius
                 : 0f;
 
-            return range + targetExtent;
+            // Capped against this creature's OWN reach. Uncapped, the credit scaled with whatever it
+            // was fighting: a raptor with 1.8 of reach inherited a T-Rex's 3.0 footprint and could
+            // bite from 4.8 out, while the T-Rex's flank is only 1.4 from its centre — so the raptor
+            // snapped at two units of open ground. A small animal does not get long reach by virtue
+            // of attacking something large; it has to close.
+            return range + Mathf.Min(targetExtent, range * targetExtentCredit);
         }
 
         /// <summary>Begin a swing at <paramref name="target"/>. No-op if still on cooldown.</summary>

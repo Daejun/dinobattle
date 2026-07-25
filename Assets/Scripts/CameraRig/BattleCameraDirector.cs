@@ -39,6 +39,12 @@ namespace DinoBattle.CameraRig
                  "enough behind a moving fight that the camera regularly sat on empty ground.")]
         [SerializeField] private float retargetSmoothing = 8f;
 
+        [Tooltip("How much more a creature in contact counts toward the framing centre than one still " +
+                 "closing. Higher points the camera harder at the fighting; too high and it becomes " +
+                 "the old membership-jump problem again, because one creature dominates the average.")]
+        [Range(1f, 10f)]
+        [SerializeField] private float engagedWeight = 3f;
+
         [Tooltip("Snap rather than ease when the action jumps further than this in one step — a " +
                  "creature dying can move the centroid a long way instantly, and easing across that " +
                  "gap sweeps the camera through everything in between.")]
@@ -136,44 +142,46 @@ namespace DinoBattle.CameraRig
             // the engaged pair framed one duel so tightly that the rest of the battle sat off-screen
             // — the player could not see what was happening anywhere else. Splitting the two means
             // the camera looks where the action is while the wider battle stays in view.
-            if (!Accumulate(red, blue, engagedOnly: true, out center) &&
-                !Accumulate(red, blue, engagedOnly: false, out center))
-            {
-                return false;
-            }
+            //
+            // Weighted rather than filtered. Averaging only the creatures currently in Attack made
+            // the centre depend on set MEMBERSHIP, and hit-and-run flips creatures between Seek and
+            // Attack several times a second — every flip teleported the centroid and the camera
+            // twitched after it. Weighting keeps everyone in the average, so a creature entering or
+            // leaving the fight slides the shot instead of jumping it.
+            if (!AccumulateWeighted(red, blue, out center)) return false;
 
             radius = Mathf.Max(
-                FurthestFrom(red, center, engagedOnly: false),
-                FurthestFrom(blue, center, engagedOnly: false));
+                FurthestFrom(red, center),
+                FurthestFrom(blue, center));
 
             return true;
         }
 
-        private static bool Accumulate(
-            IReadOnlyList<CreatureUnit> red, IReadOnlyList<CreatureUnit> blue, bool engagedOnly, out Vector3 center)
+        private bool AccumulateWeighted(
+            IReadOnlyList<CreatureUnit> red, IReadOnlyList<CreatureUnit> blue, out Vector3 center)
         {
             Vector3 sum = Vector3.zero;
-            int count = 0;
+            float totalWeight = 0f;
 
-            AddTeam(red, engagedOnly, ref sum, ref count);
-            AddTeam(blue, engagedOnly, ref sum, ref count);
+            AddTeam(red, ref sum, ref totalWeight);
+            AddTeam(blue, ref sum, ref totalWeight);
 
-            center = count > 0 ? sum / count : Vector3.zero;
+            center = totalWeight > 0f ? sum / totalWeight : Vector3.zero;
             center.y = 0f;
-            return count > 0;
+            return totalWeight > 0f;
         }
 
-        private static void AddTeam(
-            IReadOnlyList<CreatureUnit> team, bool engagedOnly, ref Vector3 sum, ref int count)
+        private void AddTeam(IReadOnlyList<CreatureUnit> team, ref Vector3 sum, ref float totalWeight)
         {
             for (int i = 0; i < team.Count; i++)
             {
                 var unit = team[i];
                 if (unit == null || unit.IsDead) continue;
-                if (engagedOnly && !IsEngaged(unit)) continue;
 
-                sum += unit.transform.position;
-                count++;
+                float weight = IsEngaged(unit) ? engagedWeight : 1f;
+
+                sum += unit.transform.position * weight;
+                totalWeight += weight;
             }
         }
 
@@ -186,17 +194,8 @@ namespace DinoBattle.CameraRig
             return brain != null && brain.Current == CreatureBrain.State.Attack;
         }
 
-        private static bool HasEngaged(IReadOnlyList<CreatureUnit> team)
-        {
-            for (int i = 0; i < team.Count; i++)
-            {
-                if (team[i] != null && !team[i].IsDead && IsEngaged(team[i])) return true;
-            }
-
-            return false;
-        }
-
-        private static float FurthestFrom(IReadOnlyList<CreatureUnit> team, Vector3 center, bool engagedOnly)
+        /// <summary>Distance from the centre to the outermost living member of a team.</summary>
+        private static float FurthestFrom(IReadOnlyList<CreatureUnit> team, Vector3 center)
         {
             float furthest = 0f;
 
@@ -204,7 +203,6 @@ namespace DinoBattle.CameraRig
             {
                 var unit = team[i];
                 if (unit == null || unit.IsDead) continue;
-                if (engagedOnly && !IsEngaged(unit)) continue;
 
                 furthest = Mathf.Max(furthest, PlanarDistance(unit, center));
             }

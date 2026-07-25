@@ -67,9 +67,8 @@ GameObject:
   - component: {fileID: 7907922191789187886}
   - component: {fileID: 7843406785747325085}
   - component: {fileID: 4960348156559893881}
-  - component: {fileID: 6167335900573199459}
-  - component: {fileID: 4867278778494496972}
   - component: {fileID: 3277999180842498217}
+  - component: {fileID: 2542580388087836590}
   - component: {fileID: 5969145485752616968}
   m_Layer: 0
   m_Name: Creature_Parasaurolophus
@@ -206,6 +205,7 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 4294967295
   groundProbeDistance: 1.2
+  brakeDamping: 8
 --- !u!114 &4960348156559893881
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -219,6 +219,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DinoBattle.Units.CreatureBrain
   retargetInterval: 0.4
+  abandonChaseDistance: 8
+  retargetAdvantage: 2
   meleeContactFactor: 0.35
   minimumFightDistance: 0.8
   maxFlankAngle: 70
@@ -228,45 +230,19 @@ MonoBehaviour:
   separationWeight: 1.1
   meleeSeparationWeight: 0.15
   slowingRadius: 6
+  hitAndRunMassRatio: 3
+  retreatDuration: 1.1
+  fleeDanger: 0.6
+  boldDanger: 0.25
+  maxAlignWait: 0.9
+  lungeAttackAngle: 60
+  woundedCaution: 1.4
+  standoffFactor: 2.6
+  packTurnThreshold: 3
+  turnDuration: 1.8
   animator: {fileID: 7821530261151726921}
   speedParameterName: Speed
   deathTriggerName: Die
---- !u!114 &6167335900573199459
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2870443527841078448}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 3af68a59f8d8dcf48885536b6c03910a, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::DinoBattle.Units.PounceCling
-  massRatioToClimb: 4
-  pounceRange: 6
-  pounceSpeed: 9
-  clingDuration: 4.5
-  clingDamagePerSecond: 95
-  pounceCooldown: 3
---- !u!114 &4867278778494496972
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2870443527841078448}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 374d4ee0c8899734a8c470df3510e81c, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::DinoBattle.Units.ClingAnchors
-  anchorBoneNames:
-  - Shoulders
-  - Torso
-  - Back
-  - Neck
-  - Hips
 --- !u!114 &3277999180842498217
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -285,6 +261,7 @@ MonoBehaviour:
   windup: 0.4
   windupRangeSlack: 1.5
   commitRangeFactor: 0.8
+  targetExtentCredit: 0.6
   attackRecovery: 0.35
   knockback: 4
   animator: {fileID: 7821530261151726921}
@@ -292,6 +269,24 @@ MonoBehaviour:
   attackAudio: {fileID: 5969145485752616968}
   attackClip: {fileID: 8300000, guid: da68ccf2f5dcd6046888b0a0c76117c3, type: 3}
   impactEffect: {fileID: 0}
+--- !u!114 &2542580388087836590
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2870443527841078448}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 177fac3d46b211045be1630e12fca885, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DinoBattle.Units.HeadLook
+  boneNames:
+  - Head
+  - Neck
+  - Skull
+  maxYaw: 55
+  responsiveness: 90
 --- !u!82 &5969145485752616968
 AudioSource:
   m_ObjectHideFlags: 0

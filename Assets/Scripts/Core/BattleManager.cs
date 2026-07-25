@@ -88,6 +88,7 @@ namespace DinoBattle.Core
             DetachUnitEvents();
             activeUnits.Clear();
             UnitRegistry.Clear();
+            PackTactics.Clear();
             spawner.DespawnAll();
             Loadout.Clear();
 
@@ -107,6 +108,7 @@ namespace DinoBattle.Core
             }
 
             UnitRegistry.Clear();
+            PackTactics.Clear();
             activeUnits.Clear();
 
             foreach (var placement in Loadout.Placements)

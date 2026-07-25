@@ -31,6 +31,21 @@ namespace DinoBattle.Units
         }
 
         /// <summary>
+        /// Seek's opposite: full-speed run directly away from a point.
+        ///
+        /// Used by the light creatures' hit-and-run, where backing off after a bite is half the
+        /// behaviour. Note this steers away without turning away — the caller decides which way the
+        /// creature looks, so a raptor can retreat while still watching what it just bit.
+        /// </summary>
+        public static Vector3 Flee(Vector3 position, Vector3 threat, float maxSpeed)
+        {
+            Vector3 offset = position - threat;
+            offset.y = 0f;
+
+            return offset.sqrMagnitude < 0.0001f ? Vector3.zero : offset.normalized * maxSpeed;
+        }
+
+        /// <summary>
         /// Seek that eases off inside <paramref name="slowingRadius"/> and stops inside
         /// <paramref name="arriveRadius"/>.
         /// </summary>
@@ -75,15 +90,22 @@ namespace DinoBattle.Units
         /// neighbours barely register. Returns a velocity, not a normalized direction, so it can be
         /// summed with the other behaviours directly.
         /// </summary>
-        public static Vector3 Separation(CreatureUnit self, float radius, float maxSpeed)
+        /// <param name="ignore">
+        /// The creature currently being attacked, which must NOT push back. Separation is there to
+        /// stop a pack collapsing onto one point; applied to your own target it becomes a force field
+        /// around the thing you are trying to reach. With a 3.5 radius that is exactly what happened —
+        /// attackers closed to about 3.2 and were held there, which on screen looks like an invisible
+        /// wall between the two creatures.
+        /// </param>
+        public static Vector3 Separation(CreatureUnit self, float radius, float maxSpeed, CreatureUnit ignore = null)
         {
             if (self == null || radius <= 0f) return Vector3.zero;
 
             Vector3 push = Vector3.zero;
             int counted = 0;
 
-            AccumulateSeparation(self, UnitRegistry.AliveOf(Team.Red), radius, ref push, ref counted);
-            AccumulateSeparation(self, UnitRegistry.AliveOf(Team.Blue), radius, ref push, ref counted);
+            AccumulateSeparation(self, UnitRegistry.AliveOf(Team.Red), radius, ignore, ref push, ref counted);
+            AccumulateSeparation(self, UnitRegistry.AliveOf(Team.Blue), radius, ignore, ref push, ref counted);
 
             if (counted == 0) return Vector3.zero;
 
@@ -92,7 +114,7 @@ namespace DinoBattle.Units
         }
 
         private static void AccumulateSeparation(CreatureUnit self, IReadOnlyList<CreatureUnit> others,
-            float radius, ref Vector3 push, ref int counted)
+            float radius, CreatureUnit ignore, ref Vector3 push, ref int counted)
         {
             Vector3 origin = self.transform.position;
             float radiusSqr = radius * radius;
@@ -100,7 +122,7 @@ namespace DinoBattle.Units
             for (int i = 0; i < others.Count; i++)
             {
                 var other = others[i];
-                if (other == null || other == self || other.IsDead) continue;
+                if (other == null || other == self || other == ignore || other.IsDead) continue;
 
                 Vector3 away = origin - other.transform.position;
                 away.y = 0f;

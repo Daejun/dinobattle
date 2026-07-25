@@ -58,6 +58,7 @@ namespace DinoBattle.Units
         private float roarTimer;
         private CreatureBrain brain;
         private CreatureLocomotion locomotion;
+        private MeleeAttack attack;
 
         /// <summary>Shader property both the skin shader and the built-in Standard shader expose.</summary>
         private static readonly int BaseColorId = Shader.PropertyToID("_Color");
@@ -76,6 +77,9 @@ namespace DinoBattle.Units
         public CreatureBrain Brain => brain;
 
         public CreatureLocomotion Locomotion => locomotion;
+
+        /// <summary>This creature's weapon, so others can read whether it is mid-swing at them.</summary>
+        public MeleeAttack Attack => attack;
         public Health Health { get; private set; }
         public bool IsDead => Health == null || Health.IsDead;
         public Transform AimPoint => aimPoint != null ? aimPoint : transform;
@@ -91,6 +95,7 @@ namespace DinoBattle.Units
             Health = GetComponent<Health>();
             brain = GetComponent<CreatureBrain>();
             locomotion = GetComponent<CreatureLocomotion>();
+            attack = GetComponentInChildren<MeleeAttack>();
 
             // Staggered, or an army spawned on the same frame all calls out in unison.
             roarTimer = UnityEngine.Random.Range(0f, roarIntervalRange.y);

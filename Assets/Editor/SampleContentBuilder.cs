@@ -83,7 +83,12 @@ namespace DinoBattle.EditorTools
             definition.maxHealth = blueprint.Health;
             definition.armor = blueprint.Armor;
             definition.moveSpeed = blueprint.Speed;
-            definition.turnSpeedDegrees = Mathf.Lerp(240f, 90f, Mathf.InverseLerp(900f, 8600f, blueprint.Mass));
+            // Heavy still turns slower than light, but the floor is much higher than it was. At the
+            // old 240..90 mapping a T-Rex turned at 102 deg/s — 1.8 seconds to come about — and
+            // against a raptor circling it at melee range that is slower than the bearing to its own
+            // target changes. It could never finish a turn, so it never attacked and read as
+            // wandering off. 320..165 keeps the weight difference legible without the deadlock.
+            definition.turnSpeedDegrees = Mathf.Lerp(320f, 165f, Mathf.InverseLerp(900f, 8600f, blueprint.Mass));
             definition.mass = blueprint.Mass;
             definition.attackDamage = blueprint.Damage;
             definition.attackInterval = blueprint.Interval;
@@ -143,12 +148,11 @@ namespace DinoBattle.EditorTools
             var unit = EnsureComponent<CreatureUnit>(root);
             EnsureComponent<CreatureLocomotion>(root);
             EnsureComponent<CreatureBrain>(root);
-            EnsureComponent<PounceCling>(root);
-
-            // Added last: ClingAnchors caches bones in Awake, so it must exist on the prefab even
-            // though nothing on this creature uses it — it is what OTHER creatures climb.
-            EnsureComponent<ClingAnchors>(root);
             var attack = EnsureComponent<MeleeAttack>(root);
+
+            // Added after the brain, since it reads the brain's current target. Harmless on the
+            // placeholder primitives: with no skeleton it finds no head bone and does nothing.
+            EnsureComponent<HeadLook>(root);
 
             // Real art if the pack has been imported, blocked-out primitives otherwise. Keeping both
             // paths here means one generator owns the prefab and re-running the menu never wipes art.
