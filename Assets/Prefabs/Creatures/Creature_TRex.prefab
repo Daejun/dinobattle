@@ -200,6 +200,10 @@ MonoBehaviour:
   moveSpeed: 6
   turnSpeedDegrees: 180
   moveFacingTolerance: 60
+  pivotTurnMultiplier: 10
+  pivotSpeedThreshold: 1.5
+  turnSharpness: 14
+  steeringSmoothing: 12
   acceleration: 20
   groundMask:
     serializedVersion: 2

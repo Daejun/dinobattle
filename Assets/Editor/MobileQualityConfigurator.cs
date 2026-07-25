@@ -56,6 +56,15 @@ namespace DinoBattle.EditorTools
             // No LOD groups exist, so a bias of 2 only inflated culling work.
             QualitySettings.lodBias = 1f;
 
+            // Keep simulating when the window is not focused.
+            //
+            // This is a development concern, not a shipping one — Android suspends the app either
+            // way. It matters because the editor is driven remotely here: with it off, play mode
+            // freezes the instant focus moves elsewhere, and a tool querying the running game reads
+            // a world that has not advanced a single frame since the last time someone clicked on
+            // Unity. Measurements taken that way look plausible and are worthless.
+            PlayerSettings.runInBackground = true;
+
             AssetDatabase.SaveAssets();
 
             Debug.Log($"[MobileQualityConfigurator] Applied to quality level " +

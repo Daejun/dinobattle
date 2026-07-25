@@ -98,16 +98,10 @@ namespace DinoBattle.EditorTools
                 BodySize = new Vector3(0.8f, 1.0f, 2.0f),
                 Tint = new Color(0.62f, 0.50f, 0.28f),
             },
-            new()
-            {
-                // Armoured, slow, tail-swipe bruiser — took over the Ankylosaurus role.
-                Name = "Stegosaurus", Model = "Stegosaurus",
-                Cost = 320, Health = 5000f, Armor = 26f,
-                Damage = 280f, Interval = 2.1f, Range = 3.8f,
-                Speed = 4.8f, Mass = 7800f,
-                BodySize = new Vector3(2.2f, 2.6f, 5.2f),
-                Tint = new Color(0.40f, 0.46f, 0.36f),
-            },
+            // Stegosaurus is deliberately absent. The pack's attack clip swings its tail in a way
+            // that does not read as a strike, and no amount of tuning on our side fixes a clip. Its
+            // model and animator are still imported, so restoring the entry is all that is needed if
+            // the animation is ever replaced.
             new()
             {
                 // Herbivore: quick and cheap, poor damage. The "cheap body" slot above raptors.

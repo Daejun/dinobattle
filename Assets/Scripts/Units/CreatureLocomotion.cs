@@ -26,6 +26,14 @@ namespace DinoBattle.Units
         [Tooltip("Below this speed the creature counts as turning in place.")]
         [SerializeField] private float pivotSpeedThreshold = 1.5f;
 
+        [Tooltip("Ease rate for turning. Shapes HOW the turn arrives — high still means quick, but " +
+                 "always with a slow-down into the final heading instead of stopping dead.")]
+        [SerializeField] private float turnSharpness = 14f;
+
+        [Tooltip("Ease rate for changes in the steering command. Lower is smoother and more languid, " +
+                 "higher snaps to each new intention. Around 12 reads as deliberate without lag.")]
+        [SerializeField] private float steeringSmoothing = 12f;
+
         [Tooltip("How hard the creature is pushed toward its walk speed. Higher feels snappier and heavier.")]
         [SerializeField] private float acceleration = 20f;
 
@@ -52,6 +60,17 @@ namespace DinoBattle.Units
         /// the latest value simply stands until it is replaced.
         /// </summary>
         private Vector3 desiredVelocity;
+
+        /// <summary>
+        /// The brain's raw command, before smoothing.
+        ///
+        /// The AI switches between quite different intentions from one frame to the next — brake for
+        /// a swing, circle, pursue, break off — and each switch is a step change in the requested
+        /// velocity. Feeding those steps straight to the Rigidbody is what made movement look
+        /// mechanical. Easing between them costs a fraction of a second of responsiveness and buys
+        /// motion that reads as an animal changing its mind rather than a state machine ticking.
+        /// </summary>
+        private Vector3 commandedVelocity;
 
         public bool IsGrounded { get; private set; }
 
@@ -114,6 +133,10 @@ namespace DinoBattle.Units
         /// </summary>
         private void ApplySteering()
         {
+            // Ease toward the brain's latest intention rather than adopting it whole.
+            desiredVelocity = Vector3.Lerp(
+                desiredVelocity, commandedVelocity, 1f - Mathf.Exp(-steeringSmoothing * Time.fixedDeltaTime));
+
             Vector3 current = body.linearVelocity;
 
             // A zero command means "stop here" — brake rather than coast. This is what holds an
@@ -158,7 +181,7 @@ namespace DinoBattle.Units
             // creature is expected to strafe sideways, which would otherwise never pass the check.
             if (faceTarget == null && angle > moveFacingTolerance) flat = Vector3.zero;
 
-            desiredVelocity = flat;
+            commandedVelocity = flat;
         }
 
         /// <summary>Rotate toward a point. Returns the remaining angle in degrees.</summary>
@@ -178,8 +201,18 @@ namespace DinoBattle.Units
                 float rate = turnSpeedDegrees;
                 if (CurrentSpeed < pivotSpeedThreshold) rate *= pivotTurnMultiplier;
 
+                // Exponential approach, then clamped to the rate limit.
+                //
+                // RotateTowards alone turns at a constant angular velocity: it starts instantly, runs
+                // flat out, and stops dead on arrival. That is precisely the mechanical quality —
+                // nothing alive turns with a square velocity profile. Easing gives the natural
+                // slow-down into the final heading, while the clamp still stops a heavy creature
+                // from snapping round faster than its weight allows.
+                Quaternion eased = Quaternion.Slerp(
+                    transform.rotation, desired, 1f - Mathf.Exp(-turnSharpness * Time.deltaTime));
+
                 transform.rotation = Quaternion.RotateTowards(
-                    transform.rotation, desired, rate * Time.deltaTime);
+                    transform.rotation, eased, rate * Time.deltaTime);
             }
 
             return Quaternion.Angle(transform.rotation, desired);
@@ -194,6 +227,7 @@ namespace DinoBattle.Units
         {
             stopped = true;
             desiredVelocity = Vector3.zero;
+            commandedVelocity = Vector3.zero;
 
             body.linearVelocity = Vector3.zero;
             body.angularVelocity = Vector3.zero;
