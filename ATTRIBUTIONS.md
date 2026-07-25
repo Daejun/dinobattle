@@ -51,19 +51,23 @@ CC0 소스를 쓰고 이 표에 한 줄 추가하세요.
 Source: [CC0-Public-Domain-Sounds](https://github.com/lavenderdotpet/CC0-Public-Domain-Sounds)
 by lavender.pet — CC0 1.0 Universal (public domain, no attribution required; recorded here anyway).
 
-Only the six files below were taken; the rest of the ~1.2 GB library was never downloaded. Originals
-are cached in `.assets-cache/cc0-sounds/` (gitignored) and are unmodified.
+Real animal recordings, pitched down. That is how films do it, and it is the only approach of the
+three tried that sounded like an animal: synthesis got the spectrum right and the character wrong,
+and the pack's ready-made "creature" SFX are designed sci-fi monsters rather than throats.
 
-| In-game slot | Original file | Length | Spectral centroid |
+Sources live in `Assets/Editor/AudioSources/` — an Editor folder, so Unity keeps them out of the
+build. `Dino Battle > 5. Generate Creature Audio` rebuilds the six voices from them.
+
+| In-game slot | Source | Pitch | Result |
 |---|---|---|---|
-| `sfx_roar_large`  | `80-CC0-creature-SFX/monster_04.ogg`   | 1.28s | 135 Hz |
-| `sfx_roar_small`  | `80-CC0-creature-SFX/roar_03.ogg`      | 0.46s | 701 Hz |
-| `sfx_bite_large`  | `80-CC0-creature-sfx-2/attack_01.ogg`  | 0.19s | 502 Hz |
-| `sfx_bite_small`  | `80-CC0-creature-sfx-2/attack_05.ogg`  | 0.13s | 784 Hz |
-| `sfx_death_large` | `80-CC0-creature-sfx-2/die_03.ogg`     | 0.66s | 259 Hz |
-| `sfx_death_small` | `80-CC0-creature-sfx-2/die_01.ogg`     | 0.47s | 592 Hz |
+| `sfx_roar_large`  | `beast_or_animal/Growl 1.wav` | 0.38x | 2.24s, centroid 89 Hz |
+| `sfx_roar_small`  | `beast_or_animal/Growl 2.wav` | 0.68x | 0.81s, centroid 166 Hz |
+| `sfx_death_large` | `beast_or_animal/Voice 3.wav` | 0.42x | 1.67s, centroid 183 Hz |
+| `sfx_death_small` | `beast_or_animal/Voice 1.wav` | 0.72x | 0.62s, centroid 284 Hz |
+| `sfx_bite_large`  | `angerdog/angerdog2.ogg`      | 0.40x | 0.40s, centroid 420 Hz |
+| `sfx_bite_small`  | `angerdog/angerdog2.ogg`      | 0.95x | 0.13s, centroid 640 Hz |
 
-Chosen by measurement rather than by ear — duration, RMS and spectral centroid across 22 candidates,
-picking the deepest and longest for the heavy creatures and shorter, brighter ones for the light.
-The large/small roar pair differs by 5.2x in centroid, which is what carries the size difference.
-Nobody has listened to these yet; swap any that do not suit.
+The two bites share a source deliberately: built from different takes they came out with the small
+one darker than the large, because the loudest slice of one happened to be duller. Sharing a source
+makes the size difference a property of the pitch alone. Every pair is now verified small-brighter:
+roar 1.86x, bite 1.52x, death 1.56x.

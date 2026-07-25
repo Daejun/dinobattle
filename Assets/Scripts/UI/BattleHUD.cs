@@ -121,7 +121,7 @@ namespace DinoBattle.UI
         {
             if (winnerLabel != null)
             {
-                winnerLabel.text = winner == Team.Neutral ? "DRAW" : $"{winner.ToString().ToUpperInvariant()} WINS";
+                winnerLabel.text = winner == Team.Neutral ? "무승부" : $"{TeamName(winner)} 승리";
             }
 
             if (resultSummaryLabel == null) return;
@@ -133,7 +133,7 @@ namespace DinoBattle.UI
 
             if (winner == Team.Neutral || survivors == 0)
             {
-                resultSummaryLabel.text = "no survivors";
+                resultSummaryLabel.text = "생존자 없음";
                 return;
             }
 
@@ -150,9 +150,7 @@ namespace DinoBattle.UI
 
             int percent = capacity > 0f ? Mathf.RoundToInt(remaining / capacity * 100f) : 0;
 
-            resultSummaryLabel.text = survivors == 1
-                ? $"1 survivor left, on {percent}% health"
-                : $"{survivors} survivors left, on {percent}% health";
+            resultSummaryLabel.text = $"{survivors}마리 생존 · 체력 {percent}%";
         }
 
         // ---------------------------------------------------------------- roster
@@ -234,7 +232,7 @@ namespace DinoBattle.UI
 
             Team team = placement.ActiveTeam;
 
-            if (teamLabel != null) teamLabel.text = team.ToString().ToUpperInvariant();
+            if (teamLabel != null) teamLabel.text = TeamName(team);
             if (budgetLabel != null)
             {
                 budgetLabel.text = $"{battleManager.Loadout.RemainingFor(team)} / {battleManager.Loadout.BudgetPerTeam}";
@@ -246,7 +244,7 @@ namespace DinoBattle.UI
         private void RefreshSpeedLabel()
         {
             if (speedLabel == null || battleManager == null) return;
-            speedLabel.text = $"x{battleManager.SimulationSpeed:0.##}";
+            speedLabel.text = $"{battleManager.SimulationSpeed:0.##}배속";
         }
 
         private void RefreshCounts()
@@ -263,6 +261,17 @@ namespace DinoBattle.UI
         {
             if (target != null && target.activeSelf != active) target.SetActive(active);
         }
+
+        /// <summary>
+        /// Team names as the player sees them. The enum is English because the code is; the screen
+        /// is Korean because the players are, and the two do not have to be the same string.
+        /// </summary>
+        private static string TeamName(Team team) => team switch
+        {
+            Team.Red => "빨강",
+            Team.Blue => "파랑",
+            _ => "중립"
+        };
 
         private static void HookButton(Button button, UnityEngine.Events.UnityAction action)
         {

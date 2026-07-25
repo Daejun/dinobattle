@@ -182,8 +182,8 @@ MonoBehaviour:
   skinValueVariation: 0.18
   corpseLifetime: 12
   voice: {fileID: 5969145485752616968}
-  deathClip: {fileID: 8300000, guid: dde15d84e5ea9f1469bcf55654ac1d80, type: 3}
-  roarClip: {fileID: 8300000, guid: 407e9d96a02b725479b02d188b4059c5, type: 3}
+  deathClip: {fileID: 8300000, guid: 4e5104b4607fbc6419f69f79cdbb5f4f, type: 3}
+  roarClip: {fileID: 8300000, guid: 67ce8c17a14f293428d2a7a25f505a94, type: 3}
   roarIntervalRange: {x: 6, y: 14}
 --- !u!114 &7843406785747325085
 MonoBehaviour:
@@ -271,7 +271,7 @@ MonoBehaviour:
   animator: {fileID: 7821530261151726921}
   attackTriggerName: Attack
   attackAudio: {fileID: 5969145485752616968}
-  attackClip: {fileID: 8300000, guid: e7fc337a01377ca4e9ee8a1cef0760db, type: 3}
+  attackClip: {fileID: 8300000, guid: da68ccf2f5dcd6046888b0a0c76117c3, type: 3}
   impactEffect: {fileID: 0}
 --- !u!114 &2542580388087836590
 MonoBehaviour:

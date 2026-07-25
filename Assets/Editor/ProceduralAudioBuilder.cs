@@ -23,7 +23,11 @@ namespace DinoBattle.EditorTools
         private const int SampleRate = 44100;
         private const string AudioFolder = "Assets/Audio/SFX";
 
-        [MenuItem("Dino Battle/5. Generate Creature Audio", priority = 130)]
+        // Superseded by CreatureVoiceBuilder, which pitches down real animal recordings. Synthesis
+        // could be made spectrally correct but never sounded like an animal — kept as the offline
+        // fallback for a clone that has not fetched the CC0 sources, and moved off the main menu so
+        // it cannot be run over the real voices by accident.
+        [MenuItem("Dino Battle/Advanced/Generate Placeholder Audio (synth)", priority = 210)]
         public static void Generate()
         {
             SampleContentBuilder.EnsureFolder("Assets/Audio");

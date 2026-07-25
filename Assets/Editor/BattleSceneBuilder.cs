@@ -472,9 +472,9 @@ namespace DinoBattle.EditorTools
             var placementPanel = CreatePanel(canvasObject.transform, "PlacementPanel",
                 new Vector2(0f, 0f), new Vector2(1f, 0.16f));
 
-            var autoFillButton = CreateButton(placementPanel.transform, "AutoFill", "AUTO FILL",
+            var autoFillButton = CreateButton(placementPanel.transform, "AutoFill", "자동 배치",
                 new Vector2(0.06f, 0.18f), new Vector2(0.47f, 0.82f));
-            var startButton = CreateButton(placementPanel.transform, "Start", "START BATTLE",
+            var startButton = CreateButton(placementPanel.transform, "Start", "전투 시작",
                 new Vector2(0.53f, 0.18f), new Vector2(0.94f, 0.82f));
 
             // ---- fighting panel (top bar) ----
@@ -489,7 +489,7 @@ namespace DinoBattle.EditorTools
                 new Vector2(0.78f, 0.1f), new Vector2(0.98f, 0.9f), TextAnchor.MiddleRight);
             blueCount.color = new Color(0.45f, 0.70f, 1f);
 
-            var speedButton = CreateButton(fightingPanel.transform, "Speed", "x1",
+            var speedButton = CreateButton(fightingPanel.transform, "Speed", "1배속",
                 new Vector2(0.40f, 0.1f), new Vector2(0.60f, 0.9f));
             var speedLabel = speedButton.GetComponentInChildren<Text>();
 
@@ -503,7 +503,7 @@ namespace DinoBattle.EditorTools
                 new Vector2(0.18f, 0.62f), new Vector2(0.82f, 0.95f));
             resultPanel.GetComponent<Image>().color = new Color(0f, 0f, 0f, 0.72f);
 
-            var winnerLabel = CreateLabel(resultPanel.transform, "Winner", "RED WINS",
+            var winnerLabel = CreateLabel(resultPanel.transform, "Winner", "빨강 승리",
                 new Vector2(0.05f, 0.58f), new Vector2(0.95f, 0.98f), TextAnchor.MiddleCenter);
             winnerLabel.fontSize = 44;
 
@@ -513,7 +513,7 @@ namespace DinoBattle.EditorTools
                 new Vector2(0.05f, 0.34f), new Vector2(0.95f, 0.58f), TextAnchor.MiddleCenter);
             resultSummary.fontSize = 24;
 
-            var rematchButton = CreateButton(resultPanel.transform, "Rematch", "REMATCH",
+            var rematchButton = CreateButton(resultPanel.transform, "Rematch", "다시 하기",
                 new Vector2(0.30f, 0.04f), new Vector2(0.70f, 0.30f));
 
             resultPanel.SetActive(false);
