@@ -107,6 +107,10 @@ namespace DinoBattle.Units
         [Range(1f, 2f)]
         [SerializeField] private float woundedCaution = 1.4f;
 
+        [Tooltip("Seconds of unbroken retreat after which the creature is treated as cornered and " +
+                 "turns to fight. Running for longer than this is running that is not working.")]
+        [SerializeField] private float maxContinuousFlee = 2.5f;
+
         [Tooltip("Where waiting pack members hold, as a multiple of the target's footprint. Far " +
                  "enough to be out of reach, near enough to close quickly when their turn comes.")]
         [SerializeField] private float standoffFactor = 2.6f;
@@ -121,6 +125,7 @@ namespace DinoBattle.Units
 
         private float retreatRemaining;
         private float alignWait;
+        private float fleeElapsed;
 
         private float flankAngle;
         private float circleDirection = 1f;
@@ -146,6 +151,13 @@ namespace DinoBattle.Units
         /// behaviour is observable rather than something that has to be inferred from movement.
         /// </summary>
         public float Danger { get; private set; }
+
+        /// <summary>
+        /// How hopeless this creature's position is, 0 to 1. Scales <see cref="Danger"/> down, so a
+        /// creature with nothing left to lose stops behaving carefully. Exposed for the same reason
+        /// Danger is: the behaviour is otherwise only inferable from watching it.
+        /// </summary>
+        public float Desperation { get; private set; }
 
         /// <summary>Set false during placement so nothing moves until the fight starts.</summary>
         public bool CombatEnabled { get; set; }
@@ -265,7 +277,10 @@ namespace DinoBattle.Units
             Vector3 separation = SteeringBehaviors.Separation(self, separationRadius, maxSpeed, target);
 
             bool harasses = UsesHitAndRun(target);
-            Danger = harasses ? AssessDanger(target) : 0f;
+
+            // Desperation cancels caution. A cornered animal does not fight carefully.
+            Desperation = harasses ? AssessDesperation() : 0f;
+            Danger = harasses ? AssessDanger(target) * (1f - Desperation) : 0f;
 
             if (harasses)
             {
@@ -278,6 +293,7 @@ namespace DinoBattle.Units
                 // creature that stands and trades with something ten times its mass simply dies.
                 if (retreatRemaining > 0f || Danger >= fleeDanger)
                 {
+                    fleeElapsed += Time.deltaTime;
                     retreatRemaining = Mathf.Max(0f, retreatRemaining - Time.deltaTime);
                     SetState(State.Seek);
 
@@ -295,6 +311,9 @@ namespace DinoBattle.Units
 
                     return;
                 }
+
+                // Not fleeing this frame, so the "running is not working" clock starts over.
+                fleeElapsed = 0f;
             }
 
             // Waiting for a turn. Once three or more are working the same target they go in one at a
@@ -459,6 +478,42 @@ namespace DinoBattle.Units
             Vector3 offset = other.transform.position - transform.position;
             offset.y = 0f;
             return offset.magnitude;
+        }
+
+        /// <summary>
+        /// How hopeless this creature's position is, 0 (a fair fight) to 1 (nothing left to lose).
+        ///
+        /// This is the counterweight to <see cref="AssessDanger"/>, and without it the caution was a
+        /// trap. A lone raptor facing a T-Rex is by definition always its target, so its danger sat
+        /// permanently above the flee threshold: it ran, kept running, pinned itself against the
+        /// boundary and stopped there — reading on screen as a creature that had simply frozen. It
+        /// never fought back, and it never could have.
+        ///
+        /// Two things make a position hopeless, and they compose as a maximum rather than a sum
+        /// because either alone is enough:
+        ///
+        /// Outnumbered — being the last of three against four is not a fight you win by being
+        /// careful, and a real animal in that position stops conserving itself.
+        ///
+        /// Cornered — retreat that has gone on this long is retreat that is not working. Rather than
+        /// giving the brain a map of the arena to reason about walls with, this just measures whether
+        /// running has achieved anything, which is the thing that actually matters and needs no
+        /// knowledge of the geometry.
+        /// </summary>
+        private float AssessDesperation()
+        {
+            int mine = UnitRegistry.AliveCount(self.Team);
+            int theirs = UnitRegistry.AliveCount(self.Team.Opponent());
+
+            float outnumbered = theirs > 0
+                ? 1f - Mathf.Clamp01(mine / (float)theirs)
+                : 0f;
+
+            float trapped = maxContinuousFlee > 0f
+                ? Mathf.Clamp01(fleeElapsed / maxContinuousFlee)
+                : 0f;
+
+            return Mathf.Clamp01(Mathf.Max(outnumbered, trapped));
         }
 
         /// <summary>
