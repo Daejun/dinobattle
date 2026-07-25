@@ -33,6 +33,19 @@ namespace DinoBattle.EditorTools
                 return;
             }
 
+            BuildNoPrompt();
+        }
+
+        /// <summary>
+        /// The build itself, with no confirmation dialog.
+        ///
+        /// Separate from <see cref="Build"/> because a modal dialog deadlocks any non-interactive
+        /// caller: batch mode, CI, or an agent driving the editor over MCP all hang on it until a
+        /// human clicks. The prompt still guards the interactive menu path, where it is useful.
+        /// </summary>
+        [MenuItem("Dino Battle/Advanced/Build Battle Scene (no prompt)", priority = 200)]
+        public static void BuildNoPrompt()
+        {
             var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
             CreateEnvironment();
@@ -77,6 +90,16 @@ namespace DinoBattle.EditorTools
             light.shadows = LightShadows.Soft;
             light.color = new Color(1f, 0.96f, 0.88f);
             sun.transform.rotation = Quaternion.Euler(48f, 34f, 0f);
+
+            // A code-built scene has no skybox, and Unity's default ambient source IS the skybox — so
+            // ambient light lands at roughly zero and every surface facing away from the sun renders
+            // black. The creatures looked like silhouettes for exactly this reason. An explicit
+            // trilight gradient restores the fill light a skybox would normally provide.
+            RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Trilight;
+            RenderSettings.ambientSkyColor = new Color(0.55f, 0.60f, 0.68f);
+            RenderSettings.ambientEquatorColor = new Color(0.42f, 0.44f, 0.42f);
+            RenderSettings.ambientGroundColor = new Color(0.24f, 0.26f, 0.22f);
+            RenderSettings.ambientIntensity = 1f;
         }
 
         private static OrbitCameraController CreateCamera()
@@ -140,7 +163,11 @@ namespace DinoBattle.EditorTools
 
             var scaler = canvasObject.GetComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            scaler.referenceResolution = new Vector2(1080f, 1920f);
+
+            // Landscape reference, matching the orientation AndroidBuilder locks the player to.
+            // With match = 0.5 the scale depends only on refWidth * refHeight, so a portrait reference
+            // happened to produce identical numbers -- but it silently breaks if match is ever changed.
+            scaler.referenceResolution = new Vector2(1920f, 1080f);
             scaler.matchWidthOrHeight = 0.5f;
 
             new GameObject("EventSystem",
@@ -148,22 +175,31 @@ namespace DinoBattle.EditorTools
                 typeof(UnityEngine.EventSystems.StandaloneInputModule));
 
             // ---- placement panel (bottom bar) ----
+            // The roster is the control the player uses most, so it gets roughly half the bar.
             var placementPanel = CreatePanel(canvasObject.transform, "PlacementPanel",
-                new Vector2(0f, 0f), new Vector2(1f, 0.22f));
+                new Vector2(0f, 0f), new Vector2(1f, 0.28f));
 
             var teamButton = CreateButton(placementPanel.transform, "TeamToggle", "TEAM: RED",
-                new Vector2(0.02f, 0.55f), new Vector2(0.30f, 0.95f));
+                new Vector2(0.02f, 0.72f), new Vector2(0.30f, 0.97f));
             var undoButton = CreateButton(placementPanel.transform, "Undo", "UNDO",
-                new Vector2(0.34f, 0.55f), new Vector2(0.55f, 0.95f));
+                new Vector2(0.34f, 0.72f), new Vector2(0.55f, 0.97f));
             var startButton = CreateButton(placementPanel.transform, "Start", "START BATTLE",
-                new Vector2(0.59f, 0.55f), new Vector2(0.98f, 0.95f));
+                new Vector2(0.59f, 0.72f), new Vector2(0.98f, 0.97f));
             var budgetLabel = CreateLabel(placementPanel.transform, "Budget", "1000 / 1000",
-                new Vector2(0.02f, 0.30f), new Vector2(0.55f, 0.52f), TextAnchor.MiddleLeft);
+                new Vector2(0.02f, 0.55f), new Vector2(0.55f, 0.70f), TextAnchor.MiddleLeft);
 
             var rosterContainer = CreatePanel(placementPanel.transform, "RosterContainer",
-                new Vector2(0.02f, 0.02f), new Vector2(0.98f, 0.28f));
+                new Vector2(0.02f, 0.03f), new Vector2(0.98f, 0.52f));
             var layout = rosterContainer.AddComponent<HorizontalLayoutGroup>();
             layout.spacing = 8f;
+            layout.padding = new RectOffset(8, 8, 4, 4);
+
+            // childControl* defaults to false, which makes the group position children but leave their
+            // size alone. A button instantiated from the stretched template then computes a preferred
+            // size of zero and renders as nothing -- present in the hierarchy, invisible on screen.
+            // childControl* must be true for childForceExpand* to actually divide the row up.
+            layout.childControlWidth = true;
+            layout.childControlHeight = true;
             layout.childForceExpandWidth = true;
             layout.childForceExpandHeight = true;
 

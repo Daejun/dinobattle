@@ -1,6 +1,7 @@
 using DinoBattle.Core;
 using DinoBattle.Data;
 using UnityEngine;
+using UnityEngine.EventSystems;
 
 namespace DinoBattle.Placement
 {
@@ -25,6 +26,9 @@ namespace DinoBattle.Placement
 
         private Team activeTeam = Team.Red;
         private CreatureDefinition selected;
+
+        /// <summary>True when the current press began on top of the HUD, so it must not place anything.</summary>
+        private bool gestureStartedOverUI;
 
         public Team ActiveTeam => activeTeam;
         public CreatureDefinition Selected => selected;
@@ -129,6 +133,20 @@ namespace DinoBattle.Placement
                 Touch touch = Input.GetTouch(0);
                 screenPosition = touch.position;
                 tapped = touch.phase == TouchPhase.Ended;
+
+                // Decide UI-vs-world once, when the gesture starts. By the time the finger lifts it is
+                // no longer over anything, so testing at TouchPhase.Ended always reports "not over UI".
+                if (touch.phase == TouchPhase.Began) gestureStartedOverUI = IsPointerOverUI(touch.fingerId);
+                if (touch.phase is TouchPhase.Ended or TouchPhase.Canceled)
+                {
+                    bool blocked = gestureStartedOverUI;
+                    gestureStartedOverUI = false;
+                    if (blocked) return false;
+                }
+                else if (gestureStartedOverUI)
+                {
+                    return false;
+                }
             }
             else if (Application.isMobilePlatform)
             {
@@ -138,12 +156,43 @@ namespace DinoBattle.Placement
             {
                 screenPosition = Input.mousePosition;
                 tapped = Input.GetMouseButtonUp(0);
+
+                if (Input.GetMouseButtonDown(0)) gestureStartedOverUI = IsPointerOverUI(-1);
+                if (tapped)
+                {
+                    bool blocked = gestureStartedOverUI;
+                    gestureStartedOverUI = false;
+                    if (blocked) return false;
+                }
+                else if (gestureStartedOverUI)
+                {
+                    return false;
+                }
+
+                // With no button held there is no gesture to attribute, so fall back to a live test.
+                // This keeps the ground preview from showing underneath the HUD while hovering.
+                if (!Input.GetMouseButton(0) && IsPointerOverUI(-1)) return false;
             }
 
             return screenPosition.x >= screenEdgeMargin
                 && screenPosition.y >= screenEdgeMargin
                 && screenPosition.x <= Screen.width - screenEdgeMargin
                 && screenPosition.y <= Screen.height - screenEdgeMargin;
+        }
+
+        /// <summary>
+        /// Is the pointer over a HUD element? Placement raycasts against physics, which ignores the
+        /// canvas entirely — without this, tapping a roster button also drops a creature on the ground
+        /// behind it. Pass -1 for the mouse, or a touch's fingerId.
+        /// </summary>
+        private static bool IsPointerOverUI(int pointerId)
+        {
+            var events = EventSystem.current;
+            if (events == null) return false;
+
+            return pointerId < 0
+                ? events.IsPointerOverGameObject()
+                : events.IsPointerOverGameObject(pointerId);
         }
 
         private void ShowPreview(bool visible, Vector3 position, bool valid = true)

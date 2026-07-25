@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c28d35c407bc3d54e9f95971f3375aa2, type: 3}
+  m_Name: Creature_Parasaurolophus
+  m_EditorClassIdentifier: Assembly-CSharp::DinoBattle.Data.CreatureDefinition
+  displayName: Parasaurolophus
+  description: Placeholder stat block for Parasaurolophus.
+  icon: {fileID: 0}
+  prefab: {fileID: 2870443527841078448, guid: b639292c402ae634b9b0fc43b8ac1cb5, type: 3}
+  cost: 200
+  footprintRadius: 3
+  maxHealth: 2600
+  armor: 6
+  moveSpeed: 8.2
+  turnSpeedDegrees: 195.19481
+  mass: 3200
+  attackDamage: 180
+  attackInterval: 1.6
+  attackRange: 3.4
+  attackWindup: 0.4
+  aggroRange: 90

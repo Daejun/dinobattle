@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.IO;
 using DinoBattle.Data;
 using DinoBattle.UI;
@@ -9,9 +9,12 @@ using UnityEngine;
 namespace DinoBattle.EditorTools
 {
     /// <summary>
-    /// Generates placeholder creature prefabs, <see cref="CreatureDefinition"/> assets and a roster
-    /// so the game is playable before any real art lands. Replace the primitive visuals with imported
-    /// models later — the definitions and prefab wiring stay valid.
+    /// Builds a creature prefab, <see cref="CreatureDefinition"/> and roster for every entry in
+    /// <see cref="CreatureBlueprints"/>. Uses the imported model when one is present and falls back
+    /// to blocked-out primitives when it is not, so the game is playable before any art lands.
+    ///
+    /// This file is the factory only — the balance numbers live in CreatureBlueprints.cs, which is
+    /// what a designer actually edits.
     ///
     /// Menu: Dino Battle > 1. Generate Sample Content
     /// </summary>
@@ -20,41 +23,6 @@ namespace DinoBattle.EditorTools
         private const string CreatureDataPath = "Assets/GameData/Creatures";
         private const string RosterPath = "Assets/GameData/Rosters/Roster_Default.asset";
         private const string PrefabPath = "Assets/Prefabs/Creatures";
-
-        /// <summary>Starting balance pass. Costs are tuned so ~1000 buys a small mixed team.</summary>
-        private readonly struct Blueprint
-        {
-            public readonly string Name;
-            public readonly int Cost;
-            public readonly float Health;
-            public readonly float Armor;
-            public readonly float Damage;
-            public readonly float Interval;
-            public readonly float Range;
-            public readonly float Speed;
-            public readonly float Mass;
-            public readonly Vector3 BodySize;
-            public readonly Color Tint;
-
-            public Blueprint(string name, int cost, float health, float armor, float damage,
-                float interval, float range, float speed, float mass, Vector3 bodySize, Color tint)
-            {
-                Name = name; Cost = cost; Health = health; Armor = armor; Damage = damage;
-                Interval = interval; Range = range; Speed = speed; Mass = mass;
-                BodySize = bodySize; Tint = tint;
-            }
-        }
-
-        private static readonly Blueprint[] Blueprints =
-        {
-            //            name             cost  hp     armor dmg   int   rng  spd  mass  body size                 tint
-            new("T-Rex",          420, 4200f, 12f, 480f, 1.6f, 5.0f, 6.5f, 8000f, new Vector3(2.0f, 2.4f, 5.0f), new Color(0.45f, 0.32f, 0.22f)),
-            new("Bio T-Rex",      520, 4800f, 20f, 560f, 1.5f, 5.2f, 7.0f, 8600f, new Vector3(2.1f, 2.5f, 5.2f), new Color(0.20f, 0.55f, 0.35f)),
-            new("Spinosaurus",    380, 3600f,  8f, 420f, 1.5f, 4.6f, 6.8f, 6800f, new Vector3(1.9f, 2.3f, 5.4f), new Color(0.35f, 0.38f, 0.52f)),
-            new("Triceratops",    300, 4400f, 22f, 300f, 1.9f, 3.8f, 5.8f, 7400f, new Vector3(2.2f, 1.9f, 4.4f), new Color(0.52f, 0.44f, 0.30f)),
-            new("Velociraptor",    90,  600f,  2f, 110f, 0.7f, 2.4f, 11.0f, 900f, new Vector3(0.8f, 1.0f, 2.0f), new Color(0.62f, 0.50f, 0.28f)),
-            new("Ankylosaurus",   320, 5200f, 30f, 260f, 2.2f, 3.4f, 4.6f, 8200f, new Vector3(2.3f, 1.6f, 4.2f), new Color(0.40f, 0.42f, 0.38f)),
-        };
 
         [MenuItem("Dino Battle/1. Generate Sample Content", priority = 100)]
         public static void Generate()
@@ -67,7 +35,7 @@ namespace DinoBattle.EditorTools
 
             var definitions = new List<CreatureDefinition>();
 
-            foreach (var blueprint in Blueprints)
+            foreach (var blueprint in CreatureBlueprints.All)
             {
                 string safeName = blueprint.Name.Replace(" ", "").Replace("-", "");
                 GameObject prefab = CreatePlaceholderPrefab(blueprint, safeName);
@@ -99,7 +67,7 @@ namespace DinoBattle.EditorTools
             Selection.activeObject = roster;
         }
 
-        private static CreatureDefinition CreateDefinition(Blueprint blueprint, string safeName, GameObject prefab)
+        private static CreatureDefinition CreateDefinition(CreatureBlueprint blueprint, string safeName, GameObject prefab)
         {
             string path = $"{CreatureDataPath}/Creature_{safeName}.asset";
 
@@ -133,7 +101,7 @@ namespace DinoBattle.EditorTools
         /// Blocked-out stand-in creature: a capsule body, a snout marker, and an aim point. Good enough
         /// to watch a fight resolve and to validate stats before art exists.
         /// </summary>
-        private static GameObject CreatePlaceholderPrefab(Blueprint blueprint, string safeName)
+        private static GameObject CreatePlaceholderPrefab(CreatureBlueprint blueprint, string safeName)
         {
             string path = $"{PrefabPath}/Creature_{safeName}.prefab";
 
@@ -141,40 +109,45 @@ namespace DinoBattle.EditorTools
 
             var collider = root.AddComponent<CapsuleCollider>();
             collider.direction = 2; // Z, so the capsule lies along the body length.
-            collider.radius = blueprint.BodySize.x * 0.5f;
-            collider.height = Mathf.Max(blueprint.BodySize.z, collider.radius * 2f);
-            collider.center = new Vector3(0f, blueprint.BodySize.y * 0.5f, 0f);
+
+            // Deliberately narrower and shorter than the visible body. The collider is a spacing
+            // constraint, not a hitbox: sized to the full silhouette it held attackers a body-width
+            // apart and bites appeared to land from thin air. Undersizing lets them close and overlap
+            // slightly, which is what a real scrap looks like.
+            collider.radius = blueprint.BodySize.x * 0.3f;
+            collider.height = Mathf.Max(blueprint.BodySize.z * 0.7f, collider.radius * 2f);
+
+            // center.y MUST equal the radius. This is a horizontal capsule, so its lowest point sits
+            // (center.y - radius) above the root; anything higher and the creature settles that far
+            // BELOW the ground once physics drops it. Centring on the body mass buried them by 0.6
+            // units, which sank the team ring out of sight and — worse — put the root under the
+            // ground probe's ray origin, so IsGrounded never returned true and nothing could move.
+            collider.center = new Vector3(0f, collider.radius, 0f);
 
             var body = root.AddComponent<Rigidbody>();
             body.mass = blueprint.Mass;
             body.freezeRotation = true;
 
-            root.AddComponent<Health>();
-            root.AddComponent<CreatureLocomotion>();
-            root.AddComponent<CreatureBrain>();
-            var unit = root.AddComponent<CreatureUnit>();
-            var attack = root.AddComponent<MeleeAttack>();
+            // Order matters. RequireComponent auto-adds a missing dependency, so adding CreatureBrain
+            // first pulled in a CreatureUnit, and the explicit AddComponent<CreatureUnit>() below then
+            // created a SECOND one. Only one of the pair ever got Initialize() called, leaving the
+            // other on its default team -- two hostile ghosts sharing one transform, killing each
+            // other on spawn. Add dependencies before dependents, and use EnsureComponent so a
+            // reordering mistake reuses the existing component instead of duplicating it.
+            EnsureComponent<Health>(root);
+            var unit = EnsureComponent<CreatureUnit>(root);
+            EnsureComponent<CreatureLocomotion>(root);
+            EnsureComponent<CreatureBrain>(root);
+            var attack = EnsureComponent<MeleeAttack>(root);
 
-            // Visual body
-            var visual = GameObject.CreatePrimitive(PrimitiveType.Capsule);
-            visual.name = "Visual_Body";
-            Object.DestroyImmediate(visual.GetComponent<Collider>());
-            visual.transform.SetParent(root.transform, false);
-            visual.transform.localPosition = new Vector3(0f, blueprint.BodySize.y * 0.5f, 0f);
-            visual.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
-            visual.transform.localScale = new Vector3(blueprint.BodySize.x, blueprint.BodySize.z * 0.5f, blueprint.BodySize.x);
-            TintRenderer(visual, blueprint.Tint);
+            // Real art if the pack has been imported, blocked-out primitives otherwise. Keeping both
+            // paths here means one generator owns the prefab and re-running the menu never wipes art.
+            Animator animator = AttachModelVisual(root, blueprint, safeName);
+            if (animator == null) AttachPlaceholderVisual(root, blueprint, safeName);
 
-            // Snout marker so it is obvious which way the creature faces.
-            var snout = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            snout.name = "Visual_Head";
-            Object.DestroyImmediate(snout.GetComponent<Collider>());
-            snout.transform.SetParent(root.transform, false);
-            snout.transform.localPosition = new Vector3(0f, blueprint.BodySize.y * 0.85f, blueprint.BodySize.z * 0.45f);
-            snout.transform.localScale = Vector3.one * (blueprint.BodySize.x * 0.55f);
-            TintRenderer(snout, blueprint.Tint * 0.7f);
+            AddTeamRing(root, blueprint);
 
-            var aimPoint = new GameObject("AimPoint").transform;
+            var aimPoint = new GameObject(CreatureRig.AimPoint).transform;
             aimPoint.SetParent(root.transform, false);
             aimPoint.localPosition = new Vector3(0f, blueprint.BodySize.y * 0.8f, blueprint.BodySize.z * 0.4f);
 
@@ -189,18 +162,141 @@ namespace DinoBattle.EditorTools
             attackSerialized.FindProperty("interval").floatValue = blueprint.Interval;
             attackSerialized.FindProperty("range").floatValue = blueprint.Range;
             attackSerialized.FindProperty("windup").floatValue = blueprint.Interval * 0.25f;
+            attackSerialized.FindProperty("animator").objectReferenceValue = animator;
             attackSerialized.ApplyModifiedPropertiesWithoutUndo();
 
-            AddHealthBar(root, blueprint);
+            // Wire the Animator explicitly rather than leaving it to the runtime GetComponent fallbacks.
+            // check-project.sh verifies these property names, so a rename cannot silently unhook it.
+            var brainSerialized = new SerializedObject(root.GetComponent<CreatureBrain>());
+            brainSerialized.FindProperty("animator").objectReferenceValue = animator;
+            brainSerialized.ApplyModifiedPropertiesWithoutUndo();
+
+            AddHealthBar(root, blueprint, safeName);
 
             var prefab = PrefabUtility.SaveAsPrefabAsset(root, path);
             Object.DestroyImmediate(root);
             return prefab;
         }
 
-        private static void AddHealthBar(GameObject root, Blueprint blueprint)
+        /// <summary>
+        /// Parent the imported model under the creature root, scaled so its length matches the design's
+        /// BodySize.z. The pack authors models roughly six times larger than this game's scale, and the
+        /// stat block — attackRange above all — is written in game units, so the model must come to the
+        /// stats rather than the other way round.
+        ///
+        /// Returns the Animator, or null when the model or its controller is not present.
+        /// </summary>
+        private static Animator AttachModelVisual(GameObject root, CreatureBlueprint blueprint, string safeName)
         {
-            var bar = new GameObject("HealthBar");
+            if (string.IsNullOrEmpty(blueprint.Model)) return null;
+
+            var modelPrefab = AssetDatabase.LoadAssetAtPath<GameObject>($"Assets/Art/Models/{blueprint.Model}.fbx");
+            if (modelPrefab == null) return null;
+
+            var controller = AssetDatabase.LoadAssetAtPath<RuntimeAnimatorController>(
+                $"Assets/Art/Animations/AC_{blueprint.Model}.controller");
+
+            var visual = (GameObject)PrefabUtility.InstantiatePrefab(modelPrefab, root.transform);
+            visual.name = CreatureRig.ModelVisual;
+            visual.transform.localPosition = Vector3.zero;
+            visual.transform.localRotation = Quaternion.identity;
+
+            Vector3 measured = CreatureArtImporter.MeasureModel(modelPrefab);
+            float scale = measured.z > 0.001f ? blueprint.BodySize.z / measured.z : 1f;
+            visual.transform.localScale = Vector3.one * scale;
+
+            // Leave the imported materials alone unless this entry is a deliberate reskin. Flattening
+            // every model to one blueprint colour threw away the shading the pack ships with, which is
+            // the whole reason the creatures stopped looking like real animals.
+            if (blueprint.Recolor)
+            {
+                foreach (var renderer in visual.GetComponentsInChildren<Renderer>(true))
+                {
+                    TintRenderer(renderer.gameObject, blueprint.Tint, safeName);
+                }
+            }
+
+            var animator = visual.GetComponent<Animator>();
+            if (animator == null) animator = visual.AddComponent<Animator>();
+
+            animator.runtimeAnimatorController = controller;
+            animator.applyRootMotion = false;   // CreatureLocomotion drives the Rigidbody, not the clip.
+
+            if (controller == null)
+            {
+                Debug.LogWarning($"[SampleContentBuilder] {blueprint.Name}: model found but no Animator " +
+                                 $"Controller (AC_{blueprint.Model}). Run 'Dino Battle > 4c. Prepare Creature Animation'.");
+            }
+
+            return animator;
+        }
+
+        /// <summary>
+        /// Flat disc on the ground, recoloured per team at spawn by CreatureUnit. This carries the
+        /// team read so the dinosaurs themselves can keep realistic colouring.
+        /// </summary>
+        private static void AddTeamRing(GameObject root, CreatureBlueprint blueprint)
+        {
+            // Cylinder, not Quad: a quad is square, and a square patch under each creature reads as a
+            // paint blob rather than a unit marker. A flattened cylinder gives a disc.
+            var ring = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            ring.name = CreatureRig.TeamRing;
+            Object.DestroyImmediate(ring.GetComponent<Collider>());
+
+            ring.transform.SetParent(root.transform, false);
+
+            // Just above the ground to avoid z-fighting with the arena plane.
+            ring.transform.localPosition = new Vector3(0f, 0.05f, 0f);
+
+            // Wide enough to read from the spectator camera but still inside the creature's footprint.
+            // Keyed to body length: width alone made a raptor's marker a barely-visible speck.
+            float diameter = Mathf.Max(1.2f, blueprint.BodySize.z * 0.6f);
+            ring.transform.localScale = new Vector3(diameter, 0.01f, diameter);
+
+            // Unlit so the marker stays readable regardless of how the sun hits the creature.
+            // Saved as one shared asset: an unsaved Material would be serialised into each prefab
+            // separately, giving six near-identical copies with no way to retune them together.
+            // CreatureUnit calls renderer.material at spawn, which instances it per creature anyway.
+            EnsureFolder("Assets/Art");
+            EnsureFolder("Assets/Art/Materials");
+            const string ringMaterialPath = "Assets/Art/Materials/TeamRing.mat";
+
+            var ringMaterial = AssetDatabase.LoadAssetAtPath<Material>(ringMaterialPath);
+            if (ringMaterial == null)
+            {
+                var shader = Shader.Find("Unlit/Color") ?? Shader.Find("Standard");
+                ringMaterial = new Material(shader);
+                AssetDatabase.CreateAsset(ringMaterial, ringMaterialPath);
+            }
+
+            ring.GetComponent<Renderer>().sharedMaterial = ringMaterial;
+        }
+
+        /// <summary>Blocked-out capsule body plus a snout cube, used until real art is imported.</summary>
+        private static void AttachPlaceholderVisual(GameObject root, CreatureBlueprint blueprint, string safeName)
+        {
+            var visual = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+            visual.name = CreatureRig.PlaceholderBody;
+            Object.DestroyImmediate(visual.GetComponent<Collider>());
+            visual.transform.SetParent(root.transform, false);
+            visual.transform.localPosition = new Vector3(0f, blueprint.BodySize.y * 0.5f, 0f);
+            visual.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+            visual.transform.localScale = new Vector3(blueprint.BodySize.x, blueprint.BodySize.z * 0.5f, blueprint.BodySize.x);
+            TintRenderer(visual, blueprint.Tint, safeName);
+
+            // Snout marker so it is obvious which way the creature faces.
+            var snout = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            snout.name = CreatureRig.PlaceholderHead;
+            Object.DestroyImmediate(snout.GetComponent<Collider>());
+            snout.transform.SetParent(root.transform, false);
+            snout.transform.localPosition = new Vector3(0f, blueprint.BodySize.y * 0.85f, blueprint.BodySize.z * 0.45f);
+            snout.transform.localScale = Vector3.one * (blueprint.BodySize.x * 0.55f);
+            TintRenderer(snout, blueprint.Tint * 0.7f, safeName);
+        }
+
+        private static void AddHealthBar(GameObject root, CreatureBlueprint blueprint, string safeName)
+        {
+            var bar = new GameObject(CreatureRig.HealthBar);
             bar.transform.SetParent(root.transform, false);
             bar.transform.localPosition = new Vector3(0f, blueprint.BodySize.y + 1.2f, 0f);
 
@@ -209,7 +305,7 @@ namespace DinoBattle.EditorTools
             Object.DestroyImmediate(background.GetComponent<Collider>());
             background.transform.SetParent(bar.transform, false);
             background.transform.localScale = new Vector3(blueprint.BodySize.z * 0.8f, 0.28f, 1f);
-            TintRenderer(background, new Color(0.06f, 0.06f, 0.08f));
+            TintRenderer(background, new Color(0.06f, 0.06f, 0.08f), safeName);
 
             var fillPivot = new GameObject("FillPivot");
             fillPivot.transform.SetParent(bar.transform, false);
@@ -222,7 +318,7 @@ namespace DinoBattle.EditorTools
             // Pivot the quad at its left edge so scaling X drains the bar from the right.
             fill.transform.localPosition = new Vector3(0.5f, 0f, 0f);
             fill.transform.localScale = Vector3.one;
-            TintRenderer(fill, new Color(0.25f, 0.85f, 0.35f));
+            TintRenderer(fill, new Color(0.25f, 0.85f, 0.35f), safeName);
 
             fillPivot.transform.localScale = new Vector3(blueprint.BodySize.z * 0.78f, 0.22f, 1f);
 
@@ -234,20 +330,43 @@ namespace DinoBattle.EditorTools
             serialized.ApplyModifiedPropertiesWithoutUndo();
         }
 
-        private static void TintRenderer(GameObject target, Color color)
+        /// <summary>
+        /// Give <paramref name="target"/> its own tinted material, named per creature so the asset is
+        /// identifiable and so re-running this menu command reuses it.
+        ///
+        /// This used to call GenerateUniqueAssetPath keyed on the GameObject name, which produced
+        /// "Placeholder_Visual_Body 1..5" -- unidentifiable, and another full set on every re-run.
+        /// </summary>
+        private static void TintRenderer(GameObject target, Color color, string creatureName)
         {
             if (!target.TryGetComponent<Renderer>(out var renderer)) return;
 
-            var material = new Material(renderer.sharedMaterial);
-            if (material.HasProperty("_BaseColor")) material.SetColor("_BaseColor", color);
-            if (material.HasProperty("_Color")) material.SetColor("_Color", color);
-
             EnsureFolder("Assets/Art");
             EnsureFolder("Assets/Art/Materials");
-            string path = AssetDatabase.GenerateUniqueAssetPath($"Assets/Art/Materials/Placeholder_{target.name}.mat");
-            AssetDatabase.CreateAsset(material, path);
+            string path = $"Assets/Art/Materials/Placeholder_{creatureName}_{target.name}.mat";
+
+            var material = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (material == null)
+            {
+                material = new Material(renderer.sharedMaterial);
+                AssetDatabase.CreateAsset(material, path);
+            }
+
+            if (material.HasProperty("_BaseColor")) material.SetColor("_BaseColor", color);
+            if (material.HasProperty("_Color")) material.SetColor("_Color", color);
+            EditorUtility.SetDirty(material);
 
             renderer.sharedMaterial = material;
+        }
+
+        /// <summary>
+        /// Return the existing component of type T, or add one. Guards against the RequireComponent
+        /// duplication trap: a dependency may already have been auto-added by a dependent.
+        /// </summary>
+        private static T EnsureComponent<T>(GameObject target) where T : Component
+        {
+            var existing = target.GetComponent<T>();
+            return existing != null ? existing : target.AddComponent<T>();
         }
 
         internal static void EnsureFolder(string path)

@@ -9,6 +9,7 @@ namespace DinoBattle.Units
     ///
     /// Idle -> Seek (walk at nearest enemy) -> Attack (in range) -> back to Seek when the target dies.
     /// </summary>
+    [DisallowMultipleComponent]
     [RequireComponent(typeof(CreatureUnit))]
     public class CreatureBrain : MonoBehaviour
     {
@@ -17,12 +18,39 @@ namespace DinoBattle.Units
         [Tooltip("Seconds between target re-evaluations. Staggered per creature to spread the cost.")]
         [SerializeField] private float retargetInterval = 0.4f;
 
-        [Tooltip("Stop approaching at this fraction of attack range so creatures do not shove into each other.")]
-        [Range(0.5f, 1f)]
-        [SerializeField] private float approachRangeFactor = 0.9f;
+        [Tooltip("Close to this fraction of attack range. Well under 1 so bodies actually meet — " +
+                 "stopping at the edge of reach made bites look like ranged attacks.")]
+        [Range(0.3f, 1f)]
+        [SerializeField] private float approachRangeFactor = 0.55f;
+
+        [Tooltip("Degrees around the target this creature approaches from. Randomised per creature so " +
+                 "a pack surrounds its prey instead of all piling onto the nearest face.")]
+        [SerializeField] private float maxFlankAngle = 70f;
+
+        [Tooltip("Strafing speed while circling, as a fraction of full move speed.")]
+        [Range(0f, 1f)]
+        [SerializeField] private float circleSpeedFactor = 0.45f;
+
+        [Header("Steering")]
+        [Tooltip("Neighbours inside this radius push this creature away. Reynolds separation — the " +
+                 "term that stops a pack collapsing onto a single point.")]
+        [SerializeField] private float separationRadius = 3.5f;
+
+        [Tooltip("Weight of separation against the pursue/circle term. Too high and creatures never " +
+                 "close; too low and they stack.")]
+        [Range(0f, 3f)]
+        [SerializeField] private float separationWeight = 1.1f;
+
+        [Tooltip("Distance at which Arrive starts easing off, so attackers settle instead of " +
+                 "overshooting and oscillating.")]
+        [SerializeField] private float slowingRadius = 6f;
+
+        private float flankAngle;
+        private float circleDirection = 1f;
 
         [SerializeField] private Animator animator;
         [SerializeField] private string speedParameterName = "Speed";
+        [SerializeField] private string deathTriggerName = "Die";
 
         private CreatureUnit self;
         private CreatureLocomotion locomotion;
@@ -47,6 +75,11 @@ namespace DinoBattle.Units
 
             // Offset the first retarget tick so a hundred creatures do not all scan on the same frame.
             retargetTimer = Random.Range(0f, retargetInterval);
+
+            // Fixed per creature, not per frame: a flank angle that jittered every tick would make
+            // the approach wander instead of committing to one side.
+            flankAngle = Random.Range(-maxFlankAngle, maxFlankAngle);
+            circleDirection = Random.value < 0.5f ? -1f : 1f;
         }
 
         private void Start()
@@ -92,33 +125,93 @@ namespace DinoBattle.Units
             if (target == null || target.IsDead) target = nearest;
         }
 
+        /// <summary>
+        /// Movement is a weighted blend of Reynolds steering behaviours rather than a single Seek.
+        /// Pursue/Arrive supplies the intent, Separation keeps the pack from collapsing into one
+        /// point, and in melee a tangential term makes attackers circle instead of standing still.
+        /// </summary>
         private void TickCombat()
         {
             bool inRange = attack != null && attack.IsInRange(target);
+            float maxSpeed = locomotion != null ? locomotion.MoveSpeed : 6f;
+            float fightDistance = (attack != null ? attack.Range : 3f) * approachRangeFactor;
+
+            Vector3 separation = SteeringBehaviors.Separation(self, separationRadius, maxSpeed);
 
             if (inRange)
             {
                 SetState(State.Attack);
-                locomotion?.FaceTowards(target.AimPoint.position);
-                locomotion?.Brake();
+
+                if (locomotion != null)
+                {
+                    // Rooted while committing to a swing; circling between them. Braking throughout is
+                    // what made fights look like two statues trading damage.
+                    Vector3 desired = attack.IsSwinging || attack.IsReady
+                        ? Vector3.zero
+                        : SteeringBehaviors.Blend(maxSpeed,
+                            (TangentialVelocity(fightDistance, maxSpeed), 1f),
+                            (separation, separationWeight));
+
+                    if (desired == Vector3.zero) locomotion.Brake();
+
+                    // Facing is pinned to the enemy so a strafing creature still bites forward.
+                    locomotion.Steer(desired, target.AimPoint.position);
+                }
+
                 attack.TryAttack(target);
                 return;
             }
 
             SetState(State.Seek);
-
             if (locomotion == null) return;
 
-            // Aim for the edge of our reach rather than the target's pivot.
-            float stopDistance = (attack != null ? attack.Range : 3f) * approachRangeFactor;
-            Vector3 toTarget = target.transform.position - transform.position;
-            toTarget.y = 0f;
+            // Approach a point offset around the target, so converging attackers spread across its
+            // flanks rather than queuing up nose-to-tail on the near side.
+            Vector3 anchor = FlankPosition(fightDistance);
+            Vector3 targetVelocity = target.GetComponent<CreatureLocomotion>() is { } targetLocomotion
+                ? targetLocomotion.HorizontalVelocity
+                : Vector3.zero;
 
-            Vector3 destination = toTarget.magnitude <= stopDistance
-                ? transform.position
-                : target.transform.position - toTarget.normalized * stopDistance;
+            Vector3 pursue = SteeringBehaviors.Pursue(
+                transform.position, anchor, targetVelocity, maxSpeed, slowingRadius);
 
-            locomotion.MoveTowards(destination);
+            locomotion.Steer(SteeringBehaviors.Blend(maxSpeed,
+                (pursue, 1f),
+                (separation, separationWeight)));
+        }
+
+        /// <summary>
+        /// Sideways velocity around the target, plus a radial correction that holds the fighting
+        /// distance. Produces a circling orbit instead of a drift that slowly loses contact.
+        /// </summary>
+        private Vector3 TangentialVelocity(float fightDistance, float maxSpeed)
+        {
+            Vector3 toSelf = transform.position - target.transform.position;
+            toSelf.y = 0f;
+            if (toSelf.sqrMagnitude < 0.0001f) return Vector3.zero;
+
+            float distance = toSelf.magnitude;
+            Vector3 radial = toSelf / distance;
+            Vector3 tangent = Vector3.Cross(Vector3.up, radial) * circleDirection;
+
+            // Positive when too far out, negative when too close: pulls back to fightDistance.
+            float correction = Mathf.Clamp((fightDistance - distance) / Mathf.Max(0.5f, fightDistance), -1f, 1f);
+
+            return (tangent + radial * correction).normalized * (maxSpeed * circleSpeedFactor);
+        }
+
+        /// <summary>
+        /// A point <paramref name="stopDistance"/> from the target, rotated by this creature's own
+        /// flank offset. Attackers converge on different sides instead of stacking on the near face.
+        /// </summary>
+        private Vector3 FlankPosition(float stopDistance)
+        {
+            Vector3 toSelf = transform.position - target.transform.position;
+            toSelf.y = 0f;
+            if (toSelf.sqrMagnitude < 0.0001f) toSelf = -transform.forward;
+
+            Quaternion offset = Quaternion.Euler(0f, flankAngle, 0f);
+            return target.transform.position + offset * toSelf.normalized * stopDistance;
         }
 
         private void SetState(State next)
@@ -144,6 +237,13 @@ namespace DinoBattle.Units
             Current = State.Dead;
             target = null;
             CombatEnabled = false;
+
+            if (animator != null && !string.IsNullOrEmpty(deathTriggerName))
+            {
+                // Clear Speed too, or the death clip blends against a stale locomotion value.
+                if (!string.IsNullOrEmpty(speedParameterName)) animator.SetFloat(speedParameterName, 0f);
+                animator.SetTrigger(deathTriggerName);
+            }
         }
     }
 }

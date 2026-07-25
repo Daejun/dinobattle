@@ -32,7 +32,24 @@ namespace DinoBattle.Units
 
         public static IReadOnlyList<CreatureUnit> AliveOf(Team team) => alive[team];
 
-        public static int AliveCount(Team team) => alive[team].Count;
+        /// <summary>
+        /// Living units on <paramref name="team"/>. Counts entries rather than returning Count so a
+        /// stale record — a unit destroyed without OnDisable running, say — cannot stall the win
+        /// condition by making a wiped-out team look like it still has fighters.
+        /// </summary>
+        public static int AliveCount(Team team)
+        {
+            var list = alive[team];
+            int count = 0;
+
+            for (int i = 0; i < list.Count; i++)
+            {
+                var unit = list[i];
+                if (unit != null && !unit.IsDead) count++;
+            }
+
+            return count;
+        }
 
         /// <summary>
         /// Nearest living enemy within <paramref name="maxRange"/>, or null. Squared distances only,

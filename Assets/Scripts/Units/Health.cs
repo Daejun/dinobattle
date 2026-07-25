@@ -4,6 +4,7 @@ using UnityEngine;
 namespace DinoBattle.Units
 {
     /// <summary>Hit points for anything that can be attacked.</summary>
+    [DisallowMultipleComponent]
     public class Health : MonoBehaviour
     {
         [SerializeField] private float maxHealth = 1000f;

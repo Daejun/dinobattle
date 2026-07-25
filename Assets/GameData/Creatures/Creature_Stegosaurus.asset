@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c28d35c407bc3d54e9f95971f3375aa2, type: 3}
+  m_Name: Creature_Stegosaurus
+  m_EditorClassIdentifier: Assembly-CSharp::DinoBattle.Data.CreatureDefinition
+  displayName: Stegosaurus
+  description: Placeholder stat block for Stegosaurus.
+  icon: {fileID: 0}
+  prefab: {fileID: 7787167016943227555, guid: a90a09074c4059a4eba40a398f040124, type: 3}
+  cost: 320
+  footprintRadius: 3.1200001
+  maxHealth: 5000
+  armor: 26
+  moveSpeed: 4.8
+  turnSpeedDegrees: 105.58441
+  mass: 7800
+  attackDamage: 280
+  attackInterval: 2.1
+  attackRange: 3.8
+  attackWindup: 0.525
+  aggroRange: 90

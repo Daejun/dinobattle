@@ -52,6 +52,16 @@ crashlytics-build.properties
 Thumbs.db
 desktop.ini
 
+# Debug captures written by the MCP screenshot tool while verifying changes. Useful in the moment,
+# noise in history — and .png is LFS-tracked, so committing them burns LFS quota too.
+/Assets/Screenshots/
+/Assets/Screenshots.meta
+
+# Roslyn assemblies that MCP for Unity drops in to power its execute_code tool. Third-party binaries
+# we did not author and that the package restores on demand; keep them out of the repository.
+/Assets/Plugins/Roslyn/
+/Assets/Plugins/Roslyn.meta
+
 # ---------------------------------------------------------------- project local
 # Downloaded third-party assets staged by Tools/fetch-assets.sh. Only the files you actually
 # use get copied into Assets/ and committed; the raw packs stay out of the repo.

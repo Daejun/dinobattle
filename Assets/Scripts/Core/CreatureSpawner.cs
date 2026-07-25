@@ -66,7 +66,14 @@ namespace DinoBattle.Core
 
             for (int i = container.childCount - 1; i >= 0; i--)
             {
-                Destroy(container.GetChild(i).gameObject);
+                var child = container.GetChild(i);
+
+                // Detach before destroying. Destroy() only takes effect at the end of the frame, so a
+                // reset immediately followed by a new match (Rematch -> Start in one frame) would
+                // otherwise spawn on top of creatures that are still alive, still registered, and
+                // still fighting.
+                child.SetParent(null, false);
+                Destroy(child.gameObject);
             }
         }
     }

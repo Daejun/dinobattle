@@ -38,7 +38,11 @@ namespace DinoBattle.Units
         private void Awake()
         {
             self = GetComponentInParent<CreatureUnit>();
+
+            // The Animator lives on the imported model, which is a CHILD of the creature root — so
+            // searching only upward finds nothing and attacks play silently with no animation.
             if (animator == null) animator = GetComponentInParent<Animator>();
+            if (animator == null) animator = GetComponentInChildren<Animator>();
         }
 
         public void Configure(CreatureDefinition definition)

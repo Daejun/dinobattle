@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using DinoBattle.Core;
 using DinoBattle.Placement;
 using UnityEngine;
@@ -43,6 +44,9 @@ namespace DinoBattle.UI
         [Header("Result")]
         [SerializeField] private Text winnerLabel;
         [SerializeField] private Button rematchButton;
+
+        /// <summary>Buttons this HUD instantiated, so a rebuild can clean up exactly what it created.</summary>
+        private readonly List<Button> spawnedRosterButtons = new();
 
         private void Awake()
         {
@@ -111,11 +115,18 @@ namespace DinoBattle.UI
             if (battleManager?.Roster == null) return;
 
             // Rebuild from scratch; the roster can change between scene loads.
-            for (int i = rosterContainer.childCount - 1; i >= 0; i--)
+            //
+            // Track what we spawned rather than walking rosterContainer's children. Destroy() is
+            // deferred to the end of the frame, so a child-enumeration cleanup still sees the old
+            // buttons if this runs twice before then -- which happened, and left two full sets of
+            // buttons live. Detaching immediately makes the cleanup take effect right away.
+            foreach (var stale in spawnedRosterButtons)
             {
-                var child = rosterContainer.GetChild(i).gameObject;
-                if (child != rosterButtonTemplate.gameObject) Destroy(child);
+                if (stale == null) continue;
+                stale.transform.SetParent(null, false);
+                Destroy(stale.gameObject);
             }
+            spawnedRosterButtons.Clear();
 
             rosterButtonTemplate.gameObject.SetActive(false);
 
@@ -126,10 +137,14 @@ namespace DinoBattle.UI
                 var button = Instantiate(rosterButtonTemplate, rosterContainer);
                 button.gameObject.SetActive(true);
                 button.name = $"Btn_{definition.name}";
+                spawnedRosterButtons.Add(button);
 
                 var label = button.GetComponentInChildren<Text>();
                 if (label != null) label.text = $"{definition.displayName}\n{definition.cost}";
 
+                // Optional: the generated template has no "Icon" child yet, so this is inert until
+                // real creature art lands and BattleSceneBuilder.CreateButton gains one. Guarded
+                // rather than assumed so adding the child is the only change needed.
                 var image = button.transform.Find("Icon")?.GetComponent<Image>();
                 if (image != null && definition.icon != null) image.sprite = definition.icon;
 

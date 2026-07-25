@@ -9,6 +9,7 @@ namespace DinoBattle.Units
     /// Root component on every creature prefab. Owns team identity, wires the stat block from the
     /// definition, and keeps the <see cref="UnitRegistry"/> in sync.
     /// </summary>
+    [DisallowMultipleComponent]
     [RequireComponent(typeof(Health))]
     public class CreatureUnit : MonoBehaviour
     {
@@ -18,8 +19,14 @@ namespace DinoBattle.Units
         [Tooltip("Chest/head transform used for range checks and damage origin. Falls back to the root.")]
         [SerializeField] private Transform aimPoint;
 
-        [Tooltip("Renderers tinted to the team color on spawn. Leave empty to tint every child renderer.")]
+        [Tooltip("Optional renderers nudged toward the team color. Leave empty to keep the model's " +
+                 "own colors untouched — the team ring already identifies the side.")]
         [SerializeField] private Renderer[] teamTintRenderers;
+
+        [Tooltip("How far listed renderers are pushed toward the team color. 0 = natural colors only.")]
+        [Range(0f, 1f)]
+        [SerializeField] private float teamTintStrength;
+
 
         [Tooltip("Seconds the corpse stays in the arena after dying. Negative keeps it forever.")]
         [SerializeField] private float corpseLifetime = -1f;
@@ -132,23 +139,53 @@ namespace DinoBattle.Units
             if (corpseLifetime >= 0f) Destroy(gameObject, corpseLifetime);
         }
 
+        /// <summary>
+        /// Show team allegiance without destroying the creature's own colouring.
+        ///
+        /// This used to overwrite _BaseColor outright, which painted every dinosaur flat red or blue
+        /// and threw away the species colours the art defines. Instead the body keeps its natural hue
+        /// with only a slight push toward the team colour, and the unambiguous signal moves to a
+        /// coloured ring on the ground — the same trick RTS games use for exactly this reason.
+        /// </summary>
         private void ApplyTeamTint(Color color)
         {
-            var targets = teamTintRenderers != null && teamTintRenderers.Length > 0
-                ? teamTintRenderers
-                : GetComponentsInChildren<Renderer>();
+            var ring = transform.Find(CreatureRig.TeamRing);
+            if (ring != null && ring.TryGetComponent<Renderer>(out var ringRenderer))
+            {
+                SetRendererColor(ringRenderer, color);
+            }
 
-            foreach (var renderer in targets)
+            if (teamTintStrength <= 0f) return;
+
+            // Only explicitly listed renderers get tinted. With none listed the model is left alone,
+            // which is the default: the ring already carries the team read.
+            if (teamTintRenderers == null) return;
+
+            foreach (var renderer in teamTintRenderers)
             {
                 if (renderer == null) continue;
 
-                // Instance the material so tinting one creature does not recolor the whole team's shared asset.
                 foreach (var material in renderer.materials)
                 {
-                    if (material.HasProperty("_BaseColor")) material.SetColor("_BaseColor", color);
-                    else if (material.HasProperty("_Color")) material.SetColor("_Color", color);
+                    if (material.HasProperty("_BaseColor"))
+                    {
+                        material.SetColor("_BaseColor", Color.Lerp(material.GetColor("_BaseColor"), color, teamTintStrength));
+                    }
+                    else if (material.HasProperty("_Color"))
+                    {
+                        material.SetColor("_Color", Color.Lerp(material.GetColor("_Color"), color, teamTintStrength));
+                    }
                 }
             }
+        }
+
+        private static void SetRendererColor(Renderer renderer, Color color)
+        {
+            // renderer.material instances the shared asset, so one creature's ring does not recolour
+            // every other creature that shares the material.
+            var material = renderer.material;
+            if (material.HasProperty("_BaseColor")) material.SetColor("_BaseColor", color);
+            if (material.HasProperty("_Color")) material.SetColor("_Color", color);
         }
     }
 }

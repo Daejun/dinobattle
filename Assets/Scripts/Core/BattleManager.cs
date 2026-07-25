@@ -29,7 +29,13 @@ namespace DinoBattle.Core
         private int speedIndex;
 
         public BattlePhase Phase { get; private set; } = BattlePhase.Placement;
-        public BattleLoadout Loadout { get; private set; }
+
+        /// <summary>
+        /// Built at field-initialization rather than in Awake. Awake order between GameObjects is
+        /// undefined, so a HUD whose OnEnable ran first used to hit a null Loadout and throw. The
+        /// budget is applied in Awake once the serialized value is available.
+        /// </summary>
+        public BattleLoadout Loadout { get; } = new();
         public CreatureRoster Roster => roster;
         public Team Winner { get; private set; } = Team.Neutral;
         public float SimulationSpeed => speedSteps[Mathf.Clamp(speedIndex, 0, speedSteps.Length - 1)];
@@ -54,7 +60,7 @@ namespace DinoBattle.Core
 
             Instance = this;
             spawner = GetComponent<CreatureSpawner>();
-            Loadout = new BattleLoadout { BudgetPerTeam = budgetPerTeam };
+            Loadout.BudgetPerTeam = budgetPerTeam;
             speedIndex = Mathf.Clamp(defaultSpeedIndex, 0, speedSteps.Length - 1);
         }
 
