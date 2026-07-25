@@ -354,17 +354,53 @@ namespace DinoBattle.EditorTools
             TintRenderer(snout, blueprint.Tint * 0.7f, safeName);
         }
 
+        /// <summary>
+        /// Height of the tallest point of the creature's rendered mesh, in root-local units. Falls
+        /// back to the blueprint height when there is no visual to measure, which is the placeholder
+        /// case. Called at build time, with the prefab root at the origin, so world Y is local Y.
+        /// </summary>
+        private static float MeasuredTop(GameObject root)
+        {
+            Bounds? combined = null;
+
+            foreach (var renderer in root.GetComponentsInChildren<Renderer>(true))
+            {
+                // The ring lies flat on the ground and the bar does not exist yet; neither says
+                // anything about how tall the animal is.
+                if (renderer.name == CreatureRig.TeamRing) continue;
+
+                if (combined == null)
+                {
+                    combined = renderer.bounds;
+                    continue;
+                }
+
+                Bounds grown = combined.Value;
+                grown.Encapsulate(renderer.bounds);
+                combined = grown;
+            }
+
+            if (combined == null) return 1f;
+
+            return combined.Value.max.y - root.transform.position.y;
+        }
+
         private static void AddHealthBar(GameObject root, CreatureBlueprint blueprint, string safeName)
         {
             // Styled after the reference game: a short bar at mid-body height, not a wide banner over
             // the head. Sized to a fraction of body length so a raptor's marker is not as wide as a
             // T-Rex's, and kept small enough that a scrum of creatures does not become a wall of bars.
-            const float barLength = 0.4f;
-            const float barThickness = 0.14f;
+            const float barLength = 0.3f;
+            const float barThickness = 0.18f;
 
             var bar = new GameObject(CreatureRig.HealthBar);
             bar.transform.SetParent(root.transform, false);
-            bar.transform.localPosition = new Vector3(0f, blueprint.BodySize.y * 0.95f, 0f);
+
+            // Anchor just above the ACTUAL mesh rather than at a fraction of the blueprint's nominal
+            // height. The two diverge once the model is scaled to fit its blueprint, and on the large
+            // creatures the bar ended up floating more than a tenth of the screen clear of the animal
+            // it belonged to — far enough that it read as an unrelated object.
+            bar.transform.localPosition = new Vector3(0f, MeasuredTop(root) + 0.25f, 0f);
 
             float width = blueprint.BodySize.z * barLength;
 

@@ -286,7 +286,12 @@ namespace DinoBattle.EditorTools
             for (int i = 0; i < boulderCount; i++)
             {
                 float angle = Range(0f, Mathf.PI * 2f);
-                float radius = half * Range(1.08f, 1.45f);
+
+                // Pushed further out. At 1.08 of the radius a boulder sat barely past the wall, close
+                // enough for the camera to end up inside one — a grey slab covering a corner of the
+                // screen with no explanation.
+                float radius = half * Range(1.5f, 2.1f);
+
                 // Kept small relative to the creatures. At 1.6-4.4 units against a 5-unit T-Rex these
                 // read as outbuildings rather than rocks.
                 float size = Range(0.9f, 2.4f);
@@ -295,10 +300,17 @@ namespace DinoBattle.EditorTools
                 rock.name = $"Boulder_{i}";
                 Object.DestroyImmediate(rock.GetComponent<Collider>());
                 rock.transform.SetParent(root, false);
+
+                float height = size * Range(0.5f, 0.9f);
+                float tilt = Range(-18f, 18f);
+
+                // Bed them into the ground. Positioning by an arbitrary fraction of size left rocks
+                // hovering with daylight underneath; half the height minus a bite sinks them so the
+                // base is buried whatever the tilt does to the corners.
                 rock.transform.localPosition = new Vector3(
-                    Mathf.Cos(angle) * radius, size * Range(0.15f, 0.35f), Mathf.Sin(angle) * radius);
-                rock.transform.localRotation = Quaternion.Euler(Range(-18f, 18f), Range(0f, 360f), Range(-18f, 18f));
-                rock.transform.localScale = new Vector3(size, size * Range(0.5f, 0.9f), size * Range(0.7f, 1.2f));
+                    Mathf.Cos(angle) * radius, height * 0.5f - size * 0.18f, Mathf.Sin(angle) * radius);
+                rock.transform.localRotation = Quaternion.Euler(tilt, Range(0f, 360f), tilt * 0.5f);
+                rock.transform.localScale = new Vector3(size, height, size * Range(0.7f, 1.2f));
 
                 // Darker than the ground, not lighter. Pale grey against green made them glow.
                 TintShared(rock, Color.Lerp(
@@ -307,12 +319,18 @@ namespace DinoBattle.EditorTools
 
             // Flat scatter across the floor for a sense of scale underfoot. No colliders: these must
             // never trip a charging creature.
-            const int patchCount = 40;
+            // Fewer and smaller than before, and barely tinted.
+            //
+            // At forty patches of 2.5-7 units across an arena of radius 22, they covered most of the
+            // floor and overlapped constantly — the result read as blotchy stains rather than as
+            // ground, and a playtester singled them out as the thing they disliked most about the
+            // arena. Ground dressing works when you do not notice it.
+            const int patchCount = 16;
             for (int i = 0; i < patchCount; i++)
             {
                 float angle = Range(0f, Mathf.PI * 2f);
                 float radius = half * Range(0.05f, 0.9f);
-                float size = Range(2.5f, 7f);
+                float size = Range(1.6f, 3.4f);
 
                 var patch = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
                 patch.name = $"GroundPatch_{i}";
@@ -330,10 +348,10 @@ namespace DinoBattle.EditorTools
                     Mathf.Cos(angle) * radius, lift, Mathf.Sin(angle) * radius);
                 patch.transform.localScale = new Vector3(size, 0.01f, size * Range(0.6f, 1.4f));
 
-                // Kept close to the ground colour. Higher contrast turned these into obvious pale
-                // discs stamped on the field rather than subtle variation underfoot.
+                // Within a hair of the ground colour (0.24, 0.28, 0.20). The previous spread was wide
+                // enough to see each disc's outline, which is what made them read as stains.
                 TintShared(patch, Color.Lerp(
-                    new Color(0.22f, 0.26f, 0.19f), new Color(0.27f, 0.30f, 0.21f), (float)random.NextDouble()));
+                    new Color(0.235f, 0.272f, 0.196f), new Color(0.252f, 0.290f, 0.208f), (float)random.NextDouble()));
             }
         }
 
@@ -343,7 +361,16 @@ namespace DinoBattle.EditorTools
             cameraObject.tag = "MainCamera";
 
             var camera = cameraObject.AddComponent<Camera>();
-            camera.backgroundColor = new Color(0.42f, 0.55f, 0.68f);
+            // Matched to RenderSettings.fogColor on purpose. The ground fades to fog with distance, so
+            // any other sky colour leaves a hard seam along the horizon where the plane simply stops —
+            // which is exactly the visible edge that made the world look like it ran out.
+            // Solid colour, not the skybox. The default skybox is what was actually being drawn, so
+            // matching the background colour to the fog achieved nothing and the ground plane's far
+            // corner stayed silhouetted against a brown gradient. Clearing to the fog colour makes
+            // the horizon genuinely dissolve — the ground fades into a sky of the same value and
+            // there is no edge left to see. Ambient light is Trilight, so nothing needs the skybox.
+            camera.clearFlags = CameraClearFlags.SolidColor;
+            camera.backgroundColor = new Color(0.62f, 0.66f, 0.70f);
 
             // 200, not 600. Nothing in this scene is further away than the outer hills at roughly 60
             // units, and a 0.3-to-600 depth range wastes precision on empty space — precision that
@@ -491,16 +518,27 @@ namespace DinoBattle.EditorTools
             var speedLabel = speedButton.GetComponentInChildren<Text>();
 
             // ---- result panel (center) ----
+            // Sits high on the screen, not across the middle.
+            //
+            // Centred, it landed squarely on top of the winning creature — the game ends and the
+            // thing you want to look at is hidden behind a black box announcing that it won. The
+            // result belongs out of the way of the last survivor standing on the field.
             var resultPanel = CreatePanel(canvasObject.transform, "ResultPanel",
-                new Vector2(0.15f, 0.38f), new Vector2(0.85f, 0.62f));
-            resultPanel.GetComponent<Image>().color = new Color(0f, 0f, 0f, 0.75f);
+                new Vector2(0.18f, 0.62f), new Vector2(0.82f, 0.95f));
+            resultPanel.GetComponent<Image>().color = new Color(0f, 0f, 0f, 0.72f);
 
             var winnerLabel = CreateLabel(resultPanel.transform, "Winner", "RED WINS",
-                new Vector2(0.05f, 0.45f), new Vector2(0.95f, 0.95f), TextAnchor.MiddleCenter);
-            winnerLabel.fontSize = 48;
+                new Vector2(0.05f, 0.58f), new Vector2(0.95f, 0.98f), TextAnchor.MiddleCenter);
+            winnerLabel.fontSize = 44;
+
+            // What actually happened, not just who won. "RED WINS" alone tells a player nothing
+            // about whether it was close.
+            var resultSummary = CreateLabel(resultPanel.transform, "Summary", "",
+                new Vector2(0.05f, 0.34f), new Vector2(0.95f, 0.58f), TextAnchor.MiddleCenter);
+            resultSummary.fontSize = 24;
 
             var rematchButton = CreateButton(resultPanel.transform, "Rematch", "REMATCH",
-                new Vector2(0.25f, 0.08f), new Vector2(0.75f, 0.40f));
+                new Vector2(0.30f, 0.04f), new Vector2(0.70f, 0.30f));
 
             resultPanel.SetActive(false);
             fightingPanel.SetActive(false);
@@ -528,6 +566,7 @@ namespace DinoBattle.EditorTools
             s.FindProperty("redCountLabel").objectReferenceValue = redCount;
             s.FindProperty("blueCountLabel").objectReferenceValue = blueCount;
             s.FindProperty("winnerLabel").objectReferenceValue = winnerLabel;
+            s.FindProperty("resultSummaryLabel").objectReferenceValue = resultSummary;
             s.FindProperty("rematchButton").objectReferenceValue = rematchButton;
             s.ApplyModifiedPropertiesWithoutUndo();
         }

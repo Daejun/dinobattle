@@ -55,6 +55,13 @@ namespace DinoBattle.EditorTools
 
             float lowpass = 0f;
 
+            // A body around the impact. Dry noise plus a sine reads as a click on a speaker; two
+            // resonances give the snap somewhere to happen, so it lands as flesh and bone rather
+            // than as a burst of static.
+            float scale = Mathf.Clamp(basePitch / 220f, 0.5f, 1.5f);
+            var body = new Resonator(420f * scale, 3.5f);
+            var crack = new Resonator(1650f * scale, 6f);
+
             for (int i = 0; i < count; i++)
             {
                 float t = i / (float)SampleRate;
@@ -71,7 +78,12 @@ namespace DinoBattle.EditorTools
 
                 float thump = Mathf.Sin(2f * Mathf.PI * basePitch * t * Mathf.Exp(-progress * 2.5f));
 
-                samples[i] = (lowpass * 0.75f + thump * 0.45f) * envelope;
+                // The crack decays much faster than the body: teeth meeting is over long before the
+                // weight behind them has finished arriving.
+                float resonant = body.Process(lowpass) * 0.9f
+                               + crack.Process(noise) * 0.5f * Mathf.Exp(-progress * 26f);
+
+                samples[i] = (lowpass * 0.35f + resonant + thump * 0.45f) * envelope;
             }
 
             return Normalise(samples, 0.85f);
@@ -88,35 +100,57 @@ namespace DinoBattle.EditorTools
             int count = (int)(SampleRate * length);
             var samples = new float[count];
 
+            // Formants scale with the animal, not with the note it is producing. Tying them to the
+            // base pitch is what makes the small and large variants sound like different-sized
+            // throats rather than the same throat transposed.
+            float scale = Mathf.Clamp(basePitch / 120f, 0.55f, 1.6f);
+            var f1 = new Resonator(320f * scale, 6f);
+            var f2 = new Resonator(830f * scale, 8f);
+            var f3 = new Resonator(2400f * scale, 11f);
+
             float breath = 0f;
+            float jitter = 0f;
+            float phase = 0f;
 
             for (int i = 0; i < count; i++)
             {
                 float t = i / (float)SampleRate;
                 float progress = i / (float)count;
 
-                // Swell in, hold, fall away.
-                float envelope = Mathf.Sin(Mathf.Clamp01(progress) * Mathf.PI);
-                envelope *= envelope;
+                // Fast onset, long fall. A symmetric swell reads as a machine winding up; animals
+                // start a call abruptly and run out of air slowly.
+                float envelope = Mathf.Min(1f, progress / 0.08f) * Mathf.Pow(1f - progress, 0.7f);
 
-                // Vibrato plus a slow downward drift, which is what makes a held tone sound alive.
-                float vibrato = 1f + Mathf.Sin(2f * Mathf.PI * 5.5f * t) * 0.04f;
-                float drift = Mathf.Lerp(1.08f, 0.86f, progress);
-                float pitch = basePitch * vibrato * drift;
+                // Jitter — small random pitch wander. Perfectly steady pitch is the single clearest
+                // giveaway of a synthesised voice; real vocal folds never hold one.
+                jitter += ((float)(random.NextDouble() * 2.0 - 1.0) - jitter) * 0.004f;
 
-                float tone = 0f;
-                for (int harmonic = 1; harmonic <= 5; harmonic++)
-                {
-                    // Slight detune per harmonic keeps the stack from sounding like a synth pad.
-                    float detune = 1f + (harmonic - 1) * 0.004f;
-                    tone += Saw(pitch * harmonic * detune, t) / harmonic;
-                }
-                tone /= 2.2f;
+                float drift = Mathf.Lerp(1.1f, 0.82f, progress);
+                float pitch = basePitch * drift * (1f + jitter * 0.06f);
+
+                phase += pitch / SampleRate;
+                phase -= Mathf.Floor(phase);
+
+                // Sawtooth glottal source plus a half-rate component. Period doubling is the physical
+                // origin of the rough, torn quality in a big animal's roar, and it is why this reads
+                // as a growl rather than a hum.
+                float source = 2f * phase - 1f;
+                source += (2f * (phase * 0.5f - Mathf.Floor(phase * 0.5f)) - 1f) * 0.45f;
 
                 float noise = (float)(random.NextDouble() * 2.0 - 1.0);
-                breath += (noise - breath) * 0.08f;
+                breath += (noise - breath) * 0.35f;
+                source += breath * 0.5f;
 
-                samples[i] = (tone * 0.8f + breath * 0.35f) * envelope;
+                // Through the throat.
+                float voiced = f1.Process(source) * 1.0f
+                             + f2.Process(source) * 0.55f
+                             + f3.Process(source) * 0.2f;
+
+                // Roughness: amplitude modulation well above vibrato rate, which is heard as texture
+                // rather than as wobble.
+                float roughness = 1f - 0.25f * (0.5f + 0.5f * Mathf.Sin(2f * Mathf.PI * 38f * t));
+
+                samples[i] = voiced * roughness * envelope;
             }
 
             return Normalise(samples, 0.9f);
@@ -129,11 +163,15 @@ namespace DinoBattle.EditorTools
             int count = (int)(SampleRate * length);
             var samples = new float[count];
 
+            float scale = Mathf.Clamp(basePitch / 120f, 0.55f, 1.6f);
+            var f1 = new Resonator(300f * scale, 5f);
+            var f2 = new Resonator(760f * scale, 7f);
+
             float rattle = 0f;
+            float phase = 0f;
 
             for (int i = 0; i < count; i++)
             {
-                float t = i / (float)SampleRate;
                 float progress = i / (float)count;
 
                 float envelope = Mathf.Min(1f, progress / 0.05f) * Mathf.Exp(-progress * 2.2f);
@@ -141,12 +179,20 @@ namespace DinoBattle.EditorTools
                 // Falls a long way — the pitch drop is what reads as "dying" rather than "shouting".
                 float pitch = basePitch * Mathf.Lerp(1f, 0.45f, progress);
 
-                float tone = Saw(pitch, t) * 0.6f + Saw(pitch * 2.01f, t) * 0.25f;
+                phase += pitch / SampleRate;
+                phase -= Mathf.Floor(phase);
+
+                float source = 2f * phase - 1f;
 
                 float noise = (float)(random.NextDouble() * 2.0 - 1.0);
                 rattle += (noise - rattle) * 0.25f;
 
-                samples[i] = (tone + rattle * Mathf.Lerp(0.15f, 0.6f, progress)) * envelope;
+                // Breath takes over from voice as the call collapses — the voiced part drops away
+                // while the rattle rises, which is the shape of a last exhalation.
+                float voiced = (f1.Process(source) + f2.Process(source) * 0.6f)
+                             * Mathf.Lerp(1f, 0.25f, progress);
+
+                samples[i] = (voiced + rattle * Mathf.Lerp(0.15f, 0.7f, progress)) * envelope;
             }
 
             return Normalise(samples, 0.85f);
@@ -156,6 +202,51 @@ namespace DinoBattle.EditorTools
         {
             float phase = frequency * t;
             return 2f * (phase - Mathf.Floor(phase + 0.5f));
+        }
+
+        /// <summary>
+        /// A resonant band-pass, run one sample at a time.
+        ///
+        /// This is the piece that was missing. Almost everything that makes a vocalisation sound like
+        /// it came from an animal rather than an oscillator is formants — fixed resonances of the
+        /// throat and mouth that emphasise particular bands regardless of the pitch being sung. A
+        /// harmonic stack without them is a synth pad; the same stack through two or three of these
+        /// is recognisably a voice, and moving the resonances down is what makes the same source read
+        /// as a much larger animal.
+        ///
+        /// Standard RBJ band-pass biquad, constant skirt gain.
+        /// </summary>
+        private sealed class Resonator
+        {
+            private readonly float b0, b1, b2, a1, a2;
+            private float x1, x2, y1, y2;
+
+            public Resonator(float frequency, float q)
+            {
+                float omega = 2f * Mathf.PI * frequency / SampleRate;
+                float sin = Mathf.Sin(omega);
+                float cos = Mathf.Cos(omega);
+                float alpha = sin / (2f * q);
+
+                float a0 = 1f + alpha;
+                b0 = (sin * 0.5f) / a0;
+                b1 = 0f;
+                b2 = -(sin * 0.5f) / a0;
+                a1 = (-2f * cos) / a0;
+                a2 = (1f - alpha) / a0;
+            }
+
+            public float Process(float input)
+            {
+                float output = b0 * input + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2;
+
+                x2 = x1;
+                x1 = input;
+                y2 = y1;
+                y1 = output;
+
+                return output;
+            }
         }
 
         /// <summary>Scale to a target peak so every clip sits at a comparable loudness in game.</summary>

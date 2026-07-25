@@ -61,6 +61,7 @@ namespace DinoBattle.Core
             Instance = this;
             spawner = GetComponent<CreatureSpawner>();
             Loadout.BudgetPerTeam = budgetPerTeam;
+            Loadout.Changed += HandleLoadoutChanged;
             speedIndex = Mathf.Clamp(defaultSpeedIndex, 0, speedSteps.Length - 1);
         }
 
@@ -69,8 +70,22 @@ namespace DinoBattle.Core
             EnterPlacement();
         }
 
+        /// <summary>
+        /// Keep the arena's placement-phase models in step with the pending arrangement. Only during
+        /// Placement — once the fight starts the real creatures are the ones on the field.
+        /// </summary>
+        private void HandleLoadoutChanged()
+        {
+            if (spawner == null) return;
+
+            if (Phase == BattlePhase.Placement) spawner.ShowPreviews(Loadout.Placements);
+            else spawner.ClearPreviews();
+        }
+
         private void OnDestroy()
         {
+            Loadout.Changed -= HandleLoadoutChanged;
+
             if (Instance == this) Instance = null;
 
             // Never leave a slowed or fast-forwarded clock behind for the next scene.
@@ -110,6 +125,9 @@ namespace DinoBattle.Core
             UnitRegistry.Clear();
             PackTactics.Clear();
             activeUnits.Clear();
+
+            // The previews stood in for these creatures; the real ones take over now.
+            spawner.ClearPreviews();
 
             foreach (var placement in Loadout.Placements)
             {

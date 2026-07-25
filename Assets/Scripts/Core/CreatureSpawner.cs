@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using DinoBattle.Data;
 using DinoBattle.Units;
 using UnityEngine;
@@ -17,6 +18,10 @@ namespace DinoBattle.Core
         [Tooltip("Parent for spawned creatures. Created automatically if left empty.")]
         [SerializeField] private Transform container;
 
+        [Tooltip("Parent for the inert placement-phase models. Kept separate from the live container " +
+                 "so clearing one can never take the other with it.")]
+        [SerializeField] private Transform previewContainer;
+
         public Color ColorFor(Team team) => team switch
         {
             Team.Red => redColor,
@@ -30,6 +35,12 @@ namespace DinoBattle.Core
             {
                 container = new GameObject("Spawned Creatures").transform;
                 container.SetParent(transform, false);
+            }
+
+            if (previewContainer == null)
+            {
+                previewContainer = new GameObject("Placement Previews").transform;
+                previewContainer.SetParent(transform, false);
             }
         }
 
@@ -57,6 +68,59 @@ namespace DinoBattle.Core
 
             unit.Initialize(definition, placement.Team, ColorFor(placement.Team));
             return unit;
+        }
+
+        /// <summary>
+        /// Show the pending arrangement as actual creatures standing in the arena.
+        ///
+        /// Until this existed, the placement screen was an empty field: units were only created on
+        /// Start, so a player picked a dinosaur and nothing appeared. It also hid the fact that
+        /// tapping the ground places one at all — a playtester concluded the game had no manual
+        /// placement, when what it had was no feedback.
+        ///
+        /// Rebuilt wholesale on every change. The list is at most a handful of entries and only ever
+        /// changes on a deliberate player action, so tracking individual adds and removals would be
+        /// bookkeeping with no payoff.
+        /// </summary>
+        public void ShowPreviews(IReadOnlyList<PlacedCreature> placements)
+        {
+            ClearPreviews();
+
+            if (placements == null) return;
+
+            foreach (var placement in placements)
+            {
+                var definition = placement.Definition;
+                if (definition == null || definition.prefab == null) continue;
+
+                var instance = Instantiate(
+                    definition.prefab,
+                    placement.Position,
+                    Quaternion.Euler(0f, placement.YawDegrees, 0f),
+                    previewContainer);
+
+                // Before anything else this frame: an uninitialised creature registers itself in
+                // Start, and a preview must never appear in a targeting query.
+                if (instance.TryGetComponent<CreatureUnit>(out var unit))
+                {
+                    unit.MarkAsPreview();
+                    unit.ApplyPreviewTeamColor(ColorFor(placement.Team));
+                }
+            }
+        }
+
+        public void ClearPreviews()
+        {
+            if (previewContainer == null) return;
+
+            for (int i = previewContainer.childCount - 1; i >= 0; i--)
+            {
+                var child = previewContainer.GetChild(i);
+
+                child.gameObject.SetActive(false);
+                child.SetParent(null, false);
+                Destroy(child.gameObject);
+            }
         }
 
         /// <summary>Remove everything spawned so far. Called when a match is reset.</summary>

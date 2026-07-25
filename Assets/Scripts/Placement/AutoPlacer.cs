@@ -42,8 +42,21 @@ namespace DinoBattle.Placement
 
             battleManager.Loadout.Clear();
 
-            FillTeam(Team.Red, 180f);
-            FillTeam(Team.Blue, 0f);
+            // Same headcount on both sides, different armies.
+            //
+            // Each side used to spend its budget independently, which is fair on points and looks
+            // rigged on the field: 4 against 3 is the first thing anyone notices, and equal cost is
+            // no comfort when you can see the other team has an extra dinosaur. Blue is built to
+            // match Red's count, and if the budget cannot stretch that far both sides level down.
+            var red = ChooseArmy(null);
+            var blue = ChooseArmy(red.Count);
+
+            int size = Mathf.Min(red.Count, blue.Count);
+            red.RemoveRange(size, red.Count - size);
+            blue.RemoveRange(size, blue.Count - size);
+
+            PlaceArmy(red, Team.Red, 180f);
+            PlaceArmy(blue, Team.Blue, 0f);
         }
 
         /// <summary>
@@ -57,7 +70,7 @@ namespace DinoBattle.Placement
 
             battleManager.Loadout.Clear();
 
-            var picks = ChooseArmy();
+            var picks = ChooseArmy(null);
             PlaceArmy(picks, Team.Red, 180f);
             PlaceArmy(picks, Team.Blue, 0f);
         }
@@ -67,7 +80,7 @@ namespace DinoBattle.Placement
         {
             if (battleManager == null || battleManager.Phase != BattlePhase.Placement) return;
 
-            PlaceArmy(ChooseArmy(), team, facingDegrees);
+            PlaceArmy(ChooseArmy(null), team, facingDegrees);
         }
 
         /// <summary>
@@ -75,7 +88,12 @@ namespace DinoBattle.Placement
         /// more interesting to watch than the mathematically best one, which would be the same every
         /// time.
         /// </summary>
-        private List<CreatureDefinition> ChooseArmy()
+        /// <param name="matchCount">
+        /// Headcount to hit exactly, or null to simply spend the budget. When set, each pick leaves
+        /// enough budget behind for the slots still to be filled — without that reservation a greedy
+        /// first pick of something expensive makes the target count unreachable.
+        /// </param>
+        private List<CreatureDefinition> ChooseArmy(int? matchCount)
         {
             var picks = new List<CreatureDefinition>();
             var roster = battleManager.Roster;
@@ -83,15 +101,24 @@ namespace DinoBattle.Placement
 
             int budget = battleManager.Loadout.BudgetPerTeam;
             int spent = 0;
+            int limit = matchCount.HasValue ? Mathf.Min(maxPerTeam, matchCount.Value) : maxPerTeam;
+
+            int cheapest = int.MaxValue;
+            foreach (var candidate in roster.Creatures)
+            {
+                if (candidate != null) cheapest = Mathf.Min(cheapest, candidate.cost);
+            }
 
             var affordable = new List<CreatureDefinition>();
 
-            while (picks.Count < maxPerTeam)
+            while (picks.Count < limit)
             {
+                int reserve = matchCount.HasValue ? (limit - picks.Count - 1) * cheapest : 0;
+
                 affordable.Clear();
                 foreach (var candidate in roster.Creatures)
                 {
-                    if (candidate != null && spent + candidate.cost <= budget) affordable.Add(candidate);
+                    if (candidate != null && spent + candidate.cost + reserve <= budget) affordable.Add(candidate);
                 }
 
                 if (affordable.Count == 0) break;

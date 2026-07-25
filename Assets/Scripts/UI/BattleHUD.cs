@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using DinoBattle.Core;
 using DinoBattle.Data;
 using DinoBattle.Placement;
+using DinoBattle.Units;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -47,6 +48,10 @@ namespace DinoBattle.UI
 
         [Header("Result")]
         [SerializeField] private Text winnerLabel;
+
+        [Tooltip("Line under the winner: survivors and how much health they finished on. Optional, " +
+                 "like every other reference here.")]
+        [SerializeField] private Text resultSummaryLabel;
         [SerializeField] private Button rematchButton;
 
         /// <summary>Buttons this HUD instantiated, so a rebuild can clean up exactly what it created.</summary>
@@ -114,9 +119,40 @@ namespace DinoBattle.UI
 
         private void HandleBattleEnded(Team winner)
         {
-            if (winnerLabel == null) return;
+            if (winnerLabel != null)
+            {
+                winnerLabel.text = winner == Team.Neutral ? "DRAW" : $"{winner.ToString().ToUpperInvariant()} WINS";
+            }
 
-            winnerLabel.text = winner == Team.Neutral ? "DRAW" : $"{winner.ToString().ToUpperInvariant()} WINS";
+            if (resultSummaryLabel == null) return;
+
+            // Who is left, and in what shape. The bare result told a player nothing about whether the
+            // match was a rout or came down to one wounded survivor, which is most of what makes a
+            // spectator match worth watching to the end.
+            int survivors = UnitRegistry.AliveCount(winner);
+
+            if (winner == Team.Neutral || survivors == 0)
+            {
+                resultSummaryLabel.text = "no survivors";
+                return;
+            }
+
+            float remaining = 0f;
+            float capacity = 0f;
+
+            foreach (var unit in UnitRegistry.AliveOf(winner))
+            {
+                if (unit == null || unit.IsDead || unit.Health == null) continue;
+
+                remaining += unit.Health.Current;
+                capacity += unit.Health.Max;
+            }
+
+            int percent = capacity > 0f ? Mathf.RoundToInt(remaining / capacity * 100f) : 0;
+
+            resultSummaryLabel.text = survivors == 1
+                ? $"1 survivor left, on {percent}% health"
+                : $"{survivors} survivors left, on {percent}% health";
         }
 
         // ---------------------------------------------------------------- roster

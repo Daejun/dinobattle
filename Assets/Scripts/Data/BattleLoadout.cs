@@ -25,19 +25,36 @@ namespace DinoBattle.Data
 
         public int BudgetPerTeam { get; set; } = 1000;
 
-        public void Add(PlacedCreature placement) => placements.Add(placement);
+        /// <summary>
+        /// Raised whenever the arrangement changes. Anything that mutates the loadout goes through
+        /// this class, so a single event here is enough for the arena to keep its preview creatures
+        /// in step without anyone having to remember to notify it.
+        /// </summary>
+        public event System.Action Changed;
+
+        public void Add(PlacedCreature placement)
+        {
+            placements.Add(placement);
+            Changed?.Invoke();
+        }
 
         public void RemoveLast(Team team)
         {
             for (int i = placements.Count - 1; i >= 0; i--)
             {
                 if (placements[i].Team != team) continue;
+
                 placements.RemoveAt(i);
+                Changed?.Invoke();
                 return;
             }
         }
 
-        public void Clear() => placements.Clear();
+        public void Clear()
+        {
+            placements.Clear();
+            Changed?.Invoke();
+        }
 
         public int SpentBy(Team team)
         {

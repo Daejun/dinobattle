@@ -89,6 +89,7 @@ namespace DinoBattle.Units
 
         private bool registered;
         private bool initialized;
+        private bool isPreview;
 
         private void Awake()
         {
@@ -165,9 +166,45 @@ namespace DinoBattle.Units
             Deregister();
         }
 
+        /// <summary>
+        /// Turn this instance into a scenery model: visible, animated, and inert.
+        ///
+        /// Used for the creatures shown standing in the arena during placement. They have to be the
+        /// real prefab — a player choosing a Triceratops needs to see a Triceratops — but they must
+        /// not fight, fall over, block anything, or appear in targeting queries.
+        ///
+        /// Must be called in the same frame as Instantiate. An uninitialised creature registers
+        /// itself in Start on the assumption that it was placed in the scene by hand, and Start has
+        /// not run yet at that point.
+        /// </summary>
+        public void MarkAsPreview()
+        {
+            isPreview = true;
+            Deregister();
+
+            if (brain != null) brain.enabled = false;
+            if (locomotion != null) locomotion.enabled = false;
+            if (attack != null) attack.enabled = false;
+
+            if (TryGetComponent<Rigidbody>(out var body)) body.isKinematic = true;
+            foreach (var collider in GetComponentsInChildren<Collider>()) collider.enabled = false;
+
+            // Silences the roar timer in this component's own Update.
+            enabled = false;
+        }
+
+        /// <summary>
+        /// Give a preview its team ring without the rest of Initialize.
+        ///
+        /// Separate from Initialize deliberately: that configures health, locomotion and weapons from
+        /// a definition, all of which a preview has no use for, and it registers the creature as a
+        /// combatant, which is the one thing a preview must not become.
+        /// </summary>
+        public void ApplyPreviewTeamColor(Color color) => ApplyTeamTint(color);
+
         private void EnsureRegistered()
         {
-            if (registered || IsDead) return;
+            if (isPreview || registered || IsDead) return;
 
             UnitRegistry.Register(this);
             registered = true;

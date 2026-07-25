@@ -50,8 +50,10 @@ namespace DinoBattle.CameraRig
                  "gap sweeps the camera through everything in between.")]
         [SerializeField] private float snapDistance = 12f;
 
-        [Tooltip("View of the whole arena while the player is still placing creatures.")]
-        [SerializeField] private float placementDistance = 46f;
+        [Tooltip("View of the whole arena while the player is still placing creatures. Close enough " +
+                 "that the creatures already placed are recognisable — at 46 they were specks, which " +
+                 "rather wasted the point of showing them at all.")]
+        [SerializeField] private float placementDistance = 34f;
 
         private OrbitCameraController rig;
         private BattleManager battleManager;

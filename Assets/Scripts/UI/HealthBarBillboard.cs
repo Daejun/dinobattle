@@ -39,8 +39,14 @@ namespace DinoBattle.UI
             if (activeCamera == null) activeCamera = Camera.main;
             if (activeCamera != null)
             {
-                transform.rotation = Quaternion.LookRotation(
-                    transform.position - activeCamera.transform.position, Vector3.up);
+                // Copy the camera's rotation outright, rather than aiming at its position.
+                //
+                // LookRotation at the camera keeps the quad's normal pointing at the lens but leaves
+                // its roll to be resolved against world up, so the bar picks up an apparent tilt that
+                // varies with where it sits in the frame and with any roll on the rig. On screen that
+                // read as bars lying at odd angles rather than as UI. Matching the camera's rotation
+                // makes every bar exactly parallel to the near plane: always flat, always level.
+                transform.rotation = activeCamera.transform.rotation;
             }
 
             float normalized = health.Normalized;
