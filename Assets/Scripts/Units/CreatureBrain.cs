@@ -36,10 +36,16 @@ namespace DinoBattle.Units
                  "term that stops a pack collapsing onto a single point.")]
         [SerializeField] private float separationRadius = 3.5f;
 
-        [Tooltip("Weight of separation against the pursue/circle term. Too high and creatures never " +
-                 "close; too low and they stack.")]
+        [Tooltip("Weight of separation while closing in. Spreads a pack across the approach so it " +
+                 "arrives on several flanks instead of in single file.")]
         [Range(0f, 3f)]
         [SerializeField] private float separationWeight = 1.1f;
+
+        [Tooltip("Weight of separation once in contact. Near zero on purpose: in the reference game " +
+                 "attackers pile onto their target and interpenetrate heavily, and keeping full " +
+                 "separation here is what held them at a polite distance mid-fight.")]
+        [Range(0f, 3f)]
+        [SerializeField] private float meleeSeparationWeight = 0.15f;
 
         [Tooltip("Distance at which Arrive starts easing off, so attackers settle instead of " +
                  "overshooting and oscillating.")]
@@ -168,7 +174,7 @@ namespace DinoBattle.Units
                         ? Vector3.zero
                         : SteeringBehaviors.Blend(maxSpeed,
                             (TangentialVelocity(fightDistance, maxSpeed), 1f),
-                            (separation, separationWeight));
+                            (separation, meleeSeparationWeight));
 
                     if (desired == Vector3.zero) locomotion.Brake();
 
