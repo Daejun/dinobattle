@@ -30,7 +30,6 @@ namespace DinoBattle.Units
         private float windupRemaining = -1f;
         private CreatureUnit self;
         private CreatureUnit pendingTarget;
-        private GrappleHold grapple;
 
         public float Range => range;
         public bool IsSwinging => windupRemaining >= 0f;
@@ -44,8 +43,6 @@ namespace DinoBattle.Units
             // searching only upward finds nothing and attacks play silently with no animation.
             if (animator == null) animator = GetComponentInParent<Animator>();
             if (animator == null) animator = GetComponentInChildren<Animator>();
-
-            grapple = GetComponentInParent<GrappleHold>();
         }
 
         public void Configure(CreatureDefinition definition)
@@ -150,14 +147,7 @@ namespace DinoBattle.Units
 
             target.Health.TakeDamage(damage);
 
-            // A connecting bite on something far smaller becomes a grab: the victim is lifted, shaken
-            // and thrown rather than just losing hit points. Knockback is skipped in that case — you
-            // cannot both hold prey and punt it away.
-            if (grapple != null && grapple.CanSeize(target))
-            {
-                grapple.Seize(target);
-            }
-            else if (knockback > 0f && target.TryGetComponent<Rigidbody>(out var victimBody))
+            if (knockback > 0f && target.TryGetComponent<Rigidbody>(out var victimBody))
             {
                 Vector3 push = toTarget.normalized;
                 push.y = 0.15f;

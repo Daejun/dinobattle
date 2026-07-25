@@ -138,7 +138,6 @@ namespace DinoBattle.EditorTools
             var unit = EnsureComponent<CreatureUnit>(root);
             EnsureComponent<CreatureLocomotion>(root);
             EnsureComponent<CreatureBrain>(root);
-            EnsureComponent<GrappleHold>(root);
             EnsureComponent<PounceCling>(root);
 
             // Added last: ClingAnchors caches bones in Awake, so it must exist on the prefab even

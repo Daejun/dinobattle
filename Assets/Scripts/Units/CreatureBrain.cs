@@ -55,7 +55,6 @@ namespace DinoBattle.Units
         private CreatureUnit self;
         private CreatureLocomotion locomotion;
         private MeleeAttack attack;
-        private GrappleHold grapple;
         private PounceCling pounce;
         private CreatureDefinition definition;
 
@@ -73,7 +72,6 @@ namespace DinoBattle.Units
             self = GetComponent<CreatureUnit>();
             locomotion = GetComponent<CreatureLocomotion>();
             attack = GetComponentInChildren<MeleeAttack>();
-            grapple = GetComponent<GrappleHold>();
             pounce = GetComponent<PounceCling>();
             if (animator == null) animator = GetComponentInChildren<Animator>();
 
@@ -143,15 +141,6 @@ namespace DinoBattle.Units
             float fightDistance = (attack != null ? attack.EffectiveRange(target) : 3f) * approachRangeFactor;
 
             Vector3 separation = SteeringBehaviors.Separation(self, separationRadius, maxSpeed);
-
-            // A creature with prey in its jaws plants itself and works on what it is holding. Letting
-            // it keep circling would drag the victim around and look like a bug rather than a kill.
-            if (grapple != null && grapple.IsHolding)
-            {
-                SetState(State.Attack);
-                locomotion?.Brake();
-                return;
-            }
 
             // Riding a much larger enemy: the cling does the damage, so there is nothing to steer.
             if (pounce != null && pounce.IsClinging)

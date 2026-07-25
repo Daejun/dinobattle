@@ -95,7 +95,6 @@ GameObject:
   - component: {fileID: 1357560447327926151}
   - component: {fileID: 7150645603862266030}
   - component: {fileID: 4806787402762675556}
-  - component: {fileID: 3092433810218098566}
   - component: {fileID: 8599922257514421416}
   - component: {fileID: 5037778994796401578}
   - component: {fileID: 3051708778442673693}
@@ -249,26 +248,6 @@ MonoBehaviour:
   animator: {fileID: 6097124398930591878}
   speedParameterName: Speed
   deathTriggerName: Die
---- !u!114 &3092433810218098566
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1901665197370020436}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 7fb170b74e8309944bd9532dbd05ad1a, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::DinoBattle.Units.GrappleHold
-  massRatioToSeize: 4
-  holdDuration: 2.2
-  crushDamagePerSecond: 140
-  throwSpeed: 9
-  shakeAmplitude: 0.35
-  shakeFrequency: 7
-  jawBoneName: Head
-  jawForwardOffset: 0.5
 --- !u!114 &8599922257514421416
 MonoBehaviour:
   m_ObjectHideFlags: 0
