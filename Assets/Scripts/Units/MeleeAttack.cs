@@ -17,6 +17,16 @@ namespace DinoBattle.Units
         [Tooltip("Extra range allowed at the moment damage lands, so a target stepping back still gets hit.")]
         [SerializeField] private float windupRangeSlack = 1.5f;
 
+        [Tooltip("Fraction of full reach at which a swing may be committed. Below 1 so a creature " +
+                 "closes properly before biting rather than snapping at the very edge of its range.")]
+        [Range(0.5f, 1f)]
+        [SerializeField] private float commitRangeFactor = 0.8f;
+
+        [Tooltip("Seconds after damage lands during which the creature stays planted. The attack clip " +
+                 "keeps playing past the hit, and it animates the feet standing still — drifting " +
+                 "through the rest of it is what makes a fighting creature look like it is skating.")]
+        [SerializeField] private float attackRecovery = 0.35f;
+
         [Tooltip("Impulse applied to the victim on a landed hit. Sells the weight of big dinosaurs.")]
         [SerializeField] private float knockback = 4f;
 
@@ -32,12 +42,29 @@ namespace DinoBattle.Units
 
         private float cooldownRemaining;
         private float windupRemaining = -1f;
+        private float recoveryRemaining;
         private CreatureUnit self;
         private CreatureUnit pendingTarget;
 
         public float Range => range;
         public bool IsSwinging => windupRemaining >= 0f;
         public bool IsReady => cooldownRemaining <= 0f && !IsSwinging;
+
+        /// <summary>
+        /// Mid-attack: winding up, or in the follow-through before the clip hands back to locomotion.
+        /// Callers should keep the creature planted for the whole of it. The attack animation has the
+        /// feet stationary, so any translation during it is pure foot-sliding.
+        /// </summary>
+        public bool IsCommitted => IsSwinging || recoveryRemaining > 0f;
+
+        /// <summary>
+        /// Swings started vs. swings that actually dealt damage. A swing plays its animation and its
+        /// sound the moment it starts, so every whiff is a bite the player watched connect with no
+        /// health lost. These counters exist to make that ratio measurable instead of guessed at.
+        /// </summary>
+        public int SwingsStarted { get; private set; }
+
+        public int SwingsLanded { get; private set; }
 
         private void Awake()
         {
@@ -62,6 +89,7 @@ namespace DinoBattle.Units
         private void Update()
         {
             if (cooldownRemaining > 0f) cooldownRemaining -= Time.deltaTime;
+            if (recoveryRemaining > 0f) recoveryRemaining -= Time.deltaTime;
 
             if (!IsSwinging) return;
 
@@ -88,7 +116,12 @@ namespace DinoBattle.Units
             Vector3 offset = target.transform.position - self.transform.position;
             offset.y = 0f;
 
-            float reach = EffectiveRange(target);
+            // Committing is deliberately tighter than resolving. A swing started at the very edge of
+            // reach only had to drift a little during the windup to fall outside the damage check —
+            // and every whiff is a bite the player watched land with no health lost. Requiring the
+            // creature to close first means normal jostling stays comfortably inside the slack, and
+            // it has the side benefit of putting the two bodies nearer for the actual exchange.
+            float reach = EffectiveRange(target) * commitRangeFactor;
             return offset.sqrMagnitude <= reach * reach;
         }
 
@@ -117,6 +150,7 @@ namespace DinoBattle.Units
             pendingTarget = target;
             cooldownRemaining = interval;
             windupRemaining = windup;
+            SwingsStarted++;
 
             if (animator != null && !string.IsNullOrEmpty(attackTriggerName))
             {
@@ -140,15 +174,24 @@ namespace DinoBattle.Units
             var target = pendingTarget;
             pendingTarget = null;
 
+            // Set before any of the early exits: the follow-through is an animation fact, not a
+            // consequence of connecting. A whiffed swing plays exactly the same clip.
+            recoveryRemaining = attackRecovery;
+
             if (target == null || target.IsDead || self == null) return;
 
             // The target may have walked out during the windup; allow a little slack, then whiff.
-            // Root-to-root for the same reason IsInRange uses it — see that method.
-            float reach = range + windupRangeSlack;
+            //
+            // MUST use the same EffectiveRange that IsInRange used to start the swing. Checking the
+            // raw range here instead meant a creature could be close enough to attack but too far to
+            // connect: it wound up, swung, and the damage check silently rejected every hit. Fights
+            // ran to completion with full health bars on both sides.
+            float reach = EffectiveRange(target) + windupRangeSlack;
             Vector3 toTarget = target.transform.position - self.transform.position;
             toTarget.y = 0f;
             if (toTarget.sqrMagnitude > reach * reach) return;
 
+            SwingsLanded++;
             target.Health.TakeDamage(damage);
 
             if (knockback > 0f && target.TryGetComponent<Rigidbody>(out var victimBody))

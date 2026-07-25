@@ -18,10 +18,13 @@ namespace DinoBattle.Units
         [Tooltip("Seconds between target re-evaluations. Staggered per creature to spread the cost.")]
         [SerializeField] private float retargetInterval = 0.4f;
 
-        [Tooltip("Close to this fraction of attack range, which is a root-to-root distance. Under 1 " +
-                 "so bodies actually meet and overlap slightly instead of stopping at arm's length.")]
-        [Range(0.1f, 1f)]
-        [SerializeField] private float approachRangeFactor = 0.8f;
+        [Tooltip("Fraction of the two creatures' combined footprint to stand at while fighting. " +
+                 "Well under 1 so the silhouettes overlap — the colliders set the real floor.")]
+        [Range(0.2f, 1.2f)]
+        [SerializeField] private float meleeContactFactor = 0.35f;
+
+        [Tooltip("Never hold closer than this, so small creatures do not try to occupy one point.")]
+        [SerializeField] private float minimumFightDistance = 0.8f;
 
         [Tooltip("Degrees around the target this creature approaches from. Randomised per creature so " +
                  "a pack surrounds its prey instead of all piling onto the nearest face.")]
@@ -30,6 +33,12 @@ namespace DinoBattle.Units
         [Tooltip("Strafing speed while circling, as a fraction of full move speed.")]
         [Range(0f, 1f)]
         [SerializeField] private float circleSpeedFactor = 0.45f;
+
+        [Tooltip("Widest angle off the target this creature will bite at. Beyond it the creature " +
+                 "stops and turns instead of attacking sideways. Generous enough that fights do not " +
+                 "stall into a turning contest.")]
+        [Range(5f, 120f)]
+        [SerializeField] private float maxAttackAngle = 45f;
 
         [Header("Steering")]
         [Tooltip("Neighbours inside this radius push this creature away. Reynolds separation — the " +
@@ -142,9 +151,7 @@ namespace DinoBattle.Units
         {
             bool inRange = attack != null && attack.IsInRange(target);
             float maxSpeed = locomotion != null ? locomotion.MoveSpeed : 6f;
-            // Effective range accounts for the target's body extent, so a small attacker closing on a
-            // large one aims for its surface rather than a point buried inside it.
-            float fightDistance = (attack != null ? attack.EffectiveRange(target) : 3f) * approachRangeFactor;
+            float fightDistance = FightDistanceTo(target);
 
             Vector3 separation = SteeringBehaviors.Separation(self, separationRadius, maxSpeed);
 
@@ -166,11 +173,19 @@ namespace DinoBattle.Units
             {
                 SetState(State.Attack);
 
+                // A creature must be looking at what it bites. Without this gate the only requirement
+                // was distance, so a dinosaur standing broadside to its enemy would snap at empty air
+                // beside it — the bite landed, but it visibly came out of the creature's flank.
+                bool aligned = FacingErrorTo(target) <= maxAttackAngle;
+
                 if (locomotion != null)
                 {
-                    // Rooted while committing to a swing; circling between them. Braking throughout is
-                    // what made fights look like two statues trading damage.
-                    Vector3 desired = attack.IsSwinging || attack.IsReady
+                    // Rooted for the whole attack, and rooted while turning to line one up:
+                    // circling adds angular error faster than the creature can turn it off. At melee
+                    // range the orbit radius is small, so a leisurely strafe is ~100 deg/s of bearing
+                    // change — more than the heavy dinosaurs can track. Planting the feet lets the
+                    // turn actually converge, which reads as the creature squaring up to its enemy.
+                    Vector3 desired = attack.IsCommitted || attack.IsReady || !aligned
                         ? Vector3.zero
                         : SteeringBehaviors.Blend(maxSpeed,
                             (TangentialVelocity(fightDistance, maxSpeed), 1f),
@@ -178,11 +193,13 @@ namespace DinoBattle.Units
 
                     if (desired == Vector3.zero) locomotion.Brake();
 
-                    // Facing is pinned to the enemy so a strafing creature still bites forward.
-                    locomotion.Steer(desired, target.AimPoint.position);
+                    // Face the body, not the aim point. The aim point sits forward of the target's
+                    // chest, so against an enemy facing away it hangs out past the far side and the
+                    // attacker turns to look through its target rather than at it.
+                    locomotion.Steer(desired, target.transform.position);
                 }
 
-                attack.TryAttack(target);
+                if (aligned) attack.TryAttack(target);
                 return;
             }
 
@@ -222,6 +239,43 @@ namespace DinoBattle.Units
             float correction = Mathf.Clamp((fightDistance - distance) / Mathf.Max(0.5f, fightDistance), -1f, 1f);
 
             return (tangent + radial * correction).normalized * (maxSpeed * circleSpeedFactor);
+        }
+
+        /// <summary>
+        /// Degrees between where this creature is looking and where <paramref name="enemy"/> is, on
+        /// the ground plane. Yaw only — a T-Rex looming over a raptor is still facing it.
+        /// </summary>
+        private float FacingErrorTo(CreatureUnit enemy)
+        {
+            Vector3 toEnemy = enemy.transform.position - transform.position;
+            toEnemy.y = 0f;
+            if (toEnemy.sqrMagnitude < 0.0001f) return 0f;
+
+            Vector3 forward = transform.forward;
+            forward.y = 0f;
+
+            return Vector3.Angle(forward, toEnemy);
+        }
+
+        /// <summary>
+        /// How close to stand while fighting <paramref name="enemy"/>.
+        ///
+        /// Deliberately NOT derived from attack range. Range answers "can I land a hit from here",
+        /// which is generous by design; standing at that distance leaves the two bodies visibly
+        /// apart, trading blows across open ground.
+        ///
+        /// Nor is footprintRadius usable raw: it comes from the creature's LONGEST dimension, so a
+        /// Triceratops 2.2 units wide reports a 2.6-unit radius. Two of them held at the sum of
+        /// those radii sit 5.3 apart while their bodies are barely 2 wide — which is exactly the gap
+        /// that made fights look like a staring contest. The factor pulls them inside that figure so
+        /// the silhouettes actually overlap, and the colliders decide the true minimum.
+        /// </summary>
+        private float FightDistanceTo(CreatureUnit enemy)
+        {
+            float mine = self.Definition != null ? self.Definition.footprintRadius : 1f;
+            float theirs = enemy.Definition != null ? enemy.Definition.footprintRadius : 1f;
+
+            return Mathf.Max(minimumFightDistance, (mine + theirs) * meleeContactFactor);
         }
 
         /// <summary>

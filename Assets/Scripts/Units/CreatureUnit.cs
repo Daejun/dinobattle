@@ -27,6 +27,11 @@ namespace DinoBattle.Units
         [Range(0f, 1f)]
         [SerializeField] private float teamTintStrength;
 
+        [Tooltip("Alpha of the team ring on the ground. Needs the ring material on a shader that " +
+                 "actually blends — Unlit/Color discards alpha and stays fully opaque.")]
+        [Range(0f, 1f)]
+        [SerializeField] private float teamRingOpacity = 0.2f;
+
 
         [Tooltip("Seconds the corpse stays in the arena after dying. Negative keeps it forever.")]
         [SerializeField] private float corpseLifetime = -1f;
@@ -182,7 +187,10 @@ namespace DinoBattle.Units
             var ring = transform.Find(CreatureRig.TeamRing);
             if (ring != null && ring.TryGetComponent<Renderer>(out var ringRenderer))
             {
-                SetRendererColor(ringRenderer, color);
+                // Faint on purpose. At full opacity a hundred solid discs read as a red half and a
+                // blue half of the arena rather than as ground the dinosaurs are standing on. The
+                // marker only has to answer "whose side is this", so it can be nearly transparent.
+                SetRendererColor(ringRenderer, new Color(color.r, color.g, color.b, teamRingOpacity));
             }
 
             if (teamTintStrength <= 0f) return;

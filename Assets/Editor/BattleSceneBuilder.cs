@@ -22,14 +22,20 @@ namespace DinoBattle.EditorTools
         private const string ScenePath = "Assets/Scenes/Arena.unity";
 
         /// <summary>
-        /// Playable area, bounded by invisible walls.
+        /// Radius of the circular playable area.
         ///
-        /// Sized against the creatures rather than picked round: a T-Rex is 5 units long, so 70 is
-        /// roughly fourteen body lengths across. That fits a couple of dozen fighters with room to
-        /// flank while keeping both sides on screen and in contact quickly. At 120 the armies spent
-        /// the opening of every match walking toward each other across empty ground.
+        /// Circular rather than square: with a square, creatures pushed into a corner had two walls
+        /// to slide along and could sit there indefinitely. A ring has no corners to hide in, and
+        /// every direction from the centre is the same distance to the edge.
+        ///
+        /// Sized against the creatures — a T-Rex is 5 units long, so a 22-unit radius is about nine
+        /// body lengths across. Small enough that two sides meet within a few seconds instead of
+        /// spending the opening of every match walking toward each other.
         /// </summary>
-        private const float ArenaSize = 70f;
+        private const float ArenaRadius = 22f;
+
+        /// <summary>Full width of the playable area, kept for the places that want a diameter.</summary>
+        private const float ArenaSize = ArenaRadius * 2f;
 
         /// <summary>Ground plane size as a multiple of the arena, so scenery has land to stand on.</summary>
         private const float GroundExtent = 4f;
@@ -62,8 +68,10 @@ namespace DinoBattle.EditorTools
 
             CreateEnvironment();
             var cameraRig = CreateCamera();
-            var (manager, placement) = CreateManagers(cameraRig);
-            CreateHud(manager, placement);
+            var (manager, placement, autoPlacer) = CreateManagers(cameraRig);
+            CreateHud(manager, placement, autoPlacer);
+
+            WarnAboutObstructions();
 
             SampleContentBuilder.EnsureFolder("Assets/Scenes");
             EditorSceneManager.SaveScene(scene, ScenePath);
@@ -84,18 +92,7 @@ namespace DinoBattle.EditorTools
             ground.transform.localScale = Vector3.one * (ArenaSize * GroundExtent / 10f);
             Tint(ground, new Color(0.24f, 0.28f, 0.20f));
 
-            // Invisible walls so knockback cannot punt a raptor out of the arena.
-            for (int i = 0; i < 4; i++)
-            {
-                var wall = new GameObject($"Boundary_{i}");
-                var collider = wall.AddComponent<BoxCollider>();
-                collider.size = new Vector3(ArenaSize * 2f, 40f, 2f);
-
-                float half = ArenaSize * 0.5f;
-                wall.transform.SetPositionAndRotation(
-                    Quaternion.Euler(0f, 90f * i, 0f) * new Vector3(0f, 20f, half),
-                    Quaternion.Euler(0f, 90f * i, 0f));
-            }
+            CreateCircularBoundary();
 
             var sun = new GameObject("Directional Light");
             var light = sun.AddComponent<Light>();
@@ -128,13 +125,86 @@ namespace DinoBattle.EditorTools
         }
 
         /// <summary>
+        /// Fail loudly if anything solid ended up inside the ring.
+        ///
+        /// This exists because the bug it catches was invisible: scenery colliders drifted inside the
+        /// play area, creatures wedged against them, and the only symptom was that fights in one part
+        /// of the arena quietly never resolved. Nothing in the console, nothing in check-project.sh —
+        /// static analysis cannot see world-space geometry. So the builder measures it.
+        /// </summary>
+        private static void WarnAboutObstructions()
+        {
+            var offenders = new System.Collections.Generic.List<string>();
+
+            // No sort mode: Unity 6.5 deprecated the overload that takes one.
+            foreach (var collider in Object.FindObjectsByType<Collider>(FindObjectsInactive.Include))
+            {
+                // The ground is meant to be underfoot, and the boundary is meant to be at the edge.
+                if (collider.gameObject.name == "Ground") continue;
+                if (collider.gameObject.name.StartsWith("Boundary_")) continue;
+
+                Vector3 p = collider.transform.position;
+                float radius = new Vector2(p.x, p.z).magnitude;
+
+                if (radius < ArenaRadius) offenders.Add($"{collider.gameObject.name} at r={radius:0.0}");
+            }
+
+            if (offenders.Count == 0) return;
+
+            Debug.LogError(
+                $"[BattleSceneBuilder] {offenders.Count} collider(s) sit inside the {ArenaRadius}-unit " +
+                "play area. The steering has no obstacle avoidance, so creatures will wedge against " +
+                "them and fights in that spot will stall with no health lost:\n  " +
+                string.Join("\n  ", offenders));
+        }
+
+        /// <summary>
+        /// Ring of flat wall segments approximating a circle.
+        ///
+        /// Unity has no inside-out cylinder collider, so the boundary is a polygon of thin boxes,
+        /// each rotated to face the centre. Enough segments that a creature sliding along it feels a
+        /// curve rather than a series of flats.
+        ///
+        /// A low kerb is added at ground level as well: knockback occasionally lofted a light
+        /// creature over a wall whose base sat above the ground.
+        /// </summary>
+        private static void CreateCircularBoundary()
+        {
+            const int segments = 28;
+            var root = new GameObject("Boundary").transform;
+
+            // Overlap each segment slightly so the seams between them cannot be squeezed through.
+            float segmentWidth = 2f * Mathf.PI * ArenaRadius / segments * 1.25f;
+
+            for (int i = 0; i < segments; i++)
+            {
+                float angle = i / (float)segments * Mathf.PI * 2f;
+                var wall = new GameObject($"Boundary_{i}");
+                wall.transform.SetParent(root, false);
+
+                var collider = wall.AddComponent<BoxCollider>();
+                collider.size = new Vector3(segmentWidth, 40f, 1.5f);
+
+                Vector3 outward = new(Mathf.Cos(angle), 0f, Mathf.Sin(angle));
+
+                // Centred at y=0 with 40 units of height, so it reaches well below ground too.
+                wall.transform.SetPositionAndRotation(
+                    outward * ArenaRadius,
+                    Quaternion.LookRotation(outward, Vector3.up));
+            }
+        }
+
+        /// <summary>
         /// Rocks, boulders and a ring of hills, placed procedurally.
         ///
         /// Deterministic: the random stream is seeded, so rebuilding the scene reproduces the same
-        /// arena rather than reshuffling it under a diff. All of it is decoration parented under one
-        /// object and pushed outside the fighting area — the arena floor stays clear, since the
-        /// steering has no obstacle avoidance and would walk creatures straight into anything placed
-        /// in the middle.
+        /// arena rather than reshuffling it under a diff.
+        ///
+        /// EVERYTHING solid lives outside <see cref="ArenaRadius"/>. The steering has no obstacle
+        /// avoidance, so a collider inside the ring is something creatures walk into and stall
+        /// against — an earlier pass put 26 boulders at 0.82-0.97 of the radius, all with colliders,
+        /// and fights on that side of the arena simply stopped: attackers wedged on rock, never
+        /// reached anyone, and no health drained. Only flat, collider-less ground decals go inside.
         /// </summary>
         private static void CreateTerrainDressing()
         {
@@ -143,7 +213,7 @@ namespace DinoBattle.EditorTools
             var random = new System.Random(20260725);
             float Range(float min, float max) => min + (float)random.NextDouble() * (max - min);
 
-            float half = ArenaSize * 0.5f;
+            float half = ArenaRadius;
 
             // Ring of hills beyond the boundary walls, giving the horizon something to sit against.
             const int hillCount = 22;
@@ -177,19 +247,22 @@ namespace DinoBattle.EditorTools
                     new Color(0.26f, 0.31f, 0.24f), new Color(0.36f, 0.34f, 0.28f), (float)random.NextDouble()));
             }
 
-            // Boulders hugging the arena edge. Colliders left on so a creature shoved outward hits
-            // something solid instead of sliding along an invisible wall.
+            // Boulders ringing the arena from OUTSIDE the boundary, so they dress the edge without
+            // ever standing in the way. Their colliders are removed as well: the boundary wall
+            // already stops anything leaving, and a rock that can trap a creature is a liability
+            // whichever side of the line it sits on.
             const int boulderCount = 26;
             for (int i = 0; i < boulderCount; i++)
             {
                 float angle = Range(0f, Mathf.PI * 2f);
-                float radius = half * Range(0.82f, 0.97f);
+                float radius = half * Range(1.08f, 1.45f);
                 // Kept small relative to the creatures. At 1.6-4.4 units against a 5-unit T-Rex these
                 // read as outbuildings rather than rocks.
                 float size = Range(0.9f, 2.4f);
 
                 var rock = GameObject.CreatePrimitive(PrimitiveType.Cube);
                 rock.name = $"Boulder_{i}";
+                Object.DestroyImmediate(rock.GetComponent<Collider>());
                 rock.transform.SetParent(root, false);
                 rock.transform.localPosition = new Vector3(
                     Mathf.Cos(angle) * radius, size * Range(0.15f, 0.35f), Mathf.Sin(angle) * radius);
@@ -214,8 +287,16 @@ namespace DinoBattle.EditorTools
                 patch.name = $"GroundPatch_{i}";
                 Object.DestroyImmediate(patch.GetComponent<Collider>());
                 patch.transform.SetParent(root, false);
+                // Every patch gets its own height. Placing them all on one plane meant any two that
+                // overlapped had identical depth, so the GPU picked a different winner per frame and
+                // the floor visibly flickered. A few millimetres of separation each makes the
+                // ordering deterministic, and the stack stays far too shallow to see from the camera.
+                // Keep the whole stack under the team ring's height, or a creature's marker ends up
+                // buried beneath the scenery it is standing on.
+                float lift = 0.02f + i * 0.003f;
+
                 patch.transform.localPosition = new Vector3(
-                    Mathf.Cos(angle) * radius, 0.02f, Mathf.Sin(angle) * radius);
+                    Mathf.Cos(angle) * radius, lift, Mathf.Sin(angle) * radius);
                 patch.transform.localScale = new Vector3(size, 0.01f, size * Range(0.6f, 1.4f));
 
                 // Kept close to the ground colour. Higher contrast turned these into obvious pale
@@ -242,7 +323,7 @@ namespace DinoBattle.EditorTools
             // Tie the pan bounds to the arena instead of leaving the component default, which was
             // sized for the old, larger field and would let the player pan off into empty ground.
             var rigSerialized = new SerializedObject(rig);
-            rigSerialized.FindProperty("panLimit").floatValue = ArenaSize * 0.55f;
+            rigSerialized.FindProperty("panLimit").floatValue = ArenaRadius * 1.1f;
             rigSerialized.ApplyModifiedPropertiesWithoutUndo();
 
             return rig;
@@ -250,7 +331,7 @@ namespace DinoBattle.EditorTools
 
         // ---------------------------------------------------------------- managers
 
-        private static (BattleManager, PlacementController) CreateManagers(OrbitCameraController cameraRig)
+        private static (BattleManager, PlacementController, AutoPlacer) CreateManagers(OrbitCameraController cameraRig)
         {
             var managerObject = new GameObject("BattleManager");
             managerObject.AddComponent<CreatureSpawner>();
@@ -266,6 +347,14 @@ namespace DinoBattle.EditorTools
             var managerSerialized = new SerializedObject(manager);
             managerSerialized.FindProperty("roster").objectReferenceValue = roster;
             managerSerialized.ApplyModifiedPropertiesWithoutUndo();
+
+            // Auto-placement lives on the manager object and is told the arena size from here, so
+            // the formation radius cannot drift out of step with the boundary.
+            var autoPlacer = managerObject.AddComponent<AutoPlacer>();
+            var autoSerialized = new SerializedObject(autoPlacer);
+            autoSerialized.FindProperty("battleManager").objectReferenceValue = manager;
+            autoSerialized.FindProperty("arenaRadius").floatValue = ArenaRadius;
+            autoSerialized.ApplyModifiedPropertiesWithoutUndo();
 
             // Translucent disc showing where the next creature will land.
             var preview = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
@@ -283,12 +372,12 @@ namespace DinoBattle.EditorTools
             placementSerialized.FindProperty("previewMarker").objectReferenceValue = preview;
             placementSerialized.ApplyModifiedPropertiesWithoutUndo();
 
-            return (manager, placement);
+            return (manager, placement, autoPlacer);
         }
 
         // ---------------------------------------------------------------- HUD
 
-        private static void CreateHud(BattleManager manager, PlacementController placement)
+        private static void CreateHud(BattleManager manager, PlacementController placement, AutoPlacer autoPlacer)
         {
             var canvasObject = new GameObject("HUD", typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
             var canvas = canvasObject.GetComponent<Canvas>();
@@ -313,11 +402,19 @@ namespace DinoBattle.EditorTools
                 new Vector2(0f, 0f), new Vector2(1f, 0.28f));
 
             var teamButton = CreateButton(placementPanel.transform, "TeamToggle", "TEAM: RED",
-                new Vector2(0.02f, 0.72f), new Vector2(0.30f, 0.97f));
+                new Vector2(0.02f, 0.72f), new Vector2(0.22f, 0.97f));
             var undoButton = CreateButton(placementPanel.transform, "Undo", "UNDO",
-                new Vector2(0.34f, 0.72f), new Vector2(0.55f, 0.97f));
+                new Vector2(0.24f, 0.72f), new Vector2(0.38f, 0.97f));
+
+            // Auto-setup sits next to Start, because for most matches it IS the setup step —
+            // hand-placing a whole army to reach the fight is a chore in a spectator game.
+            var autoFillButton = CreateButton(placementPanel.transform, "AutoFill", "AUTO FILL",
+                new Vector2(0.40f, 0.72f), new Vector2(0.56f, 0.97f));
+            var mirrorButton = CreateButton(placementPanel.transform, "Mirror", "MIRROR",
+                new Vector2(0.58f, 0.72f), new Vector2(0.72f, 0.97f));
             var startButton = CreateButton(placementPanel.transform, "Start", "START BATTLE",
-                new Vector2(0.59f, 0.72f), new Vector2(0.98f, 0.97f));
+                new Vector2(0.74f, 0.72f), new Vector2(0.98f, 0.97f));
+
             var budgetLabel = CreateLabel(placementPanel.transform, "Budget", "1000 / 1000",
                 new Vector2(0.02f, 0.55f), new Vector2(0.55f, 0.70f), TextAnchor.MiddleLeft);
 
@@ -379,6 +476,9 @@ namespace DinoBattle.EditorTools
             s.FindProperty("placementPanel").objectReferenceValue = placementPanel;
             s.FindProperty("fightingPanel").objectReferenceValue = fightingPanel;
             s.FindProperty("resultPanel").objectReferenceValue = resultPanel;
+            s.FindProperty("autoPlacer").objectReferenceValue = autoPlacer;
+            s.FindProperty("autoFillButton").objectReferenceValue = autoFillButton;
+            s.FindProperty("mirrorButton").objectReferenceValue = mirrorButton;
             s.FindProperty("startButton").objectReferenceValue = startButton;
             s.FindProperty("undoButton").objectReferenceValue = undoButton;
             s.FindProperty("teamToggleButton").objectReferenceValue = teamButton;

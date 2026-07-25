@@ -261,9 +261,14 @@ namespace DinoBattle.EditorTools
             tree.blendParameter = "Speed";
             tree.useAutomaticThresholds = false;
 
+            // Walk starts early, at 0.15. A creature almost never travels at its full definition
+            // speed: circling an enemy is capped at circleSpeedFactor, and separation and Arrive trim
+            // it further, so measured Speed in a real fight sits around 0.2-0.3. With Walk at 0.45
+            // that blended to mostly-Idle, and creatures slid across the ground with motionless feet.
+            // Any genuine movement should read as walking.
             tree.AddChild(idle, 0f);
-            if (walk != null) tree.AddChild(walk, 0.45f);
-            if (run != null) tree.AddChild(run, 1f);
+            if (walk != null) tree.AddChild(walk, 0.15f);
+            if (run != null) tree.AddChild(run, 0.8f);
 
             machine.defaultState = locomotion;
 

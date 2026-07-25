@@ -114,8 +114,13 @@ namespace DinoBattle.EditorTools
             // constraint, not a hitbox: sized to the full silhouette it held attackers a body-width
             // apart and bites appeared to land from thin air. Undersizing lets them close and overlap
             // slightly, which is what a real scrap looks like.
-            collider.radius = blueprint.BodySize.x * 0.3f;
-            collider.height = Mathf.Max(blueprint.BodySize.z * 0.5f, collider.radius * 2f);
+            // Much smaller than the visible body on purpose. This capsule is not a hitbox — hits are
+            // resolved by distance in MeleeAttack — it exists only to keep the creature standing on
+            // the ground and to stop two of them occupying the exact same point. Every unit of size
+            // here is a unit of air the AI cannot close, so at half the body length two creatures
+            // could never get their heads near each other.
+            collider.radius = blueprint.BodySize.x * 0.22f;
+            collider.height = Mathf.Max(blueprint.BodySize.z * 0.28f, collider.radius * 2f);
 
             // center.y MUST equal the radius. This is a horizontal capsule, so its lowest point sits
             // (center.y - radius) above the root; anything higher and the creature settles that far
@@ -285,8 +290,9 @@ namespace DinoBattle.EditorTools
 
             ring.transform.SetParent(root.transform, false);
 
-            // Just above the ground to avoid z-fighting with the arena plane.
-            ring.transform.localPosition = new Vector3(0f, 0.05f, 0f);
+            // Above the ground plane AND above the scattered ground patches, whose staggered heights
+            // top out around 0.14. Sitting below them let the scenery cover a creature's team marker.
+            ring.transform.localPosition = new Vector3(0f, 0.2f, 0f);
 
             // Wide enough to read from the spectator camera but still inside the creature's footprint.
             // Keyed to body length: width alone made a raptor's marker a barely-visible speck.
@@ -301,12 +307,26 @@ namespace DinoBattle.EditorTools
             EnsureFolder("Assets/Art/Materials");
             const string ringMaterialPath = "Assets/Art/Materials/TeamRing.mat";
 
+            // Sprites/Default, not Unlit/Color. Unlit/Color has no blending at all — it writes the
+            // RGB and throws the alpha away, so asking for a 20%-opacity ring through it produced a
+            // ring at 100%. Sprites/Default is the simplest built-in shader that is unlit AND
+            // alpha-blended, with ZWrite off, which is exactly what a ground decal wants.
+            var ringShader = Shader.Find("Sprites/Default")
+                             ?? Shader.Find("Legacy Shaders/Transparent/Diffuse")
+                             ?? Shader.Find("Standard");
+
             var ringMaterial = AssetDatabase.LoadAssetAtPath<Material>(ringMaterialPath);
             if (ringMaterial == null)
             {
-                var shader = Shader.Find("Unlit/Color") ?? Shader.Find("Standard");
-                ringMaterial = new Material(shader);
+                ringMaterial = new Material(ringShader);
                 AssetDatabase.CreateAsset(ringMaterial, ringMaterialPath);
+            }
+            else if (ringMaterial.shader != ringShader)
+            {
+                // Reassign on rebuild too. The asset already existed from before the transparency
+                // fix, and only creating it when missing would leave it on the opaque shader forever.
+                ringMaterial.shader = ringShader;
+                EditorUtility.SetDirty(ringMaterial);
             }
 
             ring.GetComponent<Renderer>().sharedMaterial = ringMaterial;

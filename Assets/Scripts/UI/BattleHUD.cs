@@ -25,6 +25,9 @@ namespace DinoBattle.UI
         [SerializeField] private GameObject resultPanel;
 
         [Header("Placement controls")]
+        [SerializeField] private AutoPlacer autoPlacer;
+        [SerializeField] private Button autoFillButton;
+        [SerializeField] private Button mirrorButton;
         [SerializeField] private Button startButton;
         [SerializeField] private Button undoButton;
         [SerializeField] private Button teamToggleButton;
@@ -69,6 +72,8 @@ namespace DinoBattle.UI
             battleManager.BattleEnded += HandleBattleEnded;
             battleManager.UnitCountChanged += RefreshCounts;
 
+            HookButton(autoFillButton, () => autoPlacer?.FillBothTeams());
+            HookButton(mirrorButton, () => autoPlacer?.MirrorMatch());
             HookButton(startButton, () => battleManager.StartBattle());
             HookButton(undoButton, () => placement?.UndoLast());
             HookButton(teamToggleButton, () => { placement?.ToggleActiveTeam(); RefreshPlacementLabels(); });

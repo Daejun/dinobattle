@@ -68,10 +68,13 @@ namespace DinoBattle.Core
             {
                 var child = container.GetChild(i);
 
-                // Detach before destroying. Destroy() only takes effect at the end of the frame, so a
-                // reset immediately followed by a new match (Rematch -> Start in one frame) would
-                // otherwise spawn on top of creatures that are still alive, still registered, and
-                // still fighting.
+                // Deactivate, detach, THEN destroy. Destroy() only takes effect at the end of the
+                // frame — and in practice creatures despawned this way were still standing in the
+                // scene many seconds later, cluttering the arena and confusing every headcount.
+                // Deactivating makes the removal immediate and unconditional: the object stops
+                // rendering, stops updating, and OnDisable pulls it out of the UnitRegistry, whether
+                // or not the destroy lands promptly.
+                child.gameObject.SetActive(false);
                 child.SetParent(null, false);
                 Destroy(child.gameObject);
             }

@@ -269,10 +269,10 @@ CapsuleCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 2
-  m_Radius: 0.66
-  m_Height: 2.6
+  m_Radius: 0.484
+  m_Height: 1.456
   m_Direction: 2
-  m_Center: {x: 0, y: 0.66, z: 0}
+  m_Center: {x: 0, y: 0.484, z: 0}
 --- !u!54 &216410129339648734
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -331,6 +331,7 @@ MonoBehaviour:
   aimPoint: {fileID: 1456923957036884594}
   teamTintRenderers: []
   teamTintStrength: 0
+  teamRingOpacity: 0.2
   corpseLifetime: 12
   voice: {fileID: 791296591233097496}
   deathClip: {fileID: 8300000, guid: 62ffec89bc738544a93d68b420f48b86, type: 3}
@@ -369,9 +370,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DinoBattle.Units.CreatureBrain
   retargetInterval: 0.4
-  approachRangeFactor: 0.8
+  meleeContactFactor: 0.35
+  minimumFightDistance: 0.8
   maxFlankAngle: 70
   circleSpeedFactor: 0.45
+  maxAttackAngle: 45
   separationRadius: 3.5
   separationWeight: 1.1
   meleeSeparationWeight: 0.15
@@ -562,7 +565,7 @@ Transform:
   m_GameObject: {fileID: 8511597762864185615}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0.05, z: 0}
+  m_LocalPosition: {x: 0, y: 0.2, z: 0}
   m_LocalScale: {x: 3.1200001, y: 0.01, z: 3.1200001}
   m_ConstrainProportionsScale: 0
   m_Children: []

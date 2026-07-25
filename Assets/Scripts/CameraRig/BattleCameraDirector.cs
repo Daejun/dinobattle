@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using DinoBattle.Core;
 using DinoBattle.Units;
 using UnityEngine;
@@ -33,8 +34,15 @@ namespace DinoBattle.CameraRig
                  "with heavier padding the camera sat ~59 units out and the fighters were specks.")]
         [SerializeField] private float maximumFocusRadius = 10f;
 
-        [Tooltip("How quickly the framing target itself moves. The rig smooths on top of this.")]
-        [SerializeField] private float retargetSmoothing = 2.5f;
+        [Tooltip("How quickly the framing target itself moves. The rig smooths on top of this, so " +
+                 "this can be brisk without the shot feeling jerky. At 2.5 the target lagged far " +
+                 "enough behind a moving fight that the camera regularly sat on empty ground.")]
+        [SerializeField] private float retargetSmoothing = 8f;
+
+        [Tooltip("Snap rather than ease when the action jumps further than this in one step — a " +
+                 "creature dying can move the centroid a long way instantly, and easing across that " +
+                 "gap sweeps the camera through everything in between.")]
+        [SerializeField] private float snapDistance = 12f;
 
         [Tooltip("View of the whole arena while the player is still placing creatures.")]
         [SerializeField] private float placementDistance = 46f;
@@ -87,7 +95,11 @@ namespace DinoBattle.CameraRig
 
             radius = Mathf.Clamp(radius, minimumFocusRadius, maximumFocusRadius);
 
-            if (!hasFraming)
+            // A big jump means the fight relocated — a kill removing one side of the centroid, say.
+            // Easing across it drags the shot over everything between the old and new positions.
+            bool jumped = hasFraming && Vector3.Distance(smoothedCenter, center) > snapDistance;
+
+            if (!hasFraming || jumped)
             {
                 smoothedCenter = center;
                 smoothedRadius = radius;
@@ -104,8 +116,13 @@ namespace DinoBattle.CameraRig
         }
 
         /// <summary>
-        /// Centre and radius of the sphere containing every living fighter, on the ground plane.
-        /// Two passes: the centroid first, then the furthest distance from it.
+        /// Centre and radius of the action, on the ground plane.
+        ///
+        /// Prefers creatures that are actually fighting. Averaging every survivor means that when
+        /// two stragglers end up on opposite sides of the arena the camera settles on the empty
+        /// ground between them — technically the centroid, useless to watch. Engaged creatures are
+        /// where the fight is, so they win; the full roster is only the fallback while both sides
+        /// are still closing.
         /// </summary>
         private bool TryGetCombatBounds(out Vector3 center, out float radius)
         {
@@ -115,32 +132,82 @@ namespace DinoBattle.CameraRig
             var red = UnitRegistry.AliveOf(Team.Red);
             var blue = UnitRegistry.AliveOf(Team.Blue);
 
-            int count = 0;
-            Vector3 sum = Vector3.zero;
-
-            for (int i = 0; i < red.Count; i++)
+            // Centre on the fighting, but size the shot around EVERYONE. Centring and sizing both on
+            // the engaged pair framed one duel so tightly that the rest of the battle sat off-screen
+            // — the player could not see what was happening anywhere else. Splitting the two means
+            // the camera looks where the action is while the wider battle stays in view.
+            if (!Accumulate(red, blue, engagedOnly: true, out center) &&
+                !Accumulate(red, blue, engagedOnly: false, out center))
             {
-                if (red[i] == null || red[i].IsDead) continue;
-                sum += red[i].transform.position;
-                count++;
+                return false;
             }
 
-            for (int i = 0; i < blue.Count; i++)
-            {
-                if (blue[i] == null || blue[i].IsDead) continue;
-                sum += blue[i].transform.position;
-                count++;
-            }
-
-            if (count == 0) return false;
-
-            center = sum / count;
-            center.y = 0f;
-
-            for (int i = 0; i < red.Count; i++) radius = Mathf.Max(radius, PlanarDistance(red[i], center));
-            for (int i = 0; i < blue.Count; i++) radius = Mathf.Max(radius, PlanarDistance(blue[i], center));
+            radius = Mathf.Max(
+                FurthestFrom(red, center, engagedOnly: false),
+                FurthestFrom(blue, center, engagedOnly: false));
 
             return true;
+        }
+
+        private static bool Accumulate(
+            IReadOnlyList<CreatureUnit> red, IReadOnlyList<CreatureUnit> blue, bool engagedOnly, out Vector3 center)
+        {
+            Vector3 sum = Vector3.zero;
+            int count = 0;
+
+            AddTeam(red, engagedOnly, ref sum, ref count);
+            AddTeam(blue, engagedOnly, ref sum, ref count);
+
+            center = count > 0 ? sum / count : Vector3.zero;
+            center.y = 0f;
+            return count > 0;
+        }
+
+        private static void AddTeam(
+            IReadOnlyList<CreatureUnit> team, bool engagedOnly, ref Vector3 sum, ref int count)
+        {
+            for (int i = 0; i < team.Count; i++)
+            {
+                var unit = team[i];
+                if (unit == null || unit.IsDead) continue;
+                if (engagedOnly && !IsEngaged(unit)) continue;
+
+                sum += unit.transform.position;
+                count++;
+            }
+        }
+
+        /// <summary>In contact with an enemy, rather than still walking toward one.</summary>
+        private static bool IsEngaged(CreatureUnit unit)
+        {
+            var brain = unit.GetComponent<CreatureBrain>();
+            return brain != null && brain.Current == CreatureBrain.State.Attack;
+        }
+
+        private static bool HasEngaged(IReadOnlyList<CreatureUnit> team)
+        {
+            for (int i = 0; i < team.Count; i++)
+            {
+                if (team[i] != null && !team[i].IsDead && IsEngaged(team[i])) return true;
+            }
+
+            return false;
+        }
+
+        private static float FurthestFrom(IReadOnlyList<CreatureUnit> team, Vector3 center, bool engagedOnly)
+        {
+            float furthest = 0f;
+
+            for (int i = 0; i < team.Count; i++)
+            {
+                var unit = team[i];
+                if (unit == null || unit.IsDead) continue;
+                if (engagedOnly && !IsEngaged(unit)) continue;
+
+                furthest = Mathf.Max(furthest, PlanarDistance(unit, center));
+            }
+
+            return furthest;
         }
 
         private static float PlanarDistance(CreatureUnit unit, Vector3 center)
