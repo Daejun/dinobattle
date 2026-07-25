@@ -32,6 +32,11 @@ namespace DinoBattle.Units
         [Range(0f, 1f)]
         [SerializeField] private float teamRingOpacity = 0.2f;
 
+        [Tooltip("What fraction of the normal ring opacity a corpse's marker keeps. Faint enough to " +
+                 "read as a spot on the ground rather than as a unit still on the board.")]
+        [Range(0f, 1f)]
+        [SerializeField] private float deadRingFade = 0.35f;
+
         [Tooltip("How far this individual's hue may drift from the species palette. Small: enough " +
                  "that two of the same species are not clones, not so much that a Triceratops turns up purple.")]
         [Range(0f, 0.2f)]
@@ -248,7 +253,27 @@ namespace DinoBattle.Units
             foreach (var brain in GetComponentsInChildren<CreatureBrain>()) brain.OnUnitDied();
             foreach (var locomotion in GetComponentsInChildren<CreatureLocomotion>()) locomotion.OnUnitDied();
 
+            FadeTeamRing();
+
             if (corpseLifetime >= 0f) Destroy(gameObject, corpseLifetime);
+        }
+
+        /// <summary>
+        /// Strip the team colour off a corpse and fade what is left.
+        ///
+        /// The ring answers "whose side is this, and can it still fight" — a dead creature has no
+        /// answer to the second half, so keeping it lit in team colour miscounts the battlefield at a
+        /// glance. On a field of bodies the rings were also the loudest thing on screen, red and blue
+        /// discs stacking up under everything that had already stopped mattering. Neutral grey at a
+        /// fraction of the alpha leaves a mark where something fell without claiming it is still in
+        /// the fight.
+        /// </summary>
+        private void FadeTeamRing()
+        {
+            var ring = transform.Find(CreatureRig.TeamRing);
+            if (ring == null || !ring.TryGetComponent<Renderer>(out var ringRenderer)) return;
+
+            SetRendererColor(ringRenderer, new Color(0.45f, 0.45f, 0.45f, teamRingOpacity * deadRingFade));
         }
 
         /// <summary>

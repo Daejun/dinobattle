@@ -505,13 +505,13 @@ namespace DinoBattle.EditorTools
 
             var winnerLabel = CreateLabel(resultPanel.transform, "Winner", "빨강 승리",
                 new Vector2(0.05f, 0.58f), new Vector2(0.95f, 0.98f), TextAnchor.MiddleCenter);
-            winnerLabel.fontSize = 44;
+            // No explicit size: best-fit grows it to the rect, and the rect is what decides how
+            // prominent the result is relative to the panel.
 
             // What actually happened, not just who won. "RED WINS" alone tells a player nothing
             // about whether it was close.
             var resultSummary = CreateLabel(resultPanel.transform, "Summary", "",
                 new Vector2(0.05f, 0.34f), new Vector2(0.95f, 0.58f), TextAnchor.MiddleCenter);
-            resultSummary.fontSize = 24;
 
             var rematchButton = CreateButton(resultPanel.transform, "Rematch", "다시 하기",
                 new Vector2(0.30f, 0.04f), new Vector2(0.70f, 0.30f));
@@ -568,9 +568,13 @@ namespace DinoBattle.EditorTools
 
             buttonObject.GetComponent<Image>().color = new Color(0.20f, 0.24f, 0.32f, 0.95f);
 
+            // The caption fills 80% of the button, by insetting its rect 10% on every side and
+            // letting best-fit grow the glyphs into what is left. Sizing captions with a fixed point
+            // size meant they sat as small text in the middle of a large slab whatever the button's
+            // dimensions were — and this game's audience includes people who cannot read yet, for
+            // whom a big label is most of what makes a control legible.
             var label = CreateLabel(buttonObject.transform, "Label", caption,
-                Vector2.zero, Vector2.one, TextAnchor.MiddleCenter);
-            label.fontSize = 26;
+                new Vector2(0.10f, 0.10f), new Vector2(0.90f, 0.90f), TextAnchor.MiddleCenter);
 
             var button = buttonObject.GetComponent<Button>();
             button.targetGraphic = buttonObject.GetComponent<Image>();
@@ -588,9 +592,20 @@ namespace DinoBattle.EditorTools
             text.text = content;
             text.alignment = alignment;
             text.color = Color.white;
-            text.fontSize = 30;
             text.raycastTarget = false;
             text.font = LoadBuiltinFont();
+
+            // Best-fit rather than a point size. The HUD is laid out in screen fractions, so the
+            // pixel size of every box depends on the device; a fixed font size that looks right on
+            // one display is tiny on a tablet and clipped on a small phone. Growing the glyphs to the
+            // rect makes the text scale with the layout instead of fighting it.
+            //
+            // The max is deliberately far above any size that will actually be chosen — it is a
+            // ceiling, not a target, and leaving it at the default 40 would silently cap the text.
+            text.resizeTextForBestFit = true;
+            text.resizeTextMinSize = 8;
+            text.resizeTextMaxSize = 300;
+
             return text;
         }
 
