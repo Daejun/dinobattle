@@ -139,6 +139,11 @@ namespace DinoBattle.EditorTools
             EnsureComponent<CreatureLocomotion>(root);
             EnsureComponent<CreatureBrain>(root);
             EnsureComponent<GrappleHold>(root);
+            EnsureComponent<PounceCling>(root);
+
+            // Added last: ClingAnchors caches bones in Awake, so it must exist on the prefab even
+            // though nothing on this creature uses it — it is what OTHER creatures climb.
+            EnsureComponent<ClingAnchors>(root);
             var attack = EnsureComponent<MeleeAttack>(root);
 
             // Real art if the pack has been imported, blocked-out primitives otherwise. Keeping both

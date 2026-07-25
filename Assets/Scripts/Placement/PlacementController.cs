@@ -30,6 +30,9 @@ namespace DinoBattle.Placement
         /// <summary>True when the current press began on top of the HUD, so it must not place anything.</summary>
         private bool gestureStartedOverUI;
 
+        /// <summary>Set on the frame the press is released, consumed once the tap has been resolved.</summary>
+        private bool gestureEnded;
+
         public Team ActiveTeam => activeTeam;
         public CreatureDefinition Selected => selected;
 
@@ -41,6 +44,13 @@ namespace DinoBattle.Placement
 
         private void Update()
         {
+            // Gesture bookkeeping runs every frame, even with nothing selected. The press that picks
+            // a creature begins BEFORE anything is selected, and a Button fires on release — so if
+            // these frames are skipped, that release arrives with a creature freshly selected, no
+            // record that the press started on the HUD, and a dinosaur is dropped on the ground
+            // behind the button the player just tapped.
+            TrackGesture();
+
             bool placing = battleManager != null && battleManager.Phase == BattlePhase.Placement;
 
             if (!placing || selected == null)
@@ -122,31 +132,41 @@ namespace DinoBattle.Placement
             return true;
         }
 
+        /// <summary>
+        /// Record whether the press currently in progress began on the HUD.
+        ///
+        /// Decided once, at the start of the gesture: by the time a finger lifts it is no longer over
+        /// anything, so testing at TouchPhase.Ended always reports "not over UI".
+        /// </summary>
+        private void TrackGesture()
+        {
+            if (Input.touchCount > 0)
+            {
+                Touch touch = Input.GetTouch(0);
+
+                if (touch.phase == TouchPhase.Began) gestureStartedOverUI = IsPointerOverUI(touch.fingerId);
+                else if (touch.phase is TouchPhase.Ended or TouchPhase.Canceled) gestureEnded = true;
+
+                return;
+            }
+
+            if (Input.GetMouseButtonDown(0)) gestureStartedOverUI = IsPointerOverUI(-1);
+            if (Input.GetMouseButtonUp(0)) gestureEnded = true;
+        }
+
         /// <summary>Resolve a pointer position and whether this frame is a "commit" tap.</summary>
         private bool TryGetPointer(out Vector2 screenPosition, out bool tapped)
         {
             screenPosition = default;
             tapped = false;
 
+            bool blocked = gestureStartedOverUI;
+
             if (Input.touchCount > 0)
             {
                 Touch touch = Input.GetTouch(0);
                 screenPosition = touch.position;
                 tapped = touch.phase == TouchPhase.Ended;
-
-                // Decide UI-vs-world once, when the gesture starts. By the time the finger lifts it is
-                // no longer over anything, so testing at TouchPhase.Ended always reports "not over UI".
-                if (touch.phase == TouchPhase.Began) gestureStartedOverUI = IsPointerOverUI(touch.fingerId);
-                if (touch.phase is TouchPhase.Ended or TouchPhase.Canceled)
-                {
-                    bool blocked = gestureStartedOverUI;
-                    gestureStartedOverUI = false;
-                    if (blocked) return false;
-                }
-                else if (gestureStartedOverUI)
-                {
-                    return false;
-                }
             }
             else if (Application.isMobilePlatform)
             {
@@ -157,22 +177,19 @@ namespace DinoBattle.Placement
                 screenPosition = Input.mousePosition;
                 tapped = Input.GetMouseButtonUp(0);
 
-                if (Input.GetMouseButtonDown(0)) gestureStartedOverUI = IsPointerOverUI(-1);
-                if (tapped)
-                {
-                    bool blocked = gestureStartedOverUI;
-                    gestureStartedOverUI = false;
-                    if (blocked) return false;
-                }
-                else if (gestureStartedOverUI)
-                {
-                    return false;
-                }
-
                 // With no button held there is no gesture to attribute, so fall back to a live test.
-                // This keeps the ground preview from showing underneath the HUD while hovering.
-                if (!Input.GetMouseButton(0) && IsPointerOverUI(-1)) return false;
+                // Keeps the ground preview from showing underneath the HUD while merely hovering.
+                if (!Input.GetMouseButton(0) && !tapped && IsPointerOverUI(-1)) return false;
             }
+
+            // Clear once the gesture is over, so the next press starts from a clean slate.
+            if (gestureEnded)
+            {
+                gestureEnded = false;
+                gestureStartedOverUI = false;
+            }
+
+            if (blocked) return false;
 
             return screenPosition.x >= screenEdgeMargin
                 && screenPosition.y >= screenEdgeMargin

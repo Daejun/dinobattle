@@ -429,6 +429,8 @@ GameObject:
   - component: {fileID: 1803404258892976027}
   - component: {fileID: 9121926081110642158}
   - component: {fileID: 7200700044501060748}
+  - component: {fileID: 8216794649622291463}
+  - component: {fileID: 5969731969494196445}
   - component: {fileID: 3200453257667801}
   m_Layer: 0
   m_Name: Creature_Velociraptor
@@ -600,6 +602,42 @@ MonoBehaviour:
   shakeFrequency: 7
   jawBoneName: Head
   jawForwardOffset: 0.5
+--- !u!114 &8216794649622291463
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8754482483661431112}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3af68a59f8d8dcf48885536b6c03910a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DinoBattle.Units.PounceCling
+  massRatioToClimb: 4
+  pounceRange: 6
+  pounceSpeed: 9
+  clingDuration: 4.5
+  clingDamagePerSecond: 95
+  pounceCooldown: 3
+--- !u!114 &5969731969494196445
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8754482483661431112}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 374d4ee0c8899734a8c470df3510e81c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DinoBattle.Units.ClingAnchors
+  anchorBoneNames:
+  - Shoulders
+  - Torso
+  - Back
+  - Neck
+  - Hips
 --- !u!114 &3200453257667801
 MonoBehaviour:
   m_ObjectHideFlags: 0

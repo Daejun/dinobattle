@@ -56,6 +56,7 @@ namespace DinoBattle.Units
         private CreatureLocomotion locomotion;
         private MeleeAttack attack;
         private GrappleHold grapple;
+        private PounceCling pounce;
         private CreatureDefinition definition;
 
         private CreatureUnit target;
@@ -73,6 +74,7 @@ namespace DinoBattle.Units
             locomotion = GetComponent<CreatureLocomotion>();
             attack = GetComponentInChildren<MeleeAttack>();
             grapple = GetComponent<GrappleHold>();
+            pounce = GetComponent<PounceCling>();
             if (animator == null) animator = GetComponentInChildren<Animator>();
 
             // Offset the first retarget tick so a hundred creatures do not all scan on the same frame.
@@ -148,6 +150,20 @@ namespace DinoBattle.Units
             {
                 SetState(State.Attack);
                 locomotion?.Brake();
+                return;
+            }
+
+            // Riding a much larger enemy: the cling does the damage, so there is nothing to steer.
+            if (pounce != null && pounce.IsClinging)
+            {
+                SetState(State.Attack);
+                return;
+            }
+
+            // Small creatures climb what they cannot outfight head-on, rather than nibbling its ankles.
+            if (pounce != null && pounce.CanPounce(target) && pounce.TryPounce(target))
+            {
+                SetState(State.Attack);
                 return;
             }
 

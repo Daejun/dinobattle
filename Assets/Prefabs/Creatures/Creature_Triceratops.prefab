@@ -276,6 +276,8 @@ GameObject:
   - component: {fileID: 7614471810122825851}
   - component: {fileID: 3234638046189861077}
   - component: {fileID: 5802842218776367924}
+  - component: {fileID: 7159318080272289366}
+  - component: {fileID: 3963401673652055195}
   - component: {fileID: 8051403156637025073}
   m_Layer: 0
   m_Name: Creature_Triceratops
@@ -447,6 +449,42 @@ MonoBehaviour:
   shakeFrequency: 7
   jawBoneName: Head
   jawForwardOffset: 0.5
+--- !u!114 &7159318080272289366
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3233858342231755087}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3af68a59f8d8dcf48885536b6c03910a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DinoBattle.Units.PounceCling
+  massRatioToClimb: 4
+  pounceRange: 6
+  pounceSpeed: 9
+  clingDuration: 4.5
+  clingDamagePerSecond: 95
+  pounceCooldown: 3
+--- !u!114 &3963401673652055195
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3233858342231755087}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 374d4ee0c8899734a8c470df3510e81c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DinoBattle.Units.ClingAnchors
+  anchorBoneNames:
+  - Shoulders
+  - Torso
+  - Back
+  - Neck
+  - Hips
 --- !u!114 &8051403156637025073
 MonoBehaviour:
   m_ObjectHideFlags: 0

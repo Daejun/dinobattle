@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using DinoBattle.Core;
+using DinoBattle.Data;
 using DinoBattle.Placement;
 using UnityEngine;
 using UnityEngine.UI;
@@ -47,6 +48,12 @@ namespace DinoBattle.UI
 
         /// <summary>Buttons this HUD instantiated, so a rebuild can clean up exactly what it created.</summary>
         private readonly List<Button> spawnedRosterButtons = new();
+
+        /// <summary>Definition behind each spawned button, index-aligned with the list above.</summary>
+        private readonly List<CreatureDefinition> rosterOrder = new();
+
+        private static readonly Color SelectedTint = new(0.35f, 0.62f, 0.42f, 0.98f);
+        private static readonly Color UnselectedTint = new(0.20f, 0.24f, 0.32f, 0.95f);
 
         private void Awake()
         {
@@ -127,6 +134,7 @@ namespace DinoBattle.UI
                 Destroy(stale.gameObject);
             }
             spawnedRosterButtons.Clear();
+            rosterOrder.Clear();
 
             rosterButtonTemplate.gameObject.SetActive(false);
 
@@ -138,6 +146,8 @@ namespace DinoBattle.UI
                 button.gameObject.SetActive(true);
                 button.name = $"Btn_{definition.name}";
                 spawnedRosterButtons.Add(button);
+                rosterOrder.Add(definition);
+                if (button.targetGraphic is Image swatch) swatch.color = UnselectedTint;
 
                 var label = button.GetComponentInChildren<Text>();
                 if (label != null) label.text = $"{definition.displayName}\n{definition.cost}";
@@ -149,7 +159,29 @@ namespace DinoBattle.UI
                 if (image != null && definition.icon != null) image.sprite = definition.icon;
 
                 var captured = definition;
-                button.onClick.AddListener(() => placement?.Select(captured));
+                button.onClick.AddListener(() =>
+                {
+                    placement?.Select(captured);
+                    HighlightSelected(captured);
+                });
+            }
+        }
+
+        /// <summary>
+        /// Tint the chosen roster entry and dim the rest.
+        ///
+        /// Without this, tapping a creature changed nothing on screen — the selection was recorded but
+        /// invisible, so the button read as broken and there was no way to tell what would be placed.
+        /// </summary>
+        private void HighlightSelected(CreatureDefinition chosen)
+        {
+            for (int i = 0; i < spawnedRosterButtons.Count; i++)
+            {
+                var button = spawnedRosterButtons[i];
+                if (button == null) continue;
+
+                bool isChosen = i < rosterOrder.Count && rosterOrder[i] == chosen;
+                if (button.targetGraphic is Image image) image.color = isChosen ? SelectedTint : UnselectedTint;
             }
         }
 

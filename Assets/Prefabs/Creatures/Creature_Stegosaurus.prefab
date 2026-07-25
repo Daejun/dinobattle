@@ -249,6 +249,8 @@ GameObject:
   - component: {fileID: 1416056613120794194}
   - component: {fileID: 5387952504189181569}
   - component: {fileID: 2613823778426732600}
+  - component: {fileID: 5194793675884041683}
+  - component: {fileID: 768081349684512663}
   - component: {fileID: 2586016788254138481}
   m_Layer: 0
   m_Name: Creature_Stegosaurus
@@ -420,6 +422,42 @@ MonoBehaviour:
   shakeFrequency: 7
   jawBoneName: Head
   jawForwardOffset: 0.5
+--- !u!114 &5194793675884041683
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7787167016943227555}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3af68a59f8d8dcf48885536b6c03910a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DinoBattle.Units.PounceCling
+  massRatioToClimb: 4
+  pounceRange: 6
+  pounceSpeed: 9
+  clingDuration: 4.5
+  clingDamagePerSecond: 95
+  pounceCooldown: 3
+--- !u!114 &768081349684512663
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7787167016943227555}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 374d4ee0c8899734a8c470df3510e81c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DinoBattle.Units.ClingAnchors
+  anchorBoneNames:
+  - Shoulders
+  - Torso
+  - Back
+  - Neck
+  - Hips
 --- !u!114 &2586016788254138481
 MonoBehaviour:
   m_ObjectHideFlags: 0

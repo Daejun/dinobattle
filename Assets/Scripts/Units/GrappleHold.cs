@@ -92,6 +92,13 @@ namespace DinoBattle.Units
         {
             if (!CanSeize(prey)) return;
 
+            // Plucking a clinger off your own back is the counterplay to being swarmed, so a victim
+            // that is currently riding something has to let go before it can be held.
+            if (prey.TryGetComponent<PounceCling>(out var riding) && riding.IsClinging)
+            {
+                riding.Detach(hopOff: false);
+            }
+
             victim = prey;
             holdRemaining = holdDuration;
             shakePhase = 0f;

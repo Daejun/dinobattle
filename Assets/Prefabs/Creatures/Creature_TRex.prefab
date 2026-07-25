@@ -96,6 +96,8 @@ GameObject:
   - component: {fileID: 7150645603862266030}
   - component: {fileID: 4806787402762675556}
   - component: {fileID: 3092433810218098566}
+  - component: {fileID: 8599922257514421416}
+  - component: {fileID: 5037778994796401578}
   - component: {fileID: 3051708778442673693}
   m_Layer: 0
   m_Name: Creature_TRex
@@ -267,6 +269,42 @@ MonoBehaviour:
   shakeFrequency: 7
   jawBoneName: Head
   jawForwardOffset: 0.5
+--- !u!114 &8599922257514421416
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1901665197370020436}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3af68a59f8d8dcf48885536b6c03910a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DinoBattle.Units.PounceCling
+  massRatioToClimb: 4
+  pounceRange: 6
+  pounceSpeed: 9
+  clingDuration: 4.5
+  clingDamagePerSecond: 95
+  pounceCooldown: 3
+--- !u!114 &5037778994796401578
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1901665197370020436}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 374d4ee0c8899734a8c470df3510e81c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DinoBattle.Units.ClingAnchors
+  anchorBoneNames:
+  - Shoulders
+  - Torso
+  - Back
+  - Neck
+  - Hips
 --- !u!114 &3051708778442673693
 MonoBehaviour:
   m_ObjectHideFlags: 0
