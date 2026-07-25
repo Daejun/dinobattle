@@ -158,8 +158,13 @@ namespace DinoBattle.EditorTools
 
             // Wire the serialized references that Initialize does not set at runtime.
             var unitSerialized = new SerializedObject(unit);
+            var voice = AttachVoice(root, blueprint);
+
             unitSerialized.FindProperty("aimPoint").objectReferenceValue = aimPoint;
             unitSerialized.FindProperty("corpseLifetime").floatValue = 12f;
+            unitSerialized.FindProperty("voice").objectReferenceValue = voice;
+            unitSerialized.FindProperty("roarClip").objectReferenceValue = LoadClip(blueprint, "roar");
+            unitSerialized.FindProperty("deathClip").objectReferenceValue = LoadClip(blueprint, "death");
             unitSerialized.ApplyModifiedPropertiesWithoutUndo();
 
             var attackSerialized = new SerializedObject(attack);
@@ -168,6 +173,8 @@ namespace DinoBattle.EditorTools
             attackSerialized.FindProperty("range").floatValue = blueprint.Range;
             attackSerialized.FindProperty("windup").floatValue = blueprint.Interval * 0.25f;
             attackSerialized.FindProperty("animator").objectReferenceValue = animator;
+            attackSerialized.FindProperty("attackAudio").objectReferenceValue = voice;
+            attackSerialized.FindProperty("attackClip").objectReferenceValue = LoadClip(blueprint, "bite");
             attackSerialized.ApplyModifiedPropertiesWithoutUndo();
 
             // Wire the Animator explicitly rather than leaving it to the runtime GetComponent fallbacks.
@@ -234,6 +241,34 @@ namespace DinoBattle.EditorTools
             }
 
             return animator;
+        }
+
+        /// <summary>
+        /// One 3D AudioSource per creature, so a fight is spatialised rather than a flat wall of
+        /// noise. Rolloff is tuned to the arena — audible across a scrum, gone at the far edge.
+        /// </summary>
+        private static AudioSource AttachVoice(GameObject root, CreatureBlueprint blueprint)
+        {
+            var voice = EnsureComponent<AudioSource>(root);
+
+            voice.playOnAwake = false;
+            voice.spatialBlend = 1f;
+            voice.rolloffMode = AudioRolloffMode.Linear;
+            voice.minDistance = blueprint.BodySize.z * 2f;
+            voice.maxDistance = 90f;
+            voice.dopplerLevel = 0f;   // Creatures are slow; doppler only adds wobble.
+
+            return voice;
+        }
+
+        /// <summary>
+        /// Pick the small or large variant of a generated clip by body mass. Returns null when the
+        /// audio has not been generated, which simply leaves the creature silent.
+        /// </summary>
+        private static AudioClip LoadClip(CreatureBlueprint blueprint, string kind)
+        {
+            string size = blueprint.Mass >= 4000f ? "large" : "small";
+            return AssetDatabase.LoadAssetAtPath<AudioClip>($"Assets/Audio/SFX/sfx_{kind}_{size}.wav");
         }
 
         /// <summary>

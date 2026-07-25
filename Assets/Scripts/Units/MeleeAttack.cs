@@ -23,7 +23,11 @@ namespace DinoBattle.Units
         [Header("Presentation")]
         [SerializeField] private Animator animator;
         [SerializeField] private string attackTriggerName = "Attack";
+        [Tooltip("Shared voice source on the creature root. PlayOneShot layers over any roar in " +
+                 "progress instead of cutting it off, which Play() would.")]
         [SerializeField] private AudioSource attackAudio;
+
+        [SerializeField] private AudioClip attackClip;
         [SerializeField] private ParticleSystem impactEffect;
 
         private float cooldownRemaining;
@@ -119,7 +123,7 @@ namespace DinoBattle.Units
                 animator.SetTrigger(attackTriggerName);
             }
 
-            if (attackAudio != null) attackAudio.Play();
+            if (attackAudio != null && attackClip != null) attackAudio.PlayOneShot(attackClip);
 
             // Zero windup means the hit should resolve this frame, not next.
             if (windupRemaining <= 0f)

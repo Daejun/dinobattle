@@ -21,8 +21,15 @@ namespace DinoBattle.EditorTools
     {
         private const string ScenePath = "Assets/Scenes/Arena.unity";
 
-        /// <summary>Playable area, bounded by invisible walls.</summary>
-        private const float ArenaSize = 120f;
+        /// <summary>
+        /// Playable area, bounded by invisible walls.
+        ///
+        /// Sized against the creatures rather than picked round: a T-Rex is 5 units long, so 70 is
+        /// roughly fourteen body lengths across. That fits a couple of dozen fighters with room to
+        /// flank while keeping both sides on screen and in contact quickly. At 120 the armies spent
+        /// the opening of every match walking toward each other across empty ground.
+        /// </summary>
+        private const float ArenaSize = 70f;
 
         /// <summary>Ground plane size as a multiple of the arena, so scenery has land to stand on.</summary>
         private const float GroundExtent = 4f;
@@ -142,10 +149,13 @@ namespace DinoBattle.EditorTools
             const int hillCount = 22;
             for (int i = 0; i < hillCount; i++)
             {
+                // Everything here is a multiple of the arena, not an absolute size. Fixed numbers
+                // tuned against the old larger field turned into hills wider than the whole arena
+                // once it shrank, closing in over the fight.
                 float angle = (i / (float)hillCount) * Mathf.PI * 2f + Range(-0.06f, 0.06f);
-                float radius = half * Range(1.3f, 2.2f);
-                float height = Range(18f, 42f);
-                float width = Range(60f, 130f);
+                float radius = half * Range(1.7f, 2.8f);
+                float height = half * Range(0.3f, 0.65f);
+                float width = half * Range(0.7f, 1.5f);
 
                 var hill = GameObject.CreatePrimitive(PrimitiveType.Sphere);
                 hill.name = $"Hill_{i}";
@@ -228,6 +238,13 @@ namespace DinoBattle.EditorTools
 
             var rig = cameraObject.AddComponent<OrbitCameraController>();
             cameraObject.AddComponent<BattleCameraDirector>();
+
+            // Tie the pan bounds to the arena instead of leaving the component default, which was
+            // sized for the old, larger field and would let the player pan off into empty ground.
+            var rigSerialized = new SerializedObject(rig);
+            rigSerialized.FindProperty("panLimit").floatValue = ArenaSize * 0.55f;
+            rigSerialized.ApplyModifiedPropertiesWithoutUndo();
+
             return rig;
         }
 

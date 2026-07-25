@@ -20,23 +20,24 @@ namespace DinoBattle.CameraRig
         [Tooltip("Seconds after the player last moved the camera before auto-framing resumes.")]
         [SerializeField] private float manualControlGrace = 3f;
 
-        [Tooltip("Extra room around the action, as a multiplier on the fitted distance.")]
+        [Tooltip("Extra room around the action, as a multiplier on the fitted distance. Small — the " +
+                 "fit already leaves margin, and padding compounds with the focus radius.")]
         [Range(1f, 2f)]
-        [SerializeField] private float framingPadding = 1.35f;
+        [SerializeField] private float framingPadding = 1.1f;
 
         [Tooltip("Smallest radius considered, so a single creature is not zoomed into uncomfortably.")]
-        [SerializeField] private float minimumFocusRadius = 6f;
+        [SerializeField] private float minimumFocusRadius = 4f;
 
-        [Tooltip("Largest radius framed. Armies start far apart, and fitting that whole spread pushed " +
-                 "the camera so far back the creatures were specks. Capping it keeps the shot close " +
-                 "and lets the fight come to the frame as the two sides converge.")]
-        [SerializeField] private float maximumFocusRadius = 22f;
+        [Tooltip("Largest radius framed, in world units. Sized against the creatures: a T-Rex is 5 " +
+                 "units, so a radius of 10 puts it at roughly a fifth of the screen height. At 22 " +
+                 "with heavier padding the camera sat ~59 units out and the fighters were specks.")]
+        [SerializeField] private float maximumFocusRadius = 10f;
 
         [Tooltip("How quickly the framing target itself moves. The rig smooths on top of this.")]
         [SerializeField] private float retargetSmoothing = 2.5f;
 
         [Tooltip("View of the whole arena while the player is still placing creatures.")]
-        [SerializeField] private float placementDistance = 60f;
+        [SerializeField] private float placementDistance = 46f;
 
         private OrbitCameraController rig;
         private BattleManager battleManager;

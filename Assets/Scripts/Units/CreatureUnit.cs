@@ -31,6 +31,17 @@ namespace DinoBattle.Units
         [Tooltip("Seconds the corpse stays in the arena after dying. Negative keeps it forever.")]
         [SerializeField] private float corpseLifetime = -1f;
 
+        [Header("Audio")]
+        [SerializeField] private AudioSource voice;
+        [SerializeField] private AudioClip deathClip;
+
+        [Tooltip("Played occasionally while alive and fighting, so a battle is not silent between hits.")]
+        [SerializeField] private AudioClip roarClip;
+
+        [SerializeField] private Vector2 roarIntervalRange = new(6f, 14f);
+
+        private float roarTimer;
+
         public Team Team => team;
         public CreatureDefinition Definition => definition;
         public Health Health { get; private set; }
@@ -46,6 +57,9 @@ namespace DinoBattle.Units
         private void Awake()
         {
             Health = GetComponent<Health>();
+
+            // Staggered, or an army spawned on the same frame all calls out in unison.
+            roarTimer = UnityEngine.Random.Range(0f, roarIntervalRange.y);
         }
 
         /// <summary>
@@ -127,10 +141,26 @@ namespace DinoBattle.Units
             registered = false;
         }
 
+        private void Update()
+        {
+            if (voice == null || roarClip == null || IsDead) return;
+
+            roarTimer -= Time.deltaTime;
+            if (roarTimer > 0f) return;
+
+            roarTimer = UnityEngine.Random.Range(roarIntervalRange.x, roarIntervalRange.y);
+
+            // Never on top of an existing call from this creature, or a big pack turns into a drone.
+            if (!voice.isPlaying) voice.PlayOneShot(roarClip, 0.7f);
+        }
+
         private void HandleDied()
         {
             // Leave the registry right away so nothing keeps chasing a corpse.
             Deregister();
+
+            if (voice != null && deathClip != null) voice.PlayOneShot(deathClip);
+
             Died?.Invoke(this);
 
             foreach (var brain in GetComponentsInChildren<CreatureBrain>()) brain.OnUnitDied();

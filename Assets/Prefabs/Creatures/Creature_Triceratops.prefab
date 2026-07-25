@@ -250,6 +250,7 @@ GameObject:
   - component: {fileID: 7159318080272289366}
   - component: {fileID: 3963401673652055195}
   - component: {fileID: 8051403156637025073}
+  - component: {fileID: 909377601474878627}
   m_Layer: 0
   m_Name: Creature_Triceratops
   m_TagString: Untagged
@@ -358,6 +359,10 @@ MonoBehaviour:
   teamTintRenderers: []
   teamTintStrength: 0
   corpseLifetime: 12
+  voice: {fileID: 909377601474878627}
+  deathClip: {fileID: 8300000, guid: 62ffec89bc738544a93d68b420f48b86, type: 3}
+  roarClip: {fileID: 8300000, guid: d8af1dd99f683cb42bf30e5ac22c3737, type: 3}
+  roarIntervalRange: {x: 6, y: 14}
 --- !u!114 &7614471810122825851
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -457,8 +462,106 @@ MonoBehaviour:
   knockback: 4
   animator: {fileID: 7616530026297497056}
   attackTriggerName: Attack
-  attackAudio: {fileID: 0}
+  attackAudio: {fileID: 909377601474878627}
+  attackClip: {fileID: 8300000, guid: 77e7ec0fd173a1a4dabdc0dbc953b341, type: 3}
   impactEffect: {fileID: 0}
+--- !u!82 &909377601474878627
+AudioSource:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3233858342231755087}
+  m_Enabled: 1
+  serializedVersion: 4
+  OutputAudioMixerGroup: {fileID: 0}
+  m_audioClip: {fileID: 0}
+  m_Resource: {fileID: 0}
+  m_PlayOnAwake: 0
+  m_Volume: 1
+  m_Pitch: 1
+  Loop: 0
+  Mute: 0
+  Spatialize: 0
+  SpatializePostEffects: 0
+  Priority: 128
+  DopplerLevel: 0
+  MinDistance: 8.8
+  MaxDistance: 90
+  Pan2D: 0
+  rolloffMode: 1
+  BypassEffects: 0
+  BypassListenerEffects: 0
+  BypassReverbZones: 0
+  rolloffCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 1
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  panLevelCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  spreadCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  reverbZoneMixCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
 --- !u!1 &3498313750176437446
 GameObject:
   m_ObjectHideFlags: 0
