@@ -17,6 +17,15 @@ namespace DinoBattle.Units
         [Tooltip("Only walk forward once facing within this many degrees of the target.")]
         [SerializeField] private float moveFacingTolerance = 60f;
 
+        [Tooltip("How much faster a stationary creature turns. Turning in place is a different action " +
+                 "from steering while running, and it is the one that decides whether a heavy " +
+                 "dinosaur can ever bring its head round onto something circling it.")]
+        [Min(1f)]
+        [SerializeField] private float pivotTurnMultiplier = 10f;
+
+        [Tooltip("Below this speed the creature counts as turning in place.")]
+        [SerializeField] private float pivotSpeedThreshold = 1.5f;
+
         [Tooltip("How hard the creature is pushed toward its walk speed. Higher feels snappier and heavier.")]
         [SerializeField] private float acceleration = 20f;
 
@@ -162,8 +171,15 @@ namespace DinoBattle.Units
             Quaternion desired = Quaternion.LookRotation(flat, Vector3.up);
             if (!stopped)
             {
+                // Pivoting on the spot is far quicker than turning mid-stride: planted feet can just
+                // step round, where a running animal has to arc. It matters because the situations
+                // that most need a fast turn are exactly the stationary ones — a heavy dinosaur
+                // braked in melee, being circled by something it cannot otherwise ever face.
+                float rate = turnSpeedDegrees;
+                if (CurrentSpeed < pivotSpeedThreshold) rate *= pivotTurnMultiplier;
+
                 transform.rotation = Quaternion.RotateTowards(
-                    transform.rotation, desired, turnSpeedDegrees * Time.deltaTime);
+                    transform.rotation, desired, rate * Time.deltaTime);
             }
 
             return Quaternion.Angle(transform.rotation, desired);
