@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c28d35c407bc3d54e9f95971f3375aa2, type: 3}
+  m_Name: Creature_Triceratops
+  m_EditorClassIdentifier: Assembly-CSharp::DinoBattle.Data.CreatureDefinition
+  displayName: Triceratops
+  description: Placeholder stat block for Triceratops.
+  icon: {fileID: 0}
+  prefab: {fileID: 3233858342231755087, guid: 6a0f08c961133fa48902c433fd93ab82, type: 3}
+  cost: 300
+  footprintRadius: 2.64
+  maxHealth: 4400
+  armor: 22
+  moveSpeed: 5.8
+  turnSpeedDegrees: 113.376625
+  mass: 7400
+  attackDamage: 300
+  attackInterval: 1.9
+  attackRange: 3.8
+  attackWindup: 0.475
+  aggroRange: 90

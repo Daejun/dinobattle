@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a1893f6c385fe4345b2bc2b46ded8512, type: 3}
+  m_Name: Roster_Default
+  m_EditorClassIdentifier: Assembly-CSharp::DinoBattle.Data.CreatureRoster
+  creatures:
+  - {fileID: 11400000, guid: 66e0063bd24f5a5429b8beaaa8d0b31e, type: 2}
+  - {fileID: 11400000, guid: 5091c124fbae8e44184dbe3e06fc2876, type: 2}
+  - {fileID: 11400000, guid: 8721d44e88656c645bcd4ebe60b1bfd1, type: 2}
+  - {fileID: 11400000, guid: d84caa89649d518449beee268d6b31b8, type: 2}
+  - {fileID: 11400000, guid: 2341b2ca315eb7f47bb8e13c42f5aabe, type: 2}
+  - {fileID: 11400000, guid: 752eddda9fa79654da139772225eba8a, type: 2}

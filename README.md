@@ -97,8 +97,10 @@ Unity Editor를 WSL로 옮기지 않은 이유는 [`Docs/wsl.md`](Docs/wsl.md) �
 `.unity` YAML을 손으로 편집하거나 머지하는 건 고통입니다.
 [`BattleSceneBuilder`](Assets/Editor/BattleSceneBuilder.cs) 를 수정하고 메뉴를 다시 실행하세요.
 
-**추가 패키지 없이 컴파일된다.**
-legacy Input Manager와 uGUI만 사용합니다. Input System / TMP / URP 이관은 M4 항목입니다.
+**의존성은 최소로.**
+legacy Input Manager와 uGUI만 사용합니다. uGUI(`com.unity.ugui` 2.5.0)는 Unity 6.5 3D 템플릿에
+포함되지 않아 `Packages/manifest.json` 에 명시했습니다 — 그 외 추가 패키지는 없습니다.
+Input System / TMP / URP 이관은 M4 항목입니다.
 
 ## 라이선스
 

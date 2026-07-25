@@ -56,12 +56,28 @@ Unity Hub → Projects → **Add** → `C:\Users\pdaej\dino_battle` 선택 → �
 
 ## 3. 필요한 패키지 (Window > Package Manager)
 
-기본 설치되는 것으로 지금은 충분합니다. 필요해지면 추가하세요:
+### ⚠️ uGUI는 6.5 기본 템플릿에 없습니다
+
+`com.unity.ugui` 가 **`Packages/manifest.json` 에 이미 추가되어 있습니다** (버전 `2.5.0`).
+없으면 `UnityEngine.UI` 를 찾지 못해 프로젝트가 컴파일되지 않습니다.
+
+혼동하기 쉬운 구분입니다:
+
+| 패키지 | 제공하는 것 | 기본 포함? |
+|---|---|---|
+| `com.unity.modules.ui` | `Canvas`, `CanvasRenderer`, `RectTransform` | ✅ |
+| **`com.unity.ugui`** | **`UnityEngine.UI.*`** (Button, Text, Image…), `EventSystems`, TextMeshPro | ❌ 직접 추가 |
+
+Safe Mode로 진입했다면 manifest에 이 줄이 있는지 먼저 확인하세요.
+
+### 그 외 패키지
+
+지금은 위 하나로 충분합니다. 필요해지면 추가하세요:
 
 | 패키지 | 언제 | 비고 |
 |---|---|---|
 | **Universal RP** (`com.unity.render-pipelines.universal`) | 비주얼 품질 올릴 때 | 모바일 필수급. 도입 시 머티리얼 업그레이드 필요 |
-| **TextMeshPro** (uGUI에 포함) | HUD 폰트 개선 | 현재는 legacy `Text` 사용 중 |
+| **TextMeshPro** | HUD 폰트 개선 | 이미 `com.unity.ugui` 에 포함됨. 현재는 legacy `Text` 사용 중 |
 | **Input System** (`com.unity.inputsystem`) | 입력을 정식화할 때 | 현재는 legacy `Input` 사용 — 아래 참고 |
 | **AI Navigation** (`com.unity.ai.navigation`) | NavMesh 길찾기 필요할 때 | 현재는 직접 스티어링. 장애물 아레나 만들면 고려 |
 | **Test Framework** | 유닛 테스트 | Window > General > Test Runner 에서 자동 생성 |
@@ -69,7 +85,7 @@ Unity Hub → Projects → **Add** → `C:\Users\pdaej\dino_battle` 선택 → �
 ### 입력 시스템에 대한 결정
 
 런타임 코드는 **legacy Input Manager**(`Input.GetTouch`, `Input.mousePosition`)를 씁니다.
-이유는 하나 — 추가 패키지 없이 즉시 컴파일되고 즉시 플레이됩니다.
+이유는 하나 — Input System 패키지 없이 즉시 컴파일되고 즉시 플레이됩니다.
 
 `Project Settings > Player > Active Input Handling` 이 `Input Manager (Old)` 또는 `Both` 여야 합니다.
 나중에 Input System으로 옮길 때 손대야 하는 파일은 딱 둘입니다:
@@ -214,39 +230,46 @@ Unity AI 구독이 필요하고, Pro/Enterprise도 동시 연결 수에 제한�
 [CoplayDev/unity-mcp](https://github.com/CoplayDev/unity-mcp)은 MIT, 구독 불필요,
 동시 연결 제한 없음. 2026-07 기준 12.8k stars로 커뮤니티 표준입니다.
 
-### 사전 요구사항
+### 사전 요구사항 — 완료됨
 
 Unity 에디터와 Claude Code가 모두 Windows에 있으므로 **Python 툴체인도 Windows에** 설치합니다
-(WSL이 아닙니다):
+(WSL이 아닙니다). `uv` 가 Python 3.10+ 를 알아서 관리합니다.
 
 ```bash
-winget install astral-sh.uv
+winget install --id astral-sh.uv --exact
 ```
 
-`uv` 가 Python 3.10+ 를 알아서 관리합니다.
+설치 위치: `%LOCALAPPDATA%\Microsoft\WinGet\Links\uv.exe`.
+**설치 직후에는 PATH가 갱신되지 않습니다** — 새 셸(또는 Unity)을 열어야 `uv` 가 인식됩니다.
 
-### 설치
+### 설치 — 패키지는 추가 완료됨
 
-1. Unity → **Window → Package Manager → + → Add package from git URL**:
+`Packages/manifest.json` 에 아래가 이미 들어가 있습니다:
 
-   ```
-   https://github.com/CoplayDev/unity-mcp.git?path=/MCPForUnity#v10.0.0
-   ```
+```json
+"com.coplaydev.unity-mcp": "https://github.com/CoplayDev/unity-mcp.git?path=/MCPForUnity#v10.1.0"
+```
 
-   **버전을 고정하세요.** `#main` 으로 받으면 저장소가 움직일 때마다 프로젝트가 같이 흔들립니다.
-   OpenUPM을 쓴다면 `openupm add com.coplaydev.unity-mcp`.
+**태그로 고정했습니다.** `#main` 으로 받으면 저장소가 움직일 때마다 프로젝트가 같이 흔들립니다.
+버전을 올릴 때는 [릴리스 목록](https://github.com/CoplayDev/unity-mcp/releases)에서
+실제 존재하는 태그를 확인하고 이 줄을 고치세요.
 
-2. Unity → **Window → MCP for Unity → Configure All Detected Clients**
+이 패키지는 `com.unity.nuget.newtonsoft-json` 과 `com.unity.test-framework` 를 끌어옵니다 —
+Unity가 자동으로 해석하므로 `packages-lock.json` 이 함께 갱신됩니다.
+
+### 남은 단계 (에디터에서)
+
+1. Unity를 다시 열면 패키지를 clone하고 임포트합니다.
+2. **Window → MCP for Unity → Configure All Detected Clients**
    → 감지된 MCP 클라이언트를 자동으로 설정합니다.
-
-3. 확인:
+3. Claude Code를 **재시작**한 뒤 확인:
 
    ```bash
    claude mcp list
    ```
 
-   Claude Code가 자동 감지되지 않으면 위 Unity 창에 표시되는 서버 실행 명령을 복사해
-   수동 등록하세요. 정확한 인자는 [프로젝트 위키](https://coplaydev.github.io/unity-mcp/)에 있습니다.
+   자동 감지되지 않으면 위 Unity 창에 표시되는 서버 실행 명령을 복사해 수동 등록하세요.
+   정확한 인자는 [프로젝트 위키](https://coplaydev.github.io/unity-mcp/)에 있습니다.
 
 ### 주의
 
@@ -260,6 +283,7 @@ CI에서도 돌릴 수 있고, Animator 파라미터 드리프트처럼 컴파�
 
 | 증상 | 원인 / 해결 |
 |---|---|
+| 프로젝트 열 때 **"contains compilation errors"** + Safe Mode 창 | `UnityEngine.UI` 를 못 찾는 경우입니다. `Packages/manifest.json` 에 `"com.unity.ugui": "2.5.0"` 이 있는지 확인. 3번 섹션 참고. 수정 후 Unity를 다시 열면 됩니다 |
 | `Roster_Default not found` 경고 | 1번(Generate Sample Content)을 먼저 실행 |
 | 공룡이 배치되는데 START가 비활성 | 양 팀 모두 최소 1마리 필요 |
 | 공룡이 안 움직임 | `Ground` 오브젝트가 `CreatureLocomotion.groundMask` 레이어에 있는지 확인 |

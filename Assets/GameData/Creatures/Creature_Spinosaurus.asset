@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c28d35c407bc3d54e9f95971f3375aa2, type: 3}
+  m_Name: Creature_Spinosaurus
+  m_EditorClassIdentifier: Assembly-CSharp::DinoBattle.Data.CreatureDefinition
+  displayName: Spinosaurus
+  description: Placeholder stat block for Spinosaurus.
+  icon: {fileID: 0}
+  prefab: {fileID: 8112899490953114508, guid: 42f78fe387a751044bfe6fa3ef377263, type: 3}
+  cost: 380
+  footprintRadius: 3.2400002
+  maxHealth: 3600
+  armor: 8
+  moveSpeed: 6.8
+  turnSpeedDegrees: 125.06494
+  mass: 6800
+  attackDamage: 420
+  attackInterval: 1.5
+  attackRange: 4.6
+  attackWindup: 0.375
+  aggroRange: 90

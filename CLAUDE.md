@@ -169,7 +169,7 @@ private 직렬화 필드를 채울 때는 `SerializedObject` + `FindProperty` �
 ## 입력 — legacy Input Manager를 씁니다
 
 `Input.GetTouch()`, `Input.mousePosition`, `Input.mouseScrollDelta` 사용.
-**이건 의도된 선택입니다**: 추가 패키지 없이 즉시 컴파일되고 즉시 플레이됩니다.
+**이건 의도된 선택입니다**: Input System 패키지 없이 즉시 컴파일되고 즉시 플레이됩니다.
 
 `Project Settings > Player > Active Input Handling` 이 `Input Manager (Old)` 또는 `Both` 여야 합니다.
 
@@ -179,11 +179,29 @@ Input System으로 이관할 때 손댈 파일은 둘뿐:
 
 ## 패키지에 대해
 
-`Packages/manifest.json` 을 **의도적으로 만들지 않았습니다.** 패키지 버전을 추측해서 적으면
-버전 불일치로 프로젝트가 열리지도 않습니다. Unity가 첫 실행 시 기본 manifest를 생성하게 둡니다.
+`Packages/manifest.json` 은 이제 존재합니다 (Unity가 첫 실행 시 생성).
 
-현재 코드는 기본 패키지(uGUI)만 요구합니다. TMP / URP / Input System / AI Navigation은
-`Docs/roadmap.md` 의 M4 항목입니다.
+**`com.unity.ugui` 는 Unity 6.5 3D 템플릿의 기본 패키지가 아닙니다.**
+첫 오픈에서 컴파일 에러로 걸렸고, `2.5.0` 을 manifest에 명시적으로 추가했습니다.
+헷갈리기 쉬운 구분:
+
+| 패키지 | 제공하는 것 |
+|---|---|
+| `com.unity.modules.ui` (기본 포함) | `UnityEngine.Canvas`, `CanvasRenderer`, `RectTransform` |
+| **`com.unity.ugui`** (직접 추가함) | **`UnityEngine.UI.*`** (Button, Text, Image, CanvasScaler, GraphicRaycaster), `UnityEngine.EventSystems`, TextMeshPro |
+
+`BattleHUD.cs` 와 `BattleSceneBuilder.cs` 가 `UnityEngine.UI` 에 의존합니다.
+
+**패키지 버전을 추측해서 적지 마세요.** 에디터에 동봉된 버전은 여기서 확인합니다:
+
+```
+C:\Program Files\Unity\Hub\Editor\<버전>\Editor\Data\Resources\PackageManager\BuiltInPackages\<패키지>\package.json
+```
+
+`Tools/check-project.sh` 의 2b 검사가 코드의 `using` 과 manifest를 대조합니다 —
+새 네임스페이스를 쓰기 시작하면 `NS_REQUIRES` 배열에 매핑을 추가하세요.
+
+URP / Input System / AI Navigation은 `Docs/roadmap.md` 의 M4 항목입니다.
 
 ## 저작권 — 반드시 지킬 것
 

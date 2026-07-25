@@ -106,6 +106,45 @@ else
   pass "Android minSdkVersion is API 26 or higher"
 fi
 
+# ---------------------------------------------------------------- 2b. package dependencies
+head2 "2b. Namespaces used by the code have their package in Packages/manifest.json"
+
+# This exists because the scaffold assumed UnityEngine.UI was always available. It is not:
+# com.unity.modules.ui (built-in) gives you Canvas and RectTransform, but Button/Text/Image live
+# in com.unity.ugui, which the Unity 6.5 3D template does NOT include. The project failed to
+# compile on first open. The compiler catches it, but only after a full editor import.
+MANIFEST="Packages/manifest.json"
+
+# namespace regex -> required package id
+declare -a NS_REQUIRES=(
+  'using[[:space:]]+UnityEngine\.UI;|com.unity.ugui'
+  'using[[:space:]]+UnityEngine\.EventSystems;|com.unity.ugui'
+  'using[[:space:]]+TMPro;|com.unity.ugui'
+  'using[[:space:]]+UnityEngine\.AI;|com.unity.modules.ai'
+  'using[[:space:]]+UnityEngine\.Video;|com.unity.modules.video'
+  'using[[:space:]]+UnityEngine\.InputSystem;|com.unity.inputsystem'
+  'using[[:space:]]+Unity\.Cinemachine;|com.unity.cinemachine'
+)
+
+if [[ ! -f "$MANIFEST" ]]; then
+  pass "manifest.json not generated yet (Unity has not opened the project)"
+else
+  for entry in "${NS_REQUIRES[@]}"; do
+    pattern="${entry%%|*}"
+    package="${entry##*|}"
+
+    users="$(grep -rlE "$pattern" --include='*.cs' "$RUNTIME_GLOB" "$EDITOR_GLOB" 2>/dev/null || true)"
+    [[ -z "$users" ]] && continue
+
+    if grep -qF "\"$package\"" "$MANIFEST"; then
+      pass "$package present (required by $(echo "$users" | wc -l) file(s))"
+    else
+      fail "$package missing from $MANIFEST but the code imports it"
+      while IFS= read -r u; do info "${u#./}"; done <<< "$users"
+    fi
+  done
+fi
+
 # ---------------------------------------------------------------- 3. namespaces
 head2 "3. Every script declares a DinoBattle.* namespace"
 
