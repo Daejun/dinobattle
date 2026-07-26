@@ -55,11 +55,30 @@ namespace DinoBattle.CameraRig
                  "rather wasted the point of showing them at all.")]
         [SerializeField] private float placementDistance = 34f;
 
+        [Header("Victory shot")]
+        [Tooltip("Closest the victory shot will frame, whatever the survivor's size. Stops a raptor " +
+                 "from filling the screen with one thigh.")]
+        [SerializeField] private float victoryMinimumRadius = 2.5f;
+
+        [Tooltip("Victory framing radius as a multiple of the survivor's own footprint, so the shot " +
+                 "sits the same distance off a raptor as off a boss in body-lengths rather than metres.")]
+        [Range(1f, 5f)]
+        [SerializeField] private float victoryFramingFactor = 2.2f;
+
         private OrbitCameraController rig;
         private BattleManager battleManager;
         private Vector3 smoothedCenter;
         private float smoothedRadius;
         private bool hasFraming;
+
+        /// <summary>
+        /// The survivor the victory shot is on. Held rather than re-picked each frame: the choice
+        /// depends on health, and re-running it every frame would let the shot hop between survivors
+        /// as the health bars settle.
+        /// </summary>
+        private CreatureUnit victor;
+
+        private BattlePhase lastPhase = BattlePhase.Placement;
 
         private void Awake()
         {
@@ -76,6 +95,13 @@ namespace DinoBattle.CameraRig
             if (battleManager == null) battleManager = BattleManager.Instance;
             if (battleManager == null) return;
 
+            // A new match invalidates the previous winner, so the next victory shot picks afresh.
+            if (battleManager.Phase != lastPhase)
+            {
+                lastPhase = battleManager.Phase;
+                if (lastPhase != BattlePhase.Finished) victor = null;
+            }
+
             if (Time.unscaledTime - rig.LastManualInputTime < manualControlGrace) return;
 
             switch (battleManager.Phase)
@@ -87,10 +113,83 @@ namespace DinoBattle.CameraRig
                     return;
 
                 case BattlePhase.Fighting:
-                case BattlePhase.Finished:
                     FrameCombatants();
                     return;
+
+                case BattlePhase.Finished:
+                    FrameVictor();
+                    return;
             }
+        }
+
+        /// <summary>
+        /// Close in on whoever is left standing.
+        ///
+        /// The wide framing is right while there is a battle to follow and wrong the moment there is
+        /// not: with one side gone it sizes the shot around the winners' spread, so a scattered
+        /// winning team leaves the camera parked high over empty ground at the end of every match.
+        /// A single survivor is the subject, so the shot should be on it.
+        ///
+        /// Goes through the same smoothing as combat framing rather than cutting, so the win reads as
+        /// the camera settling on the victor rather than as an edit.
+        /// </summary>
+        private void FrameVictor()
+        {
+            if (victor == null || victor.IsDead) victor = ChooseVictor();
+
+            // A draw — both sides wiped out. Nothing to close in on, so leave the shot where it is.
+            if (victor == null)
+            {
+                FrameCombatants();
+                return;
+            }
+
+            Vector3 center = victor.transform.position;
+            center.y = 0f;
+
+            float footprint = victor.Definition != null ? victor.Definition.footprintRadius : 1f;
+            ApplyFraming(center, footprint * victoryFramingFactor, victoryMinimumRadius);
+        }
+
+        /// <summary>
+        /// The survivor worth looking at: the one that came closest to losing.
+        ///
+        /// Health rather than position, because the interesting animal at the end of a fight is the
+        /// one that nearly died in it. On a clean sweep where nobody took damage this falls through
+        /// to the tie-break and picks whoever is nearest the last of the action, which is where the
+        /// camera already is.
+        /// </summary>
+        private CreatureUnit ChooseVictor()
+        {
+            CreatureUnit best = null;
+            float bestHealth = float.MaxValue;
+            float bestDistance = float.MaxValue;
+
+            foreach (Team team in new[] { Team.Red, Team.Blue })
+            {
+                var units = UnitRegistry.AliveOf(team);
+
+                for (int i = 0; i < units.Count; i++)
+                {
+                    var unit = units[i];
+                    if (unit == null || unit.IsDead) continue;
+
+                    float health = unit.Health != null && unit.Health.Max > 0f
+                        ? unit.Health.Current / unit.Health.Max
+                        : 1f;
+                    float distance = PlanarDistance(unit, smoothedCenter);
+
+                    bool better = health < bestHealth - 0.001f
+                                  || (health < bestHealth + 0.001f && distance < bestDistance);
+                    if (!better) continue;
+
+                    best = unit;
+                    bestHealth = health;
+                    bestDistance = distance;
+                }
+            }
+
+            return best;
         }
 
         private void FrameCombatants()
@@ -101,7 +200,15 @@ namespace DinoBattle.CameraRig
                 return;
             }
 
-            radius = Mathf.Clamp(radius, minimumFocusRadius, maximumFocusRadius);
+            ApplyFraming(center, radius, minimumFocusRadius);
+        }
+
+        /// <summary>
+        /// Ease the framing toward a new centre and radius, then point the rig at it.
+        /// </summary>
+        private void ApplyFraming(Vector3 center, float radius, float minimumRadius)
+        {
+            radius = Mathf.Clamp(radius, minimumRadius, maximumFocusRadius);
 
             // A big jump means the fight relocated — a kill removing one side of the centroid, say.
             // Easing across it drags the shot over everything between the old and new positions.
