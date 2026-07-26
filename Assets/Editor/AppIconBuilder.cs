@@ -325,9 +325,17 @@ namespace DinoBattle.EditorTools
 
                 foreach (var icon in icons)
                 {
-                    // Adaptive takes two layers, foreground over background. The others take one
-                    // already-flattened image, because nothing composites them for us.
-                    if (icon.maxLayerCount >= 2) icon.SetTextures(foreground, background);
+                    // Adaptive takes two layers in the order (BACKGROUND, FOREGROUND). Layer 0 is the
+                    // plate, layer 1 is what sits on it — the resource names Unity emits,
+                    // ic_launcher_background and ic_launcher_foreground, are assigned in that order.
+                    //
+                    // Passing them the other way round is not rejected and produces no warning. It
+                    // just registers the transparent T-Rex as the background and the opaque green
+                    // plate as the foreground, so the plate is drawn over the animal and the launcher
+                    // shows a solid near-black square. Confirmed with aapt2 against the built APK:
+                    // ic_launcher_background pointed at the transparent render and
+                    // ic_launcher_foreground at the flat colour.
+                    if (icon.maxLayerCount >= 2) icon.SetTextures(background, foreground);
                     else icon.SetTextures(composited);
                 }
 
