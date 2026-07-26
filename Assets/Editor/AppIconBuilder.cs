@@ -51,6 +51,23 @@ namespace DinoBattle.EditorTools
         /// </summary>
         private static readonly Color Background = new(0.07f, 0.15f, 0.11f);
 
+        /// <summary>
+        /// Where the camera stands, in the creature's own axes: x right, y up, z forward.
+        ///
+        /// A pure side profile. The head-on and three-quarter views were both tried and both lose at
+        /// launcher size: head-on, a theropod skull is a narrow wedge that reads as a dark blob, and
+        /// the three-quarter angles bury the snout behind the jaw. In profile the whole outline —
+        /// brow, snout, tooth row, jawline — is legible at 48px, which is the smallest size Android
+        /// asks for.
+        ///
+        /// The original view had the animal facing away: "티라노 얼굴이 뒤를 보고있는데". Worth
+        /// knowing why, because it is counter-intuitive — for this model +z points BEHIND the
+        /// creature, so the "in front" guess was the wrong sign. Which way an exported rig faces is
+        /// not worth deducing from its axis convention, so the choice was made by rendering the
+        /// candidates and looking at them: 'Dino Battle > Advanced > Preview App Icon Angles'.
+        /// </summary>
+        private static readonly Vector3 IconView = new(1.8f, 0.35f, 0f);
+
         [MenuItem("Dino Battle/8. Generate App Icon", priority = 133)]
         public static void Generate()
         {
@@ -83,13 +100,46 @@ namespace DinoBattle.EditorTools
         }
 
         /// <summary>
+        /// Render the head from several directions into one folder, so the right one can be chosen by
+        /// looking rather than by reasoning about which way the exporter decided +Z was.
+        /// </summary>
+        [MenuItem("Dino Battle/Advanced/Preview App Icon Angles", priority = 221)]
+        public static void PreviewAngles()
+        {
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(Prefab);
+            if (prefab == null) { Debug.LogError("[AppIconBuilder] T-Rex prefab missing."); return; }
+
+            SampleContentBuilder.EnsureFolder("Assets/Art");
+            SampleContentBuilder.EnsureFolder("Assets/Art/UI");
+            SampleContentBuilder.EnsureFolder(Folder);
+
+            (string Name, Vector3 View)[] angles =
+            {
+                ("angle_front",       new Vector3(0f,   0.35f,  1.8f)),
+                ("angle_frontright",  new Vector3(1.0f, 0.42f,  1.6f)),
+                ("angle_right",       new Vector3(1.8f, 0.35f,  0f)),
+                ("angle_backright",   new Vector3(1.0f, 0.42f, -1.6f)),
+            };
+
+            foreach (var (name, view) in angles)
+            {
+                var texture = RenderHead(prefab, LegacyFill, transparent: true, view);
+                Save(Composite(texture, Background), name);
+                Object.DestroyImmediate(texture);
+            }
+
+            AssetDatabase.Refresh();
+            Debug.Log($"[AppIconBuilder] Wrote {angles.Length} angle previews into {Folder}.");
+        }
+
+        /// <summary>
         /// Point a camera at the creature's head bone and photograph it against nothing.
         ///
         /// Three-quarter view rather than straight on. Head-on, a theropod skull is a narrow wedge
         /// and reads as an indistinct blob at 48px; turned, the snout and jawline give it the
         /// profile that makes it a dinosaur.
         /// </summary>
-        private static Texture2D RenderHead(GameObject prefab, float fill, bool transparent)
+        private static Texture2D RenderHead(GameObject prefab, float fill, bool transparent, Vector3? viewDirection = null)
         {
             var instance = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
             instance.transform.position = Vector3.zero;
@@ -143,9 +193,12 @@ namespace DinoBattle.EditorTools
             camera.farClipPlane = 100f;
             camera.cullingMask = 1 << IconLayer;
 
-            // Looking down the creature's front-left, slightly above the eyeline.
-            Vector3 direction = (instance.transform.forward * -1.6f + instance.transform.right * -1.0f
-                                 + Vector3.up * 0.42f).normalized;
+            // Which way to stand relative to the animal. Expressed in its own axes: x = right,
+            // y = up, z = forward, so (1, 0.4, 1.6) means in front and to its right, slightly raised.
+            Vector3 v = viewDirection ?? IconView;
+            Vector3 direction = (instance.transform.right * v.x
+                                 + Vector3.up * v.y
+                                 + instance.transform.forward * v.z).normalized;
             cameraObject.transform.position = focus + direction * 10f;
             cameraObject.transform.LookAt(focus);
 
@@ -153,16 +206,23 @@ namespace DinoBattle.EditorTools
             var lightObject = new GameObject("IconLight") { hideFlags = HideFlags.HideAndDontSave };
             var light = lightObject.AddComponent<Light>();
             light.type = LightType.Directional;
-            light.intensity = 1.25f;
+            light.intensity = 1.5f;
             light.color = new Color(1f, 0.97f, 0.88f);
+
+            // Keyed off the camera, not fixed in world space. A hardcoded angle only flatters
+            // whichever view it was tuned for: moving to a side profile left the key behind the
+            // animal and the head came out murky, which is the same complaint as the black icon in a
+            // milder form. Offsetting from the camera's own direction guarantees the lit side is the
+            // side being photographed, and the offset keeps enough falloff to read as a shape rather
+            // than a cut-out.
             lightObject.transform.rotation = Quaternion.LookRotation(
-                Quaternion.Euler(28f, 35f, 0f) * Vector3.forward);
+                Quaternion.Euler(28f, 32f, 0f) * cameraObject.transform.forward);
 
             var previousAmbientMode = RenderSettings.ambientMode;
             var previousAmbient = RenderSettings.ambientLight;
             bool previousFog = RenderSettings.fog;
             RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
-            RenderSettings.ambientLight = new Color(0.45f, 0.48f, 0.44f);
+            RenderSettings.ambientLight = new Color(0.58f, 0.62f, 0.56f);
             RenderSettings.fog = false;      // fog would wash the icon out exactly as it does the arena
 
             var target = new RenderTexture(Master, Master, 24, RenderTextureFormat.ARGB32)
