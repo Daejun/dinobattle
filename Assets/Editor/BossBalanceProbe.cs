@@ -128,6 +128,18 @@ namespace DinoBattle.EditorTools
             battlesRun = 0;
             running = true;
 
+            // Buy back the speed the catch-up cap took away.
+            //
+            // MobilePerformance pins physics at four steps per frame at any timeScale, which is the
+            // right call for a phone and wrong for an offline run: asking for 16x delivered a true
+            // 16x before that cap existed and 4.8x afterwards, so these sweeps got 3.3 times slower
+            // for a safety margin protecting a player who is not here. The budget is raised for the
+            // duration and cleared in Finish.
+            //
+            // Sized to keep the promise the constant makes: Speed steps of catch-up per frame is
+            // what 16x actually requires at 60 fps.
+            Core.MobilePerformance.OfflineCatchUpSteps = Mathf.CeilToInt(Speed);
+
             EditorApplication.update += Tick;
             StartOne();
         }
@@ -268,6 +280,11 @@ namespace DinoBattle.EditorTools
             running = false;
             EditorApplication.update -= Tick;
             Time.timeScale = 1f;
+
+            // Hand the shipping catch-up budget back. Runs on every exit path, including the error
+            // ones — leaving a raised cap behind would silently weaken the spiral guard for whatever
+            // is played next in this editor session.
+            Core.MobilePerformance.OfflineCatchUpSteps = null;
 
             if (reason != null) Debug.LogWarning($"[BossBalanceProbe] Stopped: {reason}.");
         }
