@@ -236,6 +236,8 @@ namespace DinoBattle.EditorTools
             float scale = measured.z > 0.001f ? blueprint.BodySize.z / measured.z : 1f;
             visual.transform.localScale = Vector3.one * scale;
 
+            AttachStrayArmatures(visual);
+
             // Re-skin every creature, reskin or not. The imported materials are not merely flat, they
             // are nearly black — the T-Rex body colour ships at (0.06, 0.07, 0.06) — so every species
             // rendered as the same dark silhouette and neither species nor team was readable.
@@ -466,6 +468,79 @@ namespace DinoBattle.EditorTools
             // gives no read on who has not been touched yet.
             serialized.FindProperty("hideWhenFull").boolValue = false;
             serialized.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        /// <summary>
+        /// Parent any secondary armature onto the head of the main one.
+        ///
+        /// The dragon ships its eyes as a separate skinned mesh bound to a single bone on its own
+        /// armature — Dragon/EyeArmature/Bone — while the head lives at
+        /// Dragon/DragonArmature/Root/BodyRoot/Body/Neck/Head. Every animation clip in the file has
+        /// ten curves driving Head and none at all driving Bone, so the head turns and the eyes stay
+        /// exactly where the bind pose left them. On screen the dragon's eyes hang in the air beside
+        /// it while it fights.
+        ///
+        /// That is a flaw in the source model, not in anything here, and it is invisible in a static
+        /// preview — which is presumably how it shipped. The fix is to hang the orphan armature off
+        /// the head so it inherits the animation that already exists.
+        ///
+        /// Reparented preserving world position, because the bind pose is correct: the eyes start in
+        /// the right place and only need to be told what to follow. Written generally rather than as
+        /// a check for "Dragon", so the next model with the same rigging habit is handled too, and it
+        /// does nothing at all for a creature whose meshes share one armature.
+        /// </summary>
+        private static void AttachStrayArmatures(GameObject visual)
+        {
+            var renderers = visual.GetComponentsInChildren<SkinnedMeshRenderer>(true);
+            if (renderers.Length < 2) return;
+
+            // The rig with the most bones is the real one.
+            SkinnedMeshRenderer primary = null;
+            foreach (var renderer in renderers)
+                if (primary == null || renderer.bones.Length > primary.bones.Length) primary = renderer;
+
+            if (primary == null || primary.rootBone == null) return;
+
+            // Unpack first, or the reparent below is silently thrown away.
+            //
+            // Visual_Model is a nested prefab instance of the FBX, and moving a child ACROSS that
+            // boundary is not something Unity can record as an override — it applies in the open
+            // scene, survives right up to the save, and is gone from the asset on disk. The first
+            // version of this looked like it worked: the console logged the reparent, and even a
+            // runtime check passed, because the eyes ride the body's transform whether or not they
+            // are attached to the head. They only come adrift when the head moves on its own, which
+            // is exactly when anyone is looking at the dragon.
+            var visualInstance = visual;
+            if (PrefabUtility.IsPartOfPrefabInstance(visualInstance))
+            {
+                PrefabUtility.UnpackPrefabInstance(
+                    PrefabUtility.GetOutermostPrefabInstanceRoot(visualInstance),
+                    PrefabUnpackMode.Completely,
+                    InteractionMode.AutomatedAction);
+            }
+
+            Transform head = null;
+            foreach (var bone in primary.bones)
+                if (bone != null && bone.name == "Head") head = bone;
+
+            // No head to attach to — leave it alone rather than guessing at some other bone.
+            if (head == null) return;
+
+            foreach (var renderer in renderers)
+            {
+                if (renderer == primary) continue;
+
+                Transform root = renderer.rootBone;
+                if (root == null || root.IsChildOf(primary.rootBone)) continue;
+
+                // The armature object itself, not the bone inside it, so the whole stray hierarchy
+                // moves as one.
+                Transform stray = root.parent != null && root.parent != visual.transform ? root.parent : root;
+
+                stray.SetParent(head, worldPositionStays: true);
+                Debug.Log($"[SampleContentBuilder] {visual.name}: reparented '{stray.name}' onto Head — " +
+                          "its bones are not animated by any clip in the model.");
+            }
         }
 
         /// <summary>
