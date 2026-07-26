@@ -530,14 +530,20 @@ namespace DinoBattle.EditorTools
                     y += cell.StepHeight;
                     AddSlab($"Step_{i}", new Vector3(0f, y - 0.5f, z + PlatformDepth * 0.5f),
                             new Vector3(cell.Width, 1f, PlatformDepth));
+                    if (i == 0) exitGateS = z + PlatformDepth * 0.5f;
                     z += PlatformDepth;
                 }
                 else if (cell.AngleDeg <= 0.01f)
                 {
-                    AddSlab($"Flat_{i}", new Vector3(0f, y - 0.5f, z + PlatformDepth * 0.5f),
-                            new Vector3(cell.Width, 1f, PlatformDepth));
-                    if (i == 0) exitGateS = z + 20f;
-                    z += PlatformDepth;
+                    // The baseline segment is twice as long as the measured span, so the exit gate
+                    // lands well inside the course. It used to sit exactly two units PAST the finish
+                    // line, so the creature stopped sampling before crossing it and every flat trial
+                    // reported no time at all — which is why C1 could not produce a denominator.
+                    const float FlatBaselineSpan = 20f;
+                    AddSlab($"Flat_{i}", new Vector3(0f, y - 0.5f, z + FlatBaselineSpan),
+                            new Vector3(cell.Width, 1f, FlatBaselineSpan * 2f));
+                    if (i == 0) exitGateS = z + FlatBaselineSpan;
+                    z += FlatBaselineSpan * 2f;
                 }
                 else
                 {
@@ -568,6 +574,16 @@ namespace DinoBattle.EditorTools
             // The finish line is the last platform, short of the march point so a creature that
             // reaches the top counts as arrived without having to walk into Arrive's braking zone.
             courseEndS = z - GatePad;
+
+            // Announce a course whose exit gate sits at or past the finish line, rather than
+            // silently emitting NaN times. That is precisely how the flat baseline broke: the
+            // creature stopped sampling two units before the gate it was supposed to cross, and the
+            // only symptom was a dash in the ratio column.
+            if (exitGateS >= courseEndS)
+            {
+                Debug.LogError($"[RampClimbProbe] Bad course: exit gate {exitGateS:0.0} is not before " +
+                               $"the finish {courseEndS:0.0}. No time can be recorded for this cell.");
+            }
 
             // The march point sits well past the last gate so the measured span is never inside
             // Arrive's slowing radius — otherwise this measures the braking curve, not the ramp.
@@ -746,8 +762,17 @@ namespace DinoBattle.EditorTools
         private bool entered;
         private bool passedExit;
         private float entryTime;
-        private float peakS;
         private Vector3 lastCommand;
+
+        /// <summary>
+        /// High-water mark of forward progress, seeded from the first sample rather than zero.
+        ///
+        /// Zero is not a neutral starting value: creatures spawn at the back of the run-up at
+        /// s = -12, so a zero seed made the first sample look like a twelve-unit slide backwards and
+        /// stamped an identical 12.00 on every trial in the run, flat ground included. The control
+        /// row that should have read 0.00 is what exposed it.
+        /// </summary>
+        private float peakS = float.NegativeInfinity;
 
         /// <summary>
         /// Resting clearance, taken as the running minimum rather than a single standing reading.
@@ -817,6 +842,7 @@ namespace DinoBattle.EditorTools
 
             // Backslide is measured against this creature's own high-water mark, not against the
             // start, so a creature that climbs then slips is caught even if it later recovers.
+            if (float.IsNegativeInfinity(peakS)) peakS = s;
             peakS = Mathf.Max(peakS, s);
             MaxBackslide = Mathf.Max(MaxBackslide, peakS - s);
 
@@ -887,7 +913,16 @@ namespace DinoBattle.EditorTools
             window.Enqueue((Time.time, s));
             while (window.Count > 0 && Time.time - window.Peek().time > RampClimbProbe.StallWindow)
                 window.Dequeue();
-            if (window.Count < 2) return;
+
+            // Wait for the window to actually SPAN a second before judging it.
+            //
+            // The threshold is "15% of the distance commanded over one full second". Comparing that
+            // against a window only a step or two wide means comparing a step's worth of travel to a
+            // second's worth of budget, which is always a stall — and it was: every creature,
+            // including on flat ground at full speed, logged one the moment it crossed the entry
+            // gate. Another one the flat control caught.
+            float span = window.Count > 0 ? Time.time - window.Peek().time : 0f;
+            if (span < RampClimbProbe.StallWindow * 0.95f) return;
 
             float travelled = s - window.Peek().s;
             float commanded = lastCommand.magnitude;
