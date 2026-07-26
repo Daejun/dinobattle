@@ -57,6 +57,14 @@ namespace DinoBattle.EditorTools
         /// </summary>
         [UnityEngine.Range(0f, 1f)]
         public float TintStrength = 0.6f;
+
+        /// <summary>
+        /// The colour of this creature's markings — the stripes and blotches, not the base hide.
+        /// Baked into the vertex stream as an absolute colour, so it is free to be brighter and a
+        /// completely different hue from the body. That is what makes a creature look patterned
+        /// rather than shaded.
+        /// </summary>
+        public Color Accent = new(0.95f, 0.62f, 0.15f);
     }
 
     /// <summary>
@@ -85,6 +93,7 @@ namespace DinoBattle.EditorTools
                 Damage = 900f, Interval = 1.9f, Range = 7.5f,
                 Speed = 5.4f, Mass = 60000f,
                 BodySize = new Vector3(4.6f, 6.4f, 11.5f),
+                Accent = new Color(0.42f, 0.46f, 0.52f),
                 Tint = new Color(0.90f, 0.89f, 0.85f),
                 // Near-total override: the hybrid is described as a uniform whitish-grey, and at
                 // the default strength the pack's dark body region stayed dark enough that it
@@ -101,7 +110,9 @@ namespace DinoBattle.EditorTools
                 Damage = 820f, Interval = 1.7f, Range = 7f,
                 Speed = 6.2f, Mass = 52000f,
                 BodySize = new Vector3(5.0f, 5.6f, 10.5f),
-                Tint = new Color(0.30f, 0.16f, 0.20f),
+                TintStrength = 0.85f,
+                Accent = new Color(0.98f, 0.72f, 0.18f),
+                Tint = new Color(0.62f, 0.10f, 0.42f),
             },
         };
     }
@@ -129,7 +140,9 @@ namespace DinoBattle.EditorTools
                 Damage = 480f, Interval = 1.6f, Range = 4.0f,
                 Speed = 6.5f, Mass = 8000f,
                 BodySize = new Vector3(2.0f, 2.4f, 5.0f),
-                Tint = new Color(0.45f, 0.32f, 0.22f),
+                Recolor = true, TintStrength = 0.80f,
+                Accent = new Color(0.96f, 0.78f, 0.20f),
+                Tint = new Color(0.13f, 0.62f, 0.30f),
             },
             new()
             {
@@ -139,7 +152,9 @@ namespace DinoBattle.EditorTools
                 Damage = 560f, Interval = 1.5f, Range = 4.2f,
                 Speed = 7.0f, Mass = 8600f,
                 BodySize = new Vector3(2.1f, 2.5f, 5.2f),
-                Tint = new Color(0.20f, 0.42f, 0.28f),
+                TintStrength = 0.80f,
+                Accent = new Color(0.95f, 0.35f, 0.55f),
+                Tint = new Color(0.10f, 0.62f, 0.68f),
             },
             new()
             {
@@ -148,7 +163,9 @@ namespace DinoBattle.EditorTools
                 Damage = 300f, Interval = 1.9f, Range = 3.4f,
                 Speed = 5.8f, Mass = 7400f,
                 BodySize = new Vector3(2.2f, 1.9f, 4.4f),
-                Tint = new Color(0.52f, 0.44f, 0.30f),
+                Recolor = true, TintStrength = 0.80f,
+                Accent = new Color(0.25f, 0.30f, 0.62f),
+                Tint = new Color(0.85f, 0.42f, 0.10f),
             },
             new()
             {
@@ -158,7 +175,9 @@ namespace DinoBattle.EditorTools
                 Damage = 110f, Interval = 0.7f, Range = 1.8f,
                 Speed = 11.0f, Mass = 900f,
                 BodySize = new Vector3(0.8f, 1.0f, 2.0f),
-                Tint = new Color(0.62f, 0.50f, 0.28f),
+                Recolor = true, TintStrength = 0.80f,
+                Accent = new Color(0.98f, 0.85f, 0.35f),
+                Tint = new Color(0.80f, 0.20f, 0.16f),
             },
             // Stegosaurus is deliberately absent. The pack's attack clip swings its tail in a way
             // that does not read as a strike, and no amount of tuning on our side fixes a clip. Its
@@ -172,7 +191,9 @@ namespace DinoBattle.EditorTools
                 Damage = 180f, Interval = 1.6f, Range = 3.4f,
                 Speed = 8.2f, Mass = 3200f,
                 BodySize = new Vector3(1.6f, 2.6f, 5.0f),
-                Tint = new Color(0.50f, 0.43f, 0.33f),
+                Recolor = true, TintStrength = 0.80f,
+                Accent = new Color(0.20f, 0.55f, 0.85f),
+                Tint = new Color(0.78f, 0.72f, 0.12f),
             },
         };
     }

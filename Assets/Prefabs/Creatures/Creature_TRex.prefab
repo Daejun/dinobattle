@@ -236,6 +236,7 @@ MonoBehaviour:
   meleeSeparationWeight: 0.15
   slowingRadius: 6
   hitAndRunMassRatio: 3
+  harasserMassCeiling: 1500
   retreatDuration: 1.1
   fleeDanger: 0.6
   boldDanger: 0.25

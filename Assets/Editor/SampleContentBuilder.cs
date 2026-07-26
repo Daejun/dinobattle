@@ -234,7 +234,7 @@ namespace DinoBattle.EditorTools
             // CreatureSkinBuilder lifts the palette and bakes counter-shading into the vertex stream;
             // a deliberate reskin passes its tint through to be blended in rather than pasted over.
             CreatureSkinBuilder.Apply(visual, safeName, blueprint.Recolor ? blueprint.Tint : (Color?)null,
-                blueprint.Shape, blueprint.TintStrength);
+                blueprint.Shape, blueprint.TintStrength, blueprint.Accent);
 
             var animator = visual.GetComponent<Animator>();
             if (animator == null) animator = visual.AddComponent<Animator>();

@@ -29,17 +29,16 @@ namespace DinoBattle.EditorTools
         private const float DorsalShade = 0.66f;
 
         /// <summary>Extra darkening inside a band. Bands fade out toward the belly.</summary>
-        private const float BandShade = 0.72f;
+        private const float BandShade = 0.48f;
 
         /// <summary>Bands along the body, counted across the whole animal rather than per unit.</summary>
         private const float BandCount = 6f;
 
-        /// <summary>Hue the irregular patches pull toward, and how strongly.</summary>
-        private static readonly Color BlotchTint = new(1.15f, 0.86f, 0.62f);
-        private const float BlotchStrength = 0.85f;
+        /// <summary>Strongest the markings ever get. Below 1 so the base hide always shows.</summary>
+        private const float MarkingCoverage = 0.8f;
 
-        /// <summary>Warm throat and lower jaw, as most reptiles and birds have.</summary>
-        private static readonly Color ThroatTint = new(1.2f, 0.78f, 0.62f);
+        /// <summary>Throat and lower jaw. An absolute colour now, not a multiplier.</summary>
+        private static readonly Color ThroatColor = new(0.98f, 0.86f, 0.45f);
 
         /// <summary>Amplitude of the fine per-vertex mottling that stops flat areas reading as plastic.</summary>
         private const float Mottle = 0.10f;
@@ -59,9 +58,12 @@ namespace DinoBattle.EditorTools
         /// dinosaur, nearer the camera", whereas changing which parts are big changes the species.
         /// </param>
         internal static void Apply(GameObject visual, string speciesKey, Color? tint = null, BodyShape shape = null,
-            float tintStrength = 0.6f)
+            float tintStrength = 0.6f, Color? accentColor = null)
         {
             if (visual == null || string.IsNullOrEmpty(speciesKey)) return;
+
+            // Markings default to a warm contrast when a species does not name one.
+            Color accent = accentColor ?? new Color(0.95f, 0.62f, 0.15f);
 
             var shader = Shader.Find("DinoBattle/CreatureSkin");
             if (shader == null)
@@ -78,8 +80,9 @@ namespace DinoBattle.EditorTools
 
             foreach (var skinned in visual.GetComponentsInChildren<SkinnedMeshRenderer>(true))
             {
-                skinned.sharedMesh = EnsureBakedMesh(skinned.sharedMesh, speciesKey, shape, skinned.bones);
-                skinned.sharedMaterials = EnsureSkinMaterials(skinned.sharedMaterials, speciesKey, shader, tint, tintStrength);
+                var skinRegions = RegionColors(skinned.sharedMaterials, tint, tintStrength);
+                skinned.sharedMesh = EnsureBakedMesh(skinned.sharedMesh, speciesKey, shape, skinned.bones, skinRegions, accent);
+                skinned.sharedMaterials = EnsureSkinMaterials(skinned.sharedMaterials, speciesKey, shader);
             }
 
             // Not every creature in the roster is necessarily skinned — a static prop rigged as a
@@ -89,8 +92,9 @@ namespace DinoBattle.EditorTools
                 if (!filter.TryGetComponent<MeshRenderer>(out var renderer)) continue;
 
                 // No shape pass: reshaping is driven by bone weights, and an unskinned mesh has none.
-                filter.sharedMesh = EnsureBakedMesh(filter.sharedMesh, speciesKey, null, null);
-                renderer.sharedMaterials = EnsureSkinMaterials(renderer.sharedMaterials, speciesKey, shader, tint, tintStrength);
+                var meshRegions = RegionColors(renderer.sharedMaterials, tint, tintStrength);
+                filter.sharedMesh = EnsureBakedMesh(filter.sharedMesh, speciesKey, null, null, meshRegions, accent);
+                renderer.sharedMaterials = EnsureSkinMaterials(renderer.sharedMaterials, speciesKey, shader);
             }
         }
 
@@ -100,7 +104,8 @@ namespace DinoBattle.EditorTools
         /// A copy because the original lives inside the .fbx and cannot be written to. The copies are
         /// cached as assets, so this is a one-off cost per species rather than per prefab rebuild.
         /// </summary>
-        private static Mesh EnsureBakedMesh(Mesh source, string speciesKey, BodyShape shape, Transform[] bones)
+        private static Mesh EnsureBakedMesh(Mesh source, string speciesKey, BodyShape shape, Transform[] bones,
+            Color[] regionColors, Color accent)
         {
             if (source == null) return null;
 
@@ -119,7 +124,7 @@ namespace DinoBattle.EditorTools
                 foreach (var part in shape.Parts) ScaleBoneGroup(baked, bones, part.Bones, part.Scale);
             }
 
-            baked.colors = BakeVertexColors(baked, speciesKey);
+            baked.colors = BakeVertexColors(baked, speciesKey, regionColors, accent);
 
             AssetDatabase.CreateAsset(baked, path);
             return baked;
@@ -233,22 +238,18 @@ namespace DinoBattle.EditorTools
         /// Counter-shading — dark above, pale below — is the single most common colour pattern in
         /// land animals, and it is what makes a shape read as a real creature rather than a toy.
         /// </summary>
-        private static Color[] BakeVertexColors(Mesh mesh, string speciesKey)
+        private static Color[] BakeVertexColors(Mesh mesh, string speciesKey, Color[] regionColors, Color accent)
         {
             var vertices = mesh.vertices;
             var colors = new Color[vertices.Length];
             var bounds = mesh.bounds;
+            var regionOf = MapVerticesToSubmeshes(mesh);
 
-            // Per-species offset so two species do not end up wearing identical stripes.
+            // Per-species offset so two species do not end up wearing identical markings.
             float phase = (Mathf.Abs(speciesKey.GetHashCode()) % 1000) * 0.01f;
 
-            // Everything below works in NORMALISED mesh space — 0 to 1 across the model's own bounds
-            // — not in absolute units.
-            //
-            // This was the bug that made every creature look plain. The frequencies were per world
-            // unit, but these meshes are authored tiny and scaled up on the prefab: a body is about
-            // 0.15 units long, so "2.3 bands per unit" worked out at a third of one band across the
-            // whole animal. The pattern code ran on every creature and produced nothing to see.
+            // Normalised mesh space. These meshes are authored tiny and scaled up on the prefab, so
+            // anything measured in world units produced less than one band across a whole animal.
             Vector3 span = new(
                 Mathf.Max(0.0001f, bounds.size.x),
                 Mathf.Max(0.0001f, bounds.size.y),
@@ -263,30 +264,43 @@ namespace DinoBattle.EditorTools
                     (v.y - bounds.min.y) / span.y,
                     (v.z - bounds.min.z) / span.z);
 
+                Color region = regionColors != null && regionOf[i] < regionColors.Length
+                    ? regionColors[regionOf[i]]
+                    : Color.grey;
+
                 float dorsal = Mathf.SmoothStep(0f, 1f, n.y);
 
-                // Counter-shading: pale warm belly, dark cool back. The commonest colour scheme in
-                // land animals and the one that most makes a shape read as alive.
-                Color belly = new(1f, 0.95f, 0.84f);
-                Color back = new(DorsalShade, DorsalShade * 1.06f, DorsalShade * 0.84f);
-                Color tone = Color.Lerp(belly, back, dorsal);
-
-                // Cross-body bands, strongest along the spine and gone by the belly. Now counted
-                // across the body rather than per unit, so a creature actually gets BandCount of them.
+                // Markings are a LERP toward a different colour, not a multiply. That is the whole
+                // difference between a patterned animal and a plain one with shadows on it: a stripe
+                // has to be able to be brighter and a different hue than what it crosses, which a
+                // multiply can never produce.
                 float wave = Mathf.Sin(n.z * BandCount * Mathf.PI * 2f + phase) * 0.5f + 0.5f;
-                float band = Mathf.SmoothStep(0.4f, 0.92f, wave) * dorsal;
-                tone *= Mathf.Lerp(1f, BandShade, band);
+                // Narrow bands. The window has to be tight or the "stripe" covers most of the body:
+                // at 0.42-0.9 combined with blotching the accent summed past 1 over large areas and
+                // saturated, turning every creature a solid accent colour — the exact single-colour
+                // look this is meant to break.
+                float band = SmoothThreshold(0.62f, 0.86f, wave) * Mathf.Lerp(0.3f, 1f, dorsal);
 
-                // Irregular blotching, on top of the regular bands. Bands alone read as a painted
-                // pattern; real hide has large soft patches that ignore the banding, and the two
-                // together are what stops it looking printed on.
-                float blotch = Blotch(n, phase);
-                tone = MultiplyRgb(tone, Color.Lerp(Color.white, BlotchTint, blotch * BlotchStrength));
+                float blotch = SmoothThreshold(0.62f, 0.88f, Blotch(n, phase));
 
-                // A warm throat and jaw, which most reptiles and birds have and which gives the head
-                // somewhere brighter than the body to read against.
-                float throat = Mathf.SmoothStep(0.75f, 1f, n.z) * (1f - dorsal);
-                tone = MultiplyRgb(tone, Color.Lerp(Color.white, ThroatTint, throat));
+                // Bounded, and a maximum rather than a sum.
+                //
+                // Adding the two let them saturate: on some species the blotch field sat high across
+                // the whole body, the total passed 1 everywhere, and the creature came out solid
+                // accent — the single-colour look this exists to prevent, just in a different colour.
+                // A capped maximum means the markings can never fully cover the hide, whatever the
+                // noise happens to do on a given mesh.
+                float marking = Mathf.Max(band, blotch * 0.7f) * MarkingCoverage;
+
+                Color tone = Color.Lerp(region, accent, marking);
+
+                // Counter-shading on top: pale belly, darker spine. Applied after the markings so it
+                // shades the pattern rather than replacing it, which is how real hide reads.
+                tone *= Mathf.Lerp(1.25f, DorsalShade, dorsal);
+
+                // A brighter throat and jaw, as most reptiles and birds have.
+                float throat = SmoothThreshold(0.78f, 1f, n.z) * (1f - dorsal);
+                tone = Color.Lerp(tone, ThroatColor, throat * 0.7f);
 
                 // Fine noise so large flat panels do not look moulded.
                 tone *= 1f - Mottle * Hash01(v);
@@ -295,6 +309,23 @@ namespace DinoBattle.EditorTools
             }
 
             return colors;
+        }
+
+        /// <summary>
+        /// A real threshold curve: 0 below <paramref name="edge0"/>, 1 above <paramref name="edge1"/>,
+        /// smooth between.
+        ///
+        /// Not Mathf.SmoothStep, which despite the name is NOT the shader function of the same name.
+        /// Unity's takes (from, to, t) and interpolates BETWEEN from and to — so SmoothStep(0.68,
+        /// 0.95, x) returns something in 0.68..0.95 and never approaches zero. Used as a threshold it
+        /// silently made every marking cover the entire body: measured mean 0.80 for a field whose
+        /// raw value averaged 0.47, which is why creatures kept coming out one solid accent colour
+        /// however the weights were tuned.
+        /// </summary>
+        private static float SmoothThreshold(float edge0, float edge1, float x)
+        {
+            float t = Mathf.Clamp01(Mathf.InverseLerp(edge0, edge1, x));
+            return t * t * (3f - 2f * t);
         }
 
         /// <summary>
@@ -312,14 +343,6 @@ namespace DinoBattle.EditorTools
             return Mathf.Clamp01(Mathf.InverseLerp(-1.3f, 1.3f, a + b * 0.7f));
         }
 
-        /// <summary>
-        /// Per-channel multiply. Tints here deliberately carry channels above 1 so a patch can
-        /// brighten as well as darken; Color's own operator would be fine, but naming it makes the
-        /// intent obvious next to the Lerps.
-        /// </summary>
-        private static Color MultiplyRgb(Color a, Color b) =>
-            new(a.r * b.r, a.g * b.g, a.b * b.b, 1f);
-
         /// <summary>Deterministic 0..1 noise from a position. Same vertex, same value, every rebuild.</summary>
         private static float Hash01(Vector3 v)
         {
@@ -327,8 +350,20 @@ namespace DinoBattle.EditorTools
             return h - Mathf.Floor(h);
         }
 
-        private static Material[] EnsureSkinMaterials(
-            Material[] sources, string speciesKey, Shader shader, Color? tint, float tintStrength)
+        /// <summary>
+        /// One white material per region, so the vertex stream decides the colour outright.
+        ///
+        /// This is the change that made real patterning possible. The shader multiplies material
+        /// colour by vertex colour, and vertex colours are clamped to 0..1 — so while the material
+        /// carried the hue, the vertex stream could only ever darken it. Bands and blotches came out
+        /// as shadows on one flat colour, which is exactly the "single colour" problem. With the
+        /// material at white the multiply is the identity and the baked colours pass through
+        /// untouched, so a green flank and an orange stripe can sit on the same mesh.
+        ///
+        /// The materials still exist per region because the renderer needs one per submesh, and
+        /// keeping them distinct leaves room to give a region its own shader settings later.
+        /// </summary>
+        private static Material[] EnsureSkinMaterials(Material[] sources, string speciesKey, Shader shader)
         {
             var result = new Material[sources.Length];
 
@@ -347,17 +382,55 @@ namespace DinoBattle.EditorTools
                 }
 
                 material.shader = shader;
-
-                Color regionColor = Readable(source.color);
-                if (tint.HasValue) regionColor = Color.Lerp(regionColor, tint.Value, tintStrength);
-                material.color = regionColor;
-
+                material.color = Color.white;
                 EditorUtility.SetDirty(material);
 
                 result[i] = material;
             }
 
             return result;
+        }
+
+        /// <summary>
+        /// The colour each submesh's vertices start from, before shading and markings.
+        ///
+        /// Read off the imported materials so the pack's own region split — dark claws, a paler jaw,
+        /// a coloured crest — survives, then lifted for legibility and pulled toward the species tint.
+        /// </summary>
+        private static Color[] RegionColors(Material[] sources, Color? tint, float tintStrength)
+        {
+            var colors = new Color[sources.Length];
+
+            for (int i = 0; i < sources.Length; i++)
+            {
+                Color region = sources[i] != null ? Readable(sources[i].color) : Color.grey;
+                if (tint.HasValue) region = Color.Lerp(region, tint.Value, tintStrength);
+
+                colors[i] = region;
+            }
+
+            return colors;
+        }
+
+        /// <summary>
+        /// Which submesh drives each vertex, so a baked colour can respect the model's own regions.
+        /// Vertices shared between submeshes take whichever is resolved last; on these models that is
+        /// a handful of seam vertices and invisible in the result.
+        /// </summary>
+        private static int[] MapVerticesToSubmeshes(Mesh mesh)
+        {
+            var map = new int[mesh.vertexCount];
+
+            for (int submesh = 0; submesh < mesh.subMeshCount; submesh++)
+            {
+                var indices = mesh.GetTriangles(submesh);
+                foreach (int index in indices)
+                {
+                    if (index >= 0 && index < map.Length) map[index] = submesh;
+                }
+            }
+
+            return map;
         }
 
         /// <summary>

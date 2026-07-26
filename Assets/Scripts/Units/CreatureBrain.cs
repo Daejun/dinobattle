@@ -240,10 +240,17 @@ namespace DinoBattle.Units
             // escape hatch needed the target to be 8+ units off before it would reconsider, so
             // surrounded by enemies it never triggered. Reachability, not absolute distance, is what
             // decides whether chasing is even sensible.
-            if (attack != null && !attack.IsInRange(target))
+            // Two ways the current target can be the wrong one to be looking at, and both need
+            // covering. Out of reach is the obvious case. The other is being surrounded: the target
+            // is well within reach but standing behind you, and only checking reachability missed it
+            // entirely — a boss ringed by ten hunters always had its target in range, so it never
+            // reconsidered and spent the fight turning on the spot. Measured at 3 swings against the
+            // pack's 53 before this.
+            if (attack != null && (!attack.IsInRange(target, Current == State.Attack)
+                                   || FacingErrorTo(target) > lungeAttackAngle))
             {
                 var reachable = BestEnemyInReach();
-                if (reachable != null)
+                if (reachable != null && reachable != target)
                 {
                     target = reachable;
                     return;

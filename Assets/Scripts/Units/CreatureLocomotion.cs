@@ -211,8 +211,21 @@ namespace DinoBattle.Units
                 Quaternion eased = Quaternion.Slerp(
                     transform.rotation, desired, 1f - Mathf.Exp(-turnSharpness * Time.deltaTime));
 
-                transform.rotation = Quaternion.RotateTowards(
-                    transform.rotation, eased, rate * Time.deltaTime);
+                Quaternion next = Quaternion.RotateTowards(transform.rotation, eased, rate * Time.deltaTime);
+
+                // Through the Rigidbody, not the Transform.
+                //
+                // Interpolation is on, so the physics pose is authoritative: every frame the
+                // interpolator restores the transform toward it, and a rotation written straight to
+                // the Transform is quietly undone. With freezeRotation the physics rotation never
+                // changes on its own, so the two fought to a standstill — measured at 0.9 degrees of
+                // progress over 688 frames.
+                //
+                // That was the deadlock behind mid-fight standoffs. Creatures brake on contact, a
+                // braked creature cannot turn, so it never lines up, so it never swings, so it stays
+                // braked. Everything froze in place a few seconds into every fight.
+                if (body != null) body.rotation = next;
+                else transform.rotation = next;
             }
 
             return Quaternion.Angle(transform.rotation, desired);
