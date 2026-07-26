@@ -528,6 +528,11 @@ namespace DinoBattle.EditorTools
             var rig = cameraObject.AddComponent<OrbitCameraController>();
             cameraObject.AddComponent<BattleCameraDirector>();
 
+            // Tapping a creature points the director at it. Added after a four-year-old's playtest:
+            // the automatic framing follows the densest fighting and kept swinging away from the one
+            // dinosaur he was trying to watch.
+            cameraObject.AddComponent<CreatureFocusPicker>();
+
             // Tie the pan bounds to the arena instead of leaving the component default, which was
             // sized for the old, larger field and would let the player pan off into empty ground.
             var rigSerialized = new SerializedObject(rig);

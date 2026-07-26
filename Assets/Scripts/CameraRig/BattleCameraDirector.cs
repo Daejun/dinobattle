@@ -60,6 +60,12 @@ namespace DinoBattle.CameraRig
         [Range(0.3f, 1f)]
         [SerializeField] private float framingCoverage = 0.8f;
 
+        [Tooltip("Framing radius for a creature the player tapped, as a multiple of its footprint. " +
+                 "Larger than the victory shot's, because a creature in a fight needs its opponent in " +
+                 "frame too.")]
+        [Range(1f, 8f)]
+        [SerializeField] private float followFramingFactor = 4f;
+
         [Header("Victory shot")]
         [Tooltip("Closest the victory shot will frame, whatever the survivor's size. Stops a raptor " +
                  "from filling the screen with one thigh.")]
@@ -91,10 +97,36 @@ namespace DinoBattle.CameraRig
         /// <summary>Measured creature heights. Renderer bounds are not cheap enough to query per frame.</summary>
         private readonly Dictionary<CreatureUnit, float> heightCache = new();
 
+        /// <summary>
+        /// A creature the player tapped and wants kept on screen, or null for automatic framing.
+        /// Set by <see cref="CreatureFocusPicker"/>.
+        /// </summary>
+        private CreatureUnit followed;
+
         private void Awake()
         {
             rig = GetComponent<OrbitCameraController>();
         }
+
+        /// <summary>
+        /// Keep <paramref name="unit"/> on screen until told otherwise. Null returns to auto-framing.
+        ///
+        /// The automatic framing points at wherever the fighting is thickest, which is the right
+        /// default and the wrong answer once the player has picked someone to care about — a
+        /// four-year-old testing this said "내가 티라노 보고 있는데 화면이 저쪽으로 가버려".
+        /// </summary>
+        public void Follow(CreatureUnit unit)
+        {
+            followed = unit;
+
+            // Snap rather than sweep. The chosen creature can be right across the arena, and easing
+            // there drags the shot through everything in between — the same reason a kill that moves
+            // the centroid a long way snaps instead of gliding.
+            if (unit != null) hasFraming = false;
+        }
+
+        /// <summary>The creature the player asked to watch, or null. Exposed so the HUD can show it.</summary>
+        public CreatureUnit Followed => followed != null && !followed.IsDead ? followed : null;
 
         private void Start()
         {
@@ -111,6 +143,9 @@ namespace DinoBattle.CameraRig
             {
                 lastPhase = battleManager.Phase;
                 if (lastPhase != BattlePhase.Finished) victor = null;
+
+                // A new match has new creatures; the old pick is a dead reference either way.
+                followed = null;
             }
 
             if (Time.unscaledTime - rig.LastManualInputTime < manualControlGrace) return;
@@ -124,13 +159,39 @@ namespace DinoBattle.CameraRig
                     return;
 
                 case BattlePhase.Fighting:
-                    FrameCombatants();
+                    // A creature the player chose outranks the automatic framing, but only while it
+                    // is alive — following a corpse would strand the camera on the one thing that has
+                    // stopped being interesting, so death hands the shot back to the fight.
+                    if (Followed != null) FrameFollowed(Followed);
+                    else FrameCombatants();
                     return;
 
                 case BattlePhase.Finished:
                     FrameVictor();
                     return;
             }
+        }
+
+        /// <summary>
+        /// Hold the shot on one creature the player picked, sized to that creature.
+        /// </summary>
+        private void FrameFollowed(CreatureUnit unit)
+        {
+            if (!heightCache.TryGetValue(unit, out float height))
+            {
+                height = MeasureHeight(unit);
+                heightCache[unit] = height;
+            }
+
+            Vector3 center = unit.transform.position;
+            center.y = height * 0.5f;
+
+            // Wider than the victory shot on purpose: this is a creature in a fight, and framing it
+            // as tightly as a winner standing alone would crop out whatever it is fighting.
+            float footprint = unit.Definition != null ? unit.Definition.footprintRadius : 1f;
+            float radius = Mathf.Max(footprint * followFramingFactor, height * 0.7f);
+
+            ApplyFraming(center, radius, minimumFocusRadius);
         }
 
         /// <summary>
