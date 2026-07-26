@@ -21,10 +21,21 @@ namespace DinoBattle.EditorTools
             /// <summary>Per-axis multiplier, in mesh space, about each vertex's driving bone.</summary>
             public readonly Vector3 Scale;
 
-            public Part(string[] bones, Vector3 scale)
+            /// <summary>
+            /// How much to concentrate the effect toward the TOP of this part, 0 for none.
+            ///
+            /// Exists because the rig has one Head bone and no separate brow. Scaling it evenly
+            /// inflates the jaw as much as the skull roof, which reads as a swollen face rather than
+            /// a heavy brow. Weighting by height within the part's own vertex extent raises the
+            /// forehead and leaves the snout alone, with no extra bones required.
+            /// </summary>
+            public readonly float UpperBias;
+
+            public Part(string[] bones, Vector3 scale, float upperBias = 0f)
             {
                 Bones = bones;
                 Scale = scale;
+                UpperBias = upperBias;
             }
         }
 
@@ -51,9 +62,23 @@ namespace DinoBattle.EditorTools
         {
             Parts = new[]
             {
-                new Part(new[] { "Head" }, new Vector3(1.75f, 1.45f, 1.55f)),
-                new Part(new[] { "FrontLeg", "FrontUpLeg", "FrontLowLeg", "FrontFoot" }, new Vector3(2.4f, 2.4f, 3.0f)),
+                // Skull: broad, but not evenly. The width is the Majungasaurus note from the design
+                // description; the separate biased pass above it is the brow ridge and horns.
+                new Part(new[] { "Head" }, new Vector3(1.7f, 1.25f, 1.45f)),
+                new Part(new[] { "Head" }, new Vector3(1.15f, 1.5f, 1.1f), upperBias: 0.85f),
+
+                // Arms long and heavy — the Therizinosaurus-like forelimbs are the silhouette people
+                // recognise. The hand is deliberately NOT in this group: inheriting the full arm
+                // scale gave it shovels for claws.
+                new Part(new[] { "FrontLeg", "FrontUpLeg", "FrontLowLeg" }, new Vector3(2.4f, 2.4f, 3.0f)),
+                new Part(new[] { "FrontFoot" }, new Vector3(1.25f, 1.25f, 1.25f)),
+
                 new Part(new[] { "Neck" }, new Vector3(1.3f, 1.3f, 1.15f)),
+
+                // Tail thickened, not lengthened. It was left at T-Rex proportions under a much
+                // bulkier body, which made the animal look like it was wearing someone else's tail.
+                new Part(new[] { "Tail1", "Tail2", "Tail3" }, new Vector3(1.55f, 1.55f, 1f)),
+                new Part(new[] { "Tail4", "Tail5" }, new Vector3(1.3f, 1.3f, 1f)),
             }
         };
     }

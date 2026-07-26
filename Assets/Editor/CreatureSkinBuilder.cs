@@ -121,7 +121,7 @@ namespace DinoBattle.EditorTools
             // shading has to be computed against the silhouette the creature will actually have.
             if (shape != null && bones != null)
             {
-                foreach (var part in shape.Parts) ScaleBoneGroup(baked, bones, part.Bones, part.Scale);
+                foreach (var part in shape.Parts) ScaleBoneGroup(baked, bones, part);
             }
 
             baked.colors = BakeVertexColors(baked, speciesKey, regionColors, accent);
@@ -147,7 +147,7 @@ namespace DinoBattle.EditorTools
         /// Only positions change, so bone weights, bind poses and the triangle list stay valid and
         /// the mesh animates exactly as it did before.
         /// </summary>
-        private static void ScaleBoneGroup(Mesh mesh, Transform[] bones, string[] nameContains, Vector3 scale)
+        private static void ScaleBoneGroup(Mesh mesh, Transform[] bones, BodyShape.Part part)
         {
             var group = new System.Collections.Generic.Dictionary<int, Vector3>();
 
@@ -155,7 +155,7 @@ namespace DinoBattle.EditorTools
             {
                 if (bones[i] == null) continue;
 
-                foreach (string fragment in nameContains)
+                foreach (string fragment in part.Bones)
                 {
                     if (bones[i].name.IndexOf(fragment, System.StringComparison.OrdinalIgnoreCase) < 0) continue;
 
@@ -172,16 +172,40 @@ namespace DinoBattle.EditorTools
             var vertices = mesh.vertices;
             if (weights.Length != vertices.Length) return;
 
+            // The part's own vertical extent, so an upper bias means "the top of THIS part" rather
+            // than the top of the whole animal.
+            float lowest = float.MaxValue;
+            float highest = float.MinValue;
+
+            if (part.UpperBias > 0f)
+            {
+                for (int i = 0; i < vertices.Length; i++)
+                {
+                    if (!TryResolveGroup(weights[i], group, out float share, out _) || share <= 0.5f) continue;
+
+                    lowest = Mathf.Min(lowest, vertices[i].y);
+                    highest = Mathf.Max(highest, vertices[i].y);
+                }
+            }
+
+            float extent = Mathf.Max(0.0001f, highest - lowest);
+
             for (int i = 0; i < vertices.Length; i++)
             {
                 if (!TryResolveGroup(weights[i], group, out float influence, out Vector3 pivot)) continue;
 
+                if (part.UpperBias > 0f)
+                {
+                    float height = Mathf.Clamp01((vertices[i].y - lowest) / extent);
+                    influence *= Mathf.Lerp(1f, height * height, part.UpperBias);
+                }
+
                 Vector3 offset = vertices[i] - pivot;
 
                 vertices[i] = pivot + new Vector3(
-                    offset.x * (1f + (scale.x - 1f) * influence),
-                    offset.y * (1f + (scale.y - 1f) * influence),
-                    offset.z * (1f + (scale.z - 1f) * influence));
+                    offset.x * (1f + (part.Scale.x - 1f) * influence),
+                    offset.y * (1f + (part.Scale.y - 1f) * influence),
+                    offset.z * (1f + (part.Scale.z - 1f) * influence));
             }
 
             mesh.vertices = vertices;

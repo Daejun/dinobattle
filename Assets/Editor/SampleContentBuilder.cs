@@ -64,6 +64,8 @@ namespace DinoBattle.EditorTools
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
 
+            ForceReimportPrefabs();
+
             Debug.Log($"[SampleContentBuilder] Generated {definitions.Count} creatures and " +
                       $"{bosses.Count} boss(es).");
             Selection.activeObject = roster;
@@ -491,6 +493,27 @@ namespace DinoBattle.EditorTools
         {
             var existing = target.GetComponent<T>();
             return existing != null ? existing : target.AddComponent<T>();
+        }
+
+        /// <summary>
+        /// Reimport every generated prefab, so what the editor reports matches what was just written.
+        ///
+        /// Without this, clearing the baked-mesh cache and regenerating left the editor holding the
+        /// prefabs as they were before: they read back with a null mesh and null materials while the
+        /// files on disk were perfectly correct. That is indistinguishable from generation having
+        /// failed, and it cost several rounds of chasing a bug that was not there — and once it
+        /// reached play mode, where every creature spawned invisible.
+        ///
+        /// SaveAssets and Refresh are not enough on their own: they flush writes and rescan the
+        /// folder, but leave already-loaded prefab instances alone.
+        /// </summary>
+        private static void ForceReimportPrefabs()
+        {
+            foreach (string guid in AssetDatabase.FindAssets("t:Prefab", new[] { PrefabPath }))
+            {
+                AssetDatabase.ImportAsset(
+                    AssetDatabase.GUIDToAssetPath(guid), ImportAssetOptions.ForceUpdate);
+            }
         }
 
         /// <summary>Create or overwrite a roster asset listing exactly these definitions.</summary>
