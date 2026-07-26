@@ -138,7 +138,7 @@ changed and why. The models never came from Universal, only the names did, and t
 
 ## Music
 
-Both tracks by **cynicmusic** (cynicmusic.com / pixelsphere.org), **CC0 1.0 Universal**, from
+The first two by **cynicmusic** (cynicmusic.com / pixelsphere.org), **CC0 1.0 Universal**, from
 OpenGameArt. CC0 requires no attribution; recorded here because this file is the only record of
 where anything came from.
 
@@ -146,6 +146,7 @@ where anything came from.
 |---|---|---|
 | `music_placement.mp3` | [enchanted tiki 86](https://opengameart.org/content/enchanted-tiki-86) | CC0 |
 | `music_battle.mp3` | [Battle Theme A](https://opengameart.org/content/battle-theme-a) | CC0 |
+| `music_victory.mp3` | [Happy Adventure (Loop)](https://opengameart.org/content/happy-adventure-loop) by **TinyWorlds** | CC0 |
 
 The tiki track for the setup screen because the arena is a jungle and it is the only thing in the
 CC0 catalogue that sounds like one.
@@ -157,6 +158,16 @@ Added after a four-year-old's playtest found the game completely silent: "노래
 [`FanfareBuilder.cs`](Assets/Editor/FanfareBuilder.cs). A major triad climbing to the octave plus a
 noise cymbal, which is well inside what a few oscillators can do, unlike the creature voices that
 had to be real recordings. No licence, no download, no fourth-party file.
+
+## App icon
+
+Not a downloaded asset. [`AppIconBuilder.cs`](Assets/Editor/AppIconBuilder.cs) points a camera at
+the game's own T-Rex prefab and photographs its head, then writes the adaptive, round and legacy
+Android icon sets from that render.
+
+Rendered rather than drawn because a launcher icon is the game's face, and a hand-drawn dinosaur
+would promise an animal the game does not contain. It also means the icon follows the creature: change
+the T-Rex's colours or proportions and re-run the menu item.
 
 ## UI icons
 

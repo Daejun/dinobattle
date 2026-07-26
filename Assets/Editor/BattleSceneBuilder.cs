@@ -102,6 +102,8 @@ namespace DinoBattle.EditorTools
                 AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Audio/Music/music_placement.mp3");
             musicSerialized.FindProperty("battleTrack").objectReferenceValue =
                 AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Audio/Music/music_battle.mp3");
+            musicSerialized.FindProperty("victoryTrack").objectReferenceValue =
+                AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Audio/Music/music_victory.mp3");
             musicSerialized.ApplyModifiedPropertiesWithoutUndo();
 
             var celebration = host.AddComponent<VictoryCelebration>();

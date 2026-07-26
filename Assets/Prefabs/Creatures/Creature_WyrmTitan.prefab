@@ -18,6 +18,7 @@ GameObject:
   - component: {fileID: 6103198235598477995}
   - component: {fileID: 7718668341053904689}
   - component: {fileID: 62631903321687549}
+  - component: {fileID: 2062965503567973937}
   - component: {fileID: 4337225875114592475}
   m_Layer: 0
   m_Name: Creature_WyrmTitan
@@ -265,6 +266,23 @@ MonoBehaviour:
   maximumShove: 12
   impactCooldown: 1.4
   scanInterval: 0.06
+--- !u!114 &2062965503567973937
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4993277790968026523}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0ef77455a0703794589a2bb2b61ce99c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DinoBattle.Units.VictoryDance
+  tempo: 2.2
+  hopHeight: 0.13
+  sway: 14
+  spin: 55
+  animatorSpeed: 0.45
 --- !u!82 &4337225875114592475
 AudioSource:
   m_ObjectHideFlags: 0

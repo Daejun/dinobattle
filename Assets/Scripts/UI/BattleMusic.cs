@@ -26,6 +26,9 @@ namespace DinoBattle.UI
         [Tooltip("Plays while creatures are fighting.")]
         [SerializeField] private AudioClip battleTrack;
 
+        [Tooltip("Plays over the result screen while the winners dance.")]
+        [SerializeField] private AudioClip victoryTrack;
+
         [Tooltip("Target volume. Well under 1 — this sits under roars and bites, which are the sounds " +
                  "that actually carry information about the fight.")]
         [Range(0f, 1f)]
@@ -34,10 +37,24 @@ namespace DinoBattle.UI
         [Tooltip("Seconds to crossfade between tracks.")]
         [SerializeField] private float crossfade = 1.2f;
 
+        [Tooltip("Crossfade used when the victory track comes in. Much shorter than the others: the " +
+                 "winners start dancing immediately, and a leisurely fade under a 1.5s fanfare left " +
+                 "the celebration music barely audible for the first couple of seconds of it.")]
+        [SerializeField] private float victoryCrossfade = 0.3f;
+
+        [Tooltip("Volume for the victory track. Above the others — this one is meant to be the point " +
+                 "of the moment rather than a bed under it.")]
+        [Range(0f, 1f)]
+        [SerializeField] private float victoryVolume = 0.6f;
+
         private AudioSource active;
         private AudioSource fading;
         private AudioClip wanted;
         private float fadeProgress = 1f;
+
+        /// <summary>Fade length and target volume for the transition currently running.</summary>
+        private float activeFadeLength;
+        private float activeVolume;
 
         private BattleManager battleManager;
 
@@ -98,22 +115,35 @@ namespace DinoBattle.UI
             HandlePhase(battleManager.Phase);
         }
 
+        /// <summary>True while a track is playing at audible volume — used to verify continuity.</summary>
+        public bool IsPlaying => active != null && active.isPlaying && active.volume > 0.001f;
+
         private void HandlePhase(BattlePhase phase)
         {
-            // Finished keeps the battle track rather than snapping back: the result screen lands
-            // within a second of the last kill, and swapping tracks on top of the victory fanfare
-            // makes both sound like mistakes.
-            AudioClip next = phase == BattlePhase.Fighting || phase == BattlePhase.Finished
-                ? battleTrack
-                : placementTrack;
+            AudioClip next = phase switch
+            {
+                BattlePhase.Fighting => battleTrack,
 
-            Play(next);
+                // Winning gets its own tune. This used to hold the battle track on the grounds that
+                // swapping on top of the fanfare made both sound like mistakes — true, but the
+                // answer was to crossfade rather than to leave combat music playing over a
+                // celebration. The result screen is where the winners dance.
+                BattlePhase.Finished => victoryTrack != null ? victoryTrack : battleTrack,
+
+                _ => placementTrack,
+            };
+
+            bool victory = phase == BattlePhase.Finished && victoryTrack != null;
+            Play(next, victory ? victoryCrossfade : crossfade, victory ? victoryVolume : volume);
         }
 
-        private void Play(AudioClip clip)
+        private void Play(AudioClip clip, float fadeLength, float targetVolume)
         {
             if (clip == null || clip == wanted) return;
+
             wanted = clip;
+            activeFadeLength = fadeLength;
+            activeVolume = targetVolume;
 
             // Swap the roles: whatever was playing becomes the one fading out.
             (active, fading) = (fading, active);
@@ -131,11 +161,11 @@ namespace DinoBattle.UI
 
             if (fadeProgress >= 1f) return;
 
-            fadeProgress = crossfade <= 0f
+            fadeProgress = activeFadeLength <= 0f
                 ? 1f
-                : Mathf.Clamp01(fadeProgress + Time.unscaledDeltaTime / crossfade);
+                : Mathf.Clamp01(fadeProgress + Time.unscaledDeltaTime / activeFadeLength);
 
-            active.volume = volume * fadeProgress;
+            active.volume = activeVolume * fadeProgress;
             fading.volume = volume * (1f - fadeProgress);
 
             if (fadeProgress < 1f) return;

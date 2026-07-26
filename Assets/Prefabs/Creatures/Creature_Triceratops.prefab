@@ -251,6 +251,7 @@ GameObject:
   - component: {fileID: 8051403156637025073}
   - component: {fileID: 8479418073045074249}
   - component: {fileID: 8663214090885601358}
+  - component: {fileID: 2996791771915922267}
   - component: {fileID: 909377601474878627}
   m_Layer: 0
   m_Name: Creature_Triceratops
@@ -498,6 +499,23 @@ MonoBehaviour:
   maximumShove: 12
   impactCooldown: 1.4
   scanInterval: 0.06
+--- !u!114 &2996791771915922267
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3233858342231755087}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0ef77455a0703794589a2bb2b61ce99c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DinoBattle.Units.VictoryDance
+  tempo: 2.2
+  hopHeight: 0.13
+  sway: 14
+  spin: 55
+  animatorSpeed: 0.45
 --- !u!82 &909377601474878627
 AudioSource:
   m_ObjectHideFlags: 0

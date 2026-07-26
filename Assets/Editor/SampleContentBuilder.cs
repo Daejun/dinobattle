@@ -161,6 +161,9 @@ namespace DinoBattle.EditorTools
             // Body-to-body shoves. Needs the Rigidbody and collider added above it.
             EnsureComponent<CreatureImpact>(root);
 
+            // Celebrates if this creature is on the winning side. Inert until then.
+            EnsureComponent<VictoryDance>(root);
+
             // Real art if the pack has been imported, blocked-out primitives otherwise. Keeping both
             // paths here means one generator owns the prefab and re-running the menu never wipes art.
             Animator animator = AttachModelVisual(root, blueprint, safeName);

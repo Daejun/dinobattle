@@ -63,6 +63,15 @@ namespace DinoBattle.UI
         [SerializeField] private Image redHealthFill;
         [SerializeField] private Image blueHealthFill;
 
+        [Tooltip("Narrowest a team bar is allowed to get while that team still has anything alive. " +
+                 "Without a floor the bar disappears precisely when the match is at its most " +
+                 "interesting.")]
+        [Range(0f, 0.3f)]
+        [SerializeField] private float minimumTeamFill = 0.08f;
+
+        private Color redBaseColor;
+        private Color blueBaseColor;
+
         [Header("Result")]
         [SerializeField] private Text winnerLabel;
 
@@ -291,8 +300,41 @@ namespace DinoBattle.UI
         {
             if (battleManager == null) return;
 
-            if (redHealthFill != null) redHealthFill.fillAmount = battleManager.TeamHealthFraction(Team.Red);
-            if (blueHealthFill != null) blueHealthFill.fillAmount = battleManager.TeamHealthFraction(Team.Blue);
+            ApplyTeamHealth(redHealthFill, ref redBaseColor, battleManager.TeamHealthFraction(Team.Red));
+            ApplyTeamHealth(blueHealthFill, ref blueBaseColor, battleManager.TeamHealthFraction(Team.Blue));
+        }
+
+        /// <summary>
+        /// Drive one team bar so that a team on its last legs is MORE visible, not less.
+        ///
+        /// Mapping the fraction straight onto fillAmount made the bar vanish exactly when it mattered
+        /// most: a team on 3% drew a three-percent-wide sliver, which reads as an empty trough rather
+        /// than as a team about to lose. That is backwards — the closer a side is to dying, the more
+        /// the player wants to see it.
+        ///
+        /// Two changes. The width stops shrinking at a floor while anything is still alive, so there
+        /// is always a bar to look at. And the colour brightens as it drops, so the floor does not
+        /// just become a permanent stub that means nothing: a full bar sits at its team colour, a
+        /// nearly-dead one glows.
+        ///
+        /// Zero is still zero. A wiped-out team gets an empty trough, because at that point the
+        /// information is that they are gone.
+        /// </summary>
+        private void ApplyTeamHealth(Image fill, ref Color baseColor, float fraction)
+        {
+            if (fill == null) return;
+
+            // Captured on first use rather than in Awake: the scene builder sets these colours, and
+            // reading them here keeps the team hues defined in exactly one place.
+            if (baseColor.a <= 0f) baseColor = fill.color;
+
+            fill.fillAmount = fraction <= 0f
+                ? 0f
+                : Mathf.Max(fraction, minimumTeamFill);
+
+            // Ramp hardest over the last quarter, where the sliver problem actually bit.
+            float urgency = 1f - Mathf.Clamp01(fraction / 0.25f);
+            fill.color = Color.Lerp(baseColor, Color.Lerp(baseColor, Color.white, 0.55f), urgency);
         }
 
         // ---------------------------------------------------------------- helpers

@@ -18,6 +18,7 @@ GameObject:
   - component: {fileID: 3822878787620081565}
   - component: {fileID: 8279515724848034016}
   - component: {fileID: 2242353867402914076}
+  - component: {fileID: 5740138186212714743}
   - component: {fileID: 2836085827534638850}
   m_Layer: 0
   m_Name: Creature_BioTRex
@@ -265,6 +266,23 @@ MonoBehaviour:
   maximumShove: 12
   impactCooldown: 1.4
   scanInterval: 0.06
+--- !u!114 &5740138186212714743
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 280449492566712496}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0ef77455a0703794589a2bb2b61ce99c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DinoBattle.Units.VictoryDance
+  tempo: 2.2
+  hopHeight: 0.13
+  sway: 14
+  spin: 55
+  animatorSpeed: 0.45
 --- !u!82 &2836085827534638850
 AudioSource:
   m_ObjectHideFlags: 0
