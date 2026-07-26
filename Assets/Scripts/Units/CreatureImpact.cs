@@ -104,6 +104,14 @@ namespace DinoBattle.Units
 
         private void ScanTeam(Team team)
         {
+            // Re-checked here, not just in FixedUpdate. Both teams are scanned in the same step and
+            // Shove() sets the cooldown, but returning from the first scan only leaves that method —
+            // the second call ran regardless. A creature wedged between an ally and an enemy while
+            // closing on both took two VelocityChange impulses in one physics step, which put it at
+            // twice maximumShove and made a nonsense of the cap that exists to stop a pile-up
+            // launching anyone.
+            if (cooldownRemaining > 0f) return;
+
             var others = UnitRegistry.AliveOf(team);
             if (others == null) return;
 

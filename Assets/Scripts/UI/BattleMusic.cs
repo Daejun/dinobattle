@@ -56,6 +56,12 @@ namespace DinoBattle.UI
         private float activeFadeLength;
         private float activeVolume;
 
+        /// <summary>
+        /// The level the outgoing source was actually at when it was handed over, so it fades from
+        /// there rather than from the default target.
+        /// </summary>
+        private float fadingFrom;
+
         private BattleManager battleManager;
 
         private void Awake()
@@ -77,7 +83,14 @@ namespace DinoBattle.UI
             // 2D. Spatialising the soundtrack would pan it as the player orbits the camera.
             source.spatialBlend = 0f;
 
-            // Music is long; decompressing it up front costs several megabytes of memory for nothing.
+            // Keep playing while the listener is paused. Pausing is a simulation state, and the
+            // soundtrack is not part of the simulation.
+            //
+            // This used to carry a comment about decompression cost, which was a note about the
+            // IMPORT settings sitting above a line that has nothing to do with them — and the import
+            // settings were never actually configured, so the comment asserted a fix that did not
+            // exist and made the 43 MB of resident PCM look like something already considered. The
+            // load type is now set where it belongs, in Editor/AudioImportSettings.cs.
             source.ignoreListenerPause = true;
             return source;
         }
@@ -161,6 +174,14 @@ namespace DinoBattle.UI
             // Swap the roles: whatever was playing becomes the one fading out.
             (active, fading) = (fading, active);
 
+            // Remember where the outgoing track actually is. It is not necessarily at `volume`: the
+            // victory track plays at victoryVolume, and Replay fires Placement and Fighting in the
+            // same frame, so the swap can catch it mid-ease as well. Fading from the default target
+            // instead of from the real level dropped it 0.6 -> 0.35 in one frame on every Replay from
+            // the result screen — an audible step at the start of a fade whose whole purpose is that
+            // there is no step.
+            fadingFrom = fading.volume;
+
             active.clip = clip;
             active.volume = 0f;
             active.Play();
@@ -181,7 +202,7 @@ namespace DinoBattle.UI
             // Ease toward the target rather than multiplying by progress, so a volume-only change on
             // an already-playing track slides instead of dropping to silence and climbing back.
             active.volume = Mathf.Lerp(active.volume, activeVolume, fadeProgress);
-            fading.volume = volume * (1f - fadeProgress);
+            fading.volume = fadingFrom * (1f - fadeProgress);
 
             if (fadeProgress < 1f) return;
 

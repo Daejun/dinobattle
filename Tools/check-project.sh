@@ -189,6 +189,51 @@ for param in "${!EXPECTED[@]}"; do
   fi
 done
 
+# ---------------------------------------------------------------- 4b. music import settings
+head2 "4b. Music is streamed, not decompressed into memory"
+
+# Unity's default load type is DecompressOnLoad, which expands a clip to raw PCM the first time it
+# plays. Correct for a bite, ruinous for a soundtrack: the two shipped tracks came to 43 MB resident
+# on a 25 MB APK before this was noticed. Editor/AudioImportSettings.cs sets the right value on
+# import — but an AssetPostprocessor only fires when an asset is imported, so anything already in the
+# project keeps whatever it had. The committed .meta is the thing that actually ships, so check that.
+#
+# loadType: 0 = DecompressOnLoad, 1 = CompressedInMemory, 2 = Streaming.
+music_metas=$(find Assets/Audio/Music -name '*.meta' -not -name '*.gitkeep*' 2>/dev/null || true)
+
+if [[ -z "$music_metas" ]]; then
+  pass "no music assets to check"
+else
+  while IFS= read -r meta; do
+    clip=$(basename "$meta" .meta)
+    load_type=$(grep -m1 -E '^\s+loadType:' "$meta" | tr -d ' ' | cut -d: -f2)
+
+    if [[ "$load_type" == "2" ]]; then
+      pass "$clip is streamed"
+    else
+      fail "$clip has loadType: ${load_type:-missing} — music must be 2 (Streaming), or it is decompressed to PCM in RAM"
+    fi
+  done <<< "$music_metas"
+fi
+
+# Every clip the scene builder asks for must exist, and every clip present must be asked for. The
+# first direction is a null reference at runtime; the second is dead weight in git that reads as
+# shipped content — two tracks sat unreferenced for a day after the owner's own music replaced them.
+for referenced in $(grep -oE 'Assets/Audio/Music/[A-Za-z0-9_]+\.mp3' Assets/Editor/*.cs | cut -d: -f2- | sort -u); do
+  if [[ -f "$referenced" ]]; then
+    pass "$(basename "$referenced") is present and referenced"
+  else
+    fail "$referenced is referenced by an editor script but missing from disk"
+  fi
+done
+
+for present in Assets/Audio/Music/*.mp3; do
+  [[ -e "$present" ]] || continue
+  if ! grep -rqF "$(basename "$present")" Assets/Editor/*.cs 2>/dev/null; then
+    fail "$(basename "$present") is not referenced by anything — Unity will exclude it from the build, so it is repository weight only"
+  fi
+done
+
 # ---------------------------------------------------------------- 5. hygiene
 head2 "5. Repository hygiene"
 

@@ -157,6 +157,11 @@ namespace DinoBattle.CameraRig
 
                 // A new match has new creatures; the old pick is a dead reference either way.
                 followed = null;
+
+                // And so is every key in the height cache. Nothing ever emptied it, so each match
+                // left an entry per creature behind, keyed on a destroyed object that could never be
+                // looked up again. Harmless per match and unbounded across a session.
+                heightCache.Clear();
             }
 
             if (Time.unscaledTime - rig.LastManualInputTime < manualControlGrace) return;

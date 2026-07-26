@@ -93,7 +93,12 @@ PowerShell 버전도 있습니다 (`Tools/build-android.ps1`). 두 스크립트�
 2. Unity 6에서 이름이 바뀐 API (`Rigidbody.velocity`, `FindObjectOfType`)
 3. `DinoBattle.*` 네임스페이스 누락
 4. Animator 파라미터(`Speed`, `Attack`) 이름이 코드와 `Docs/assets.md` 사이에서 어긋나는 것
-5. 리포지토리 위생 (`Library/` gitignore, git-lfs 초기화)
+5. **음악 임포트 설정** — `Assets/Audio/Music/*.meta` 가 `loadType: 2` (Streaming)인지.
+   Unity 기본값 DecompressOnLoad로 두면 재생 시 PCM으로 풀려서 트랙 두 개가 43 MB를 먹습니다
+   (APK 전체가 25 MB인데). `Assets/Editor/AudioImportSettings.cs` 가 임포트 시점에 설정하지만
+   AssetPostprocessor는 **재임포트 때만** 돌기 때문에, 실제로 출하되는 커밋된 `.meta` 를 검사합니다.
+   미참조 음악 파일도 같이 잡습니다 — Unity가 빌드에서 빼버리므로 리포지토리 무게만 됩니다
+6. 리포지토리 위생 (`Library/` gitignore, git-lfs 초기화)
 
 에디터 메뉴 (Unity 안에서, **순서대로** 실행):
 

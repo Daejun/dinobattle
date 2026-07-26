@@ -138,21 +138,31 @@ changed and why. The models never came from Universal, only the names did, and t
 
 ## Music
 
-The first two by **cynicmusic** (cynicmusic.com / pixelsphere.org), **CC0 1.0 Universal**, from
-OpenGameArt. CC0 requires no attribution; recorded here because this file is the only record of
-where anything came from.
+CC0 requires no attribution; recorded here because this file is the only record of where anything
+came from.
 
 | In-game | Source | Licence |
 |---|---|---|
-| `music_placement.mp3` | [enchanted tiki 86](https://opengameart.org/content/enchanted-tiki-86) | CC0 |
-| `music_battle.mp3` | [Battle Theme A](https://opengameart.org/content/battle-theme-a) | CC0 |
-| `music_victory.mp3` | [Happy Adventure (Loop)](https://opengameart.org/content/happy-adventure-loop) by **TinyWorlds** | CC0 |
+| `music_battle.mp3` | [Battle Theme A](https://opengameart.org/content/battle-theme-a) by **cynicmusic** (cynicmusic.com / pixelsphere.org) | CC0 |
 | `music_tyranno.mp3` | **프로젝트 소유자 본인 제작** — "티라노와 거미등", Suno로 생성 (ID3 태그: `TPE1=pdaejun`, 2026-07-26) | 소유자 소유 |
 
-`music_tyranno.mp3` 가 현재 **배치 화면과 승리 화면 양쪽**에 쓰입니다 (`music_victory.mp3` 는
-받아뒀지만 현재 미사용). 파일명은 `티라노.mp3` 로 들어왔는데 ASCII로 바꿨습니다 — 안드로이드 빌드
-파이프라인과 LFS 포인터 모두 non-ASCII 에셋 경로를 잘 다루지 못하고, 그게 어디서 터지는지
-확인할 가치는 없습니다.
+`music_tyranno.mp3` 가 **배치 화면과 승리 화면 양쪽**에 쓰입니다. 파일명은 `티라노.mp3` 로
+들어왔는데 ASCII로 바꿨습니다 — 안드로이드 빌드 파이프라인과 LFS 포인터 모두 non-ASCII 에셋
+경로를 잘 다루지 못하고, 그게 어디서 터지는지 확인할 가치는 없습니다.
+
+두 트랙 모두 **스트리밍으로 임포트**합니다 (`Assets/Editor/AudioImportSettings.cs`). Unity 기본값인
+DecompressOnLoad로 두면 재생 시점에 PCM으로 풀려서 이 둘만으로 43 MB를 차지했습니다 — APK 전체가
+25 MB인 빌드에서요.
+
+지웠던 트랙 — 되살릴 일이 있을 때를 위한 기록입니다. 둘 다 CC0라 다시 받으면 그만입니다:
+
+| 파일 | 출처 | 지운 이유 |
+|---|---|---|
+| `music_placement.mp3` | [enchanted tiki 86](https://opengameart.org/content/enchanted-tiki-86) by **cynicmusic** | 배치 화면이 `music_tyranno.mp3` 로 바뀌면서 미참조 |
+| `music_victory.mp3` | [Happy Adventure (Loop)](https://opengameart.org/content/happy-adventure-loop) by **TinyWorlds** | 승리 화면이 `music_tyranno.mp3` 로 바뀌면서 미참조 |
+
+미참조 에셋은 Unity가 빌드에서 제외하므로 APK에는 애초에 안 들어가 있었고 (빌드 데이터에서 클립
+이름을 찾아 확인함), LFS 4.3 MB만 차지하고 있었습니다.
 
 소유자 본인 창작물이라 서드파티 라이선스 문제가 없습니다. 다만 리포지토리가 **공개**이므로,
 Suno로 생성한 결과물의 상업적 이용 범위는 사용하신 요금제 약관을 따릅니다 — 배포 계획이 생기면

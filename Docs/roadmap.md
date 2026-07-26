@@ -100,5 +100,9 @@ CC0 합성 오디오라 `ATTRIBUTIONS.md` 항목은 모델 팩만 필요합니�
 | NavMesh (`com.unity.ai.navigation`) | 장애물 있는 아레나를 만들 때 |
 | 공룡 조작 모드 (1인칭/3인칭) | 관전 모드가 완성된 뒤 |
 | 멀티플레이 로스터 대결 | 싱글이 재미있어진 뒤에만 |
-| ECS / Job System | 공룡 50마리 이상이 필요해질 때 |
+| 근접 스캔용 공간 그리드 | `budgetPerTeam` > 3000 또는 `maxPerTeam` > 40 — [`performance.md` P1](performance.md) |
+| ECS / Job System | 공룡 50마리 이상이 필요해질 때 (**그리드를 먼저** 검토 — `performance.md`) |
 | Addressables | 앱 용량이 150MB를 넘을 때 |
+
+측정해두고 의도적으로 미룬 성능 항목은 트리거와 함께 **[`Docs/performance.md`](performance.md)** 에
+있습니다. 성능 작업을 시작하기 전에 그 문서의 트리거부터 확인하세요.
