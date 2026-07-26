@@ -6,15 +6,24 @@ Unity 6.5 (`6000.5.x`)로 만드는 **관전형 공룡 전투 시뮬레이터** 
 
 ## 개발 환경 상태 (중요)
 
-**이 머신에는 Unity / JDK / Android SDK 가 설치되어 있지 않습니다.** git, node, dotnet만 있습니다.
+**Unity 6000.5.0f1 + Android Build Support(SDK/NDK/OpenJDK 동봉)가 설치되어 있습니다.**
+이 문서는 원래 아무것도 없던 시절에 쓰였고, 그 제약은 더 이상 사실이 아닙니다.
 
-즉 이 리포지토리에서는:
+확인된 상태 (2026-07-26):
 
-- **C# 코드를 컴파일해서 검증할 수 없습니다.** 코드를 쓸 때는 문법과 API 정확성을
-  스스로 책임져야 하고, "빌드해서 확인했다"고 말할 수 없습니다.
-- `Library/`, `Packages/manifest.json`, `ProjectSettings/*`(ProjectVersion.txt 제외)는
-  아직 존재하지 않습니다 — Unity가 첫 실행 시 생성합니다.
-- 사용자에게 빌드 검증을 요청해야 할 때가 있습니다. 그럴 때는 실행할 정확한 단계를 알려주세요.
+- 에디터: `C:\Program Files\Unity\Hub\Editor\6000.5.0f1\Editor\Unity.exe`
+- Android 툴체인은 에디터에 동봉된 것을 그대로 씁니다 —
+  `.../PlaybackEngines/AndroidPlayer/{SDK,NDK,OpenJDK}`. 별도 설치 불필요
+- 활성 빌드 타깃이 이미 Android, IL2CPP / ARM64 / minSdk 26
+- `Dino Battle > 3. Build Android APK` 로 25 MB APK가 나옵니다 (`Build/Android/`).
+  증분 빌드는 1분 이내
+
+**즉 컴파일 검증도 빌드 검증도 직접 할 수 있습니다.** "빌드해서 확인했다"고 말하려면 실제로
+빌드하세요. 다만 **폰이 연결되어 있지 않으면 설치는 못 합니다** — `adb devices` 가 비어 있으면
+사용자에게 USB 연결과 디버깅 허용을 요청하세요.
+
+헤드리스 빌드(`Tools/build-android.sh`)는 **에디터가 열려 있으면 실패합니다** — 같은 프로젝트를
+두 번 열 수 없기 때문입니다. MCP가 붙어 있는 상황에서는 메뉴 3번을 쓰세요.
 
 설치 절차는 `Docs/setup.md` 에 있습니다.
 
@@ -27,7 +36,20 @@ Unity 6.5 (`6000.5.x`)로 만드는 **관전형 공룡 전투 시뮬레이터** 
 - `Dino Battle > 1/2/3` 메뉴를 직접 실행해 씬 생성까지 확인하세요
 - 씬 하이어라키와 컴포넌트 배선을 실제로 검사하세요
 
-MCP가 연결되어 있는지는 세션의 사용 가능한 툴 목록으로 판단하세요 — 없으면 위의 제약이 그대로입니다.
+MCP가 연결되어 있는지는 세션의 사용 가능한 툴 목록으로 판단하세요.
+
+**메뉴 2번은 모달 확인창을 띄웁니다.** `BattleSceneBuilder.Build()` 가 씬을 덮어쓰기 전에
+`EditorUtility.DisplayDialog` 를 호출하는데, MCP로 실행하면 창이 뜬 채로 **에디터 전체가 멈추고
+MCP 연결도 끊깁니다**. 응답이 없으면 죽은 게 아니라 확인창을 기다리는 중입니다 —
+사용자에게 "Build" 를 눌러달라고 하세요. `Get-Process Unity` 는 이때도 Responding=True 로 나오니
+판단 근거가 되지 못합니다.
+
+**측정 전에 `Application.runInBackground = true` 를 켜세요.** 꺼져 있으면 에디터가 포커스를 잃는
+순간 월드가 멈추고, `Time.frameCount` 가 그대로인 정지된 세계를 측정하게 됩니다.
+
+**`EditorApplication.update` 는 게임 프레임당 한 번이 아닙니다.** 여기서 시간을 재려면
+`Time.time` 을 쓰세요. 델타를 누적하면 실제보다 몇 배 빠른 시계가 됩니다 —
+`BossBalanceProbe` 가 정상 전투를 12/12 무승부로 보고한 원인이었습니다.
 
 **MCP가 있어도 `Tools/check-project.sh` 는 계속 돌리세요.** Animator 파라미터 드리프트,
 문서-코드 불일치처럼 컴파일러가 잡지 못하는 것을 검사하고, 에디터 없이 CI에서도 동작합니다.
