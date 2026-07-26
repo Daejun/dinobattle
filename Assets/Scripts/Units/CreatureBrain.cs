@@ -119,6 +119,25 @@ namespace DinoBattle.Units
                  "turns to fight. Running for longer than this is running that is not working.")]
         [SerializeField] private float maxContinuousFlee = 2.5f;
 
+        [Tooltip("How fast the retreat clock unwinds when not fleeing, relative to real time. Well " +
+                 "under 1 so a momentary lull does not erase the memory of a long retreat.\n\n" +
+                 "This used to be an outright reset, and that single line disabled the whole cornered " +
+                 "rule. Danger sits close to the flee threshold for a creature being hunted, so it " +
+                 "crosses back under it for a frame every few tenths of a second as the enemy turns. " +
+                 "Measured on a lone raptor: the clock peaked at 0.37s against a 2.5s threshold, so " +
+                 "desperation never rose above 0.15 and it never once fought back.")]
+        [Range(0f, 1f)]
+        [SerializeField] private float fleeMemoryRecovery = 0.35f;
+
+        [Tooltip("Once running has demonstrably failed, seconds the creature commits to fighting " +
+                 "before it is allowed to be afraid again.\n\n" +
+                 "A latch rather than a threshold, because the two feed back on each other: the " +
+                 "moment desperation suppresses danger the creature stops fleeing, which lets the " +
+                 "clock fall, which restores the danger. Without a commitment window that loop gives " +
+                 "it a single frame of courage at a time — long enough to change a number, nowhere " +
+                 "near long enough to close the distance and bite.")]
+        [SerializeField] private float corneredCommitDuration = 4f;
+
         [Tooltip("Where waiting pack members hold, as a multiple of the target's footprint. Far " +
                  "enough to be out of reach, near enough to close quickly when their turn comes.")]
         [SerializeField] private float standoffFactor = 2.6f;
@@ -134,6 +153,9 @@ namespace DinoBattle.Units
         private float retreatRemaining;
         private float alignWait;
         private float fleeElapsed;
+
+        /// <summary>Seconds left of committed aggression after retreating stopped working.</summary>
+        private float corneredRemaining;
 
         private float flankAngle;
         private float circleDirection = 1f;
@@ -297,8 +319,17 @@ namespace DinoBattle.Units
             bool harasses = UsesHitAndRun(target);
 
             // Desperation cancels caution. A cornered animal does not fight carefully.
+            //
+            // The raw reading is taken first and the resolve clock runs off THAT, not off the
+            // finished Danger. Feeding the clock the scaled value made it a servo: desperation
+            // suppresses danger, suppressed danger stops the clock, so it settled exactly on the
+            // flee threshold and stayed there. Measured at 0.36s of a 2.5s clock, held for the
+            // entire fight. The input to a latch cannot be something the latch controls.
+            float rawDanger = harasses ? AssessDanger(target) : 0f;
+            if (harasses) UpdateResolve(rawDanger);
+
             Desperation = harasses ? AssessDesperation() : 0f;
-            Danger = harasses ? AssessDanger(target) * (1f - Desperation) : 0f;
+            Danger = rawDanger * (1f - Desperation);
 
             if (harasses)
             {
@@ -311,7 +342,6 @@ namespace DinoBattle.Units
                 // creature that stands and trades with something ten times its mass simply dies.
                 if (retreatRemaining > 0f || Danger >= fleeDanger)
                 {
-                    fleeElapsed += Time.deltaTime;
                     retreatRemaining = Mathf.Max(0f, retreatRemaining - Time.deltaTime);
                     SetState(State.Seek);
 
@@ -330,8 +360,6 @@ namespace DinoBattle.Units
                     return;
                 }
 
-                // Not fleeing this frame, so the "running is not working" clock starts over.
-                fleeElapsed = 0f;
             }
 
             // Waiting for a turn. Once three or more are working the same target they go in one at a
@@ -520,6 +548,9 @@ namespace DinoBattle.Units
         /// </summary>
         private float AssessDesperation()
         {
+            // Committed. Nothing that happens during the window talks it out of fighting.
+            if (corneredRemaining > 0f) return 1f;
+
             int mine = UnitRegistry.AliveCount(self.Team);
             int theirs = UnitRegistry.AliveCount(self.Team.Opponent());
 
@@ -532,6 +563,46 @@ namespace DinoBattle.Units
                 : 0f;
 
             return Mathf.Clamp01(Mathf.Max(outnumbered, trapped));
+        }
+
+        /// <summary>
+        /// Run the cornered latch: decide whether retreating has stopped working, and hold the
+        /// creature to that decision for a while.
+        ///
+        /// The latch exists because desperation and danger are in a feedback loop. Desperation
+        /// suppresses danger, low danger means the creature is no longer fleeing, and not fleeing is
+        /// what makes the retreat clock fall again — so the instant courage arrives it removes its
+        /// own cause. Graded desperation therefore produces a creature that is brave for one frame
+        /// at a time, which from outside is a creature that never attacks. Committing for a fixed
+        /// span breaks the loop: it stops being a reading of the situation and becomes a decision.
+        ///
+        /// The clock is zeroed when the window closes, so the next commitment has to be earned by
+        /// another full retreat rather than re-triggering immediately.
+        ///
+        /// <paramref name="rawDanger"/> is the unscaled reading deliberately. Desperation is not
+        /// allowed anywhere near the clock that produces it — see the note at the call site.
+        ///
+        /// A one-on-one fight is where this matters most. Being outnumbered cannot help there —
+        /// one against one scores zero — so the retreat clock is the only route to desperation, and
+        /// a lone raptor with a broken clock spent the whole fight backing away.
+        /// </summary>
+        private void UpdateResolve(float rawDanger)
+        {
+            if (corneredRemaining > 0f)
+            {
+                corneredRemaining -= Time.deltaTime;
+                if (corneredRemaining <= 0f) fleeElapsed = 0f;
+                return;
+            }
+
+            // Time spent in a situation that WOULD have it running, whether or not it currently is.
+            if (rawDanger >= fleeDanger) fleeElapsed += Time.deltaTime;
+            else fleeElapsed = Mathf.Max(0f, fleeElapsed - Time.deltaTime * fleeMemoryRecovery);
+
+            if (maxContinuousFlee > 0f && fleeElapsed >= maxContinuousFlee)
+            {
+                corneredRemaining = corneredCommitDuration;
+            }
         }
 
         /// <summary>

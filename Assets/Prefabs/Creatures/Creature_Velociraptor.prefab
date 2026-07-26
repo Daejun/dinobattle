@@ -578,6 +578,8 @@ MonoBehaviour:
   lungeAttackAngle: 60
   woundedCaution: 1.4
   maxContinuousFlee: 2.5
+  fleeMemoryRecovery: 0.35
+  corneredCommitDuration: 4
   standoffFactor: 2.6
   packTurnThreshold: 3
   turnDuration: 1.8

@@ -72,7 +72,7 @@ namespace DinoBattle.EditorTools
             // becomes something the size of a bus, close enough that it still articulates.
             new("sfx_roar_large",  "growl1",    0.38f, 0.85f),
             new("sfx_death_large", "voice3",    0.42f, 0.70f),
-            new("sfx_bite_large",  "angerdog2", 0.40f, 0.16f, 0.85f, percussive: true),
+            new("sfx_bite_large",  "angerdog2", 0.40f, 0.22f, 0.85f, percussive: true),
 
             // Light creatures. Less shift, so they stay quick and sharp rather than turning into
             // small versions of the same bellow.
@@ -84,7 +84,7 @@ namespace DinoBattle.EditorTools
             // bite measured lower than the large one, because the loudest slice of one take happened
             // to be darker than the other's. Sharing a source makes the size relationship a property
             // of the pitch alone, and therefore guaranteed rather than lucky.
-            new("sfx_bite_small",  "angerdog2", 0.95f, 0.12f, 0.85f, percussive: true),
+            new("sfx_bite_small",  "angerdog2", 0.80f, 0.34f, 0.85f, percussive: true),
         };
 
         [MenuItem("Dino Battle/5. Generate Creature Audio", priority = 130)]
@@ -295,33 +295,29 @@ namespace DinoBattle.EditorTools
         }
 
         /// <summary>
-        /// A percussive envelope: near-instant attack, then a decay to silence.
+        /// A percussive envelope: near-instant attack, and the recording's own decay after it.
         ///
         /// The attack is 2ms rather than zero only to avoid starting on a discontinuity; at that
-        /// length it is inaudible as a fade. Note that the finished clip's attack is longer than this
-        /// — the recording's own 9ms rise is stretched by the pitch drop, so the heavy bite arrives in
-        /// about 44ms and the light one in 19ms. That difference is worth keeping: a bigger jaw does
-        /// close more slowly, and hearing that is part of why the two read as different animals.
+        /// length it is inaudible as a fade. The finished clip's attack is longer — the recording's
+        /// own 9ms rise is stretched by the pitch drop, so the heavy bite arrives in about 40ms and
+        /// the light one in 20ms. That difference is worth keeping: a bigger jaw closes more slowly,
+        /// and hearing that is part of why the two read as different animals.
         ///
-        /// The decay is exponential to -45dB across the clip, which is quiet enough to count as gone
-        /// without the gated sound of cutting to digital silence.
+        /// There is deliberately NO forced decay curve. An earlier version rode the clip down to
+        /// -45dB, which fixed the envelope and broke the sound: it left the heavy bite with 90ms of
+        /// audible content and the light one with 39ms, and 39ms of anything is a click, not a bite.
+        /// A bark already decays on its own, and its own decay is the one that still sounds like a
+        /// throat. How much of the bark is kept is set by the window length in the recipe; the only
+        /// shaping here is a 25ms fade at the end so the tail does not stop on a step.
         /// </summary>
         private static void ShapePercussive(float[] samples)
         {
             if (samples.Length == 0) return;
 
             int attack = Mathf.Min(samples.Length, Mathf.Max(1, SampleRate / 500));
-            const float tailDecibels = -45f;
+            for (int i = 0; i < attack; i++) samples[i] *= i / (float)attack;
 
-            for (int i = 0; i < samples.Length; i++)
-            {
-                float gain = Mathf.Pow(10f, tailDecibels / 20f * (i / (float)samples.Length));
-                if (i < attack) gain *= i / (float)attack;
-                samples[i] *= gain;
-            }
-
-            // The decay lands near silence on its own; this only guarantees it.
-            int fade = Mathf.Min(samples.Length, Mathf.Max(1, SampleRate / 250));
+            int fade = Mathf.Min(samples.Length, Mathf.Max(1, SampleRate / 40));
             for (int i = 0; i < fade; i++)
             {
                 samples[samples.Length - 1 - i] *= i / (float)fade;

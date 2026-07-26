@@ -67,23 +67,35 @@ build. `Dino Battle > 5. Generate Creature Audio` rebuilds the six voices from t
 | `sfx_roar_small`  | `beast_or_animal/Growl 2.wav` | 0.68x | 0.81s, centroid 166 Hz |
 | `sfx_death_large` | `beast_or_animal/Voice 3.wav` | 0.42x | 1.67s, centroid 183 Hz |
 | `sfx_death_small` | `beast_or_animal/Voice 1.wav` | 0.72x | 0.62s, centroid 284 Hz |
-| `sfx_bite_large`  | `angerdog/angerdog2.ogg`      | 0.40x | 0.40s, centroid 480 Hz |
-| `sfx_bite_small`  | `angerdog/angerdog2.ogg`      | 0.95x | 0.13s, centroid 1227 Hz |
+| `sfx_bite_large`  | `angerdog/angerdog2.ogg`      | 0.40x | 0.55s, centroid 491 Hz |
+| `sfx_bite_small`  | `angerdog/angerdog2.ogg`      | 0.80x | 0.42s, centroid 1111 Hz |
 
 The two bites share a source deliberately: built from different takes they came out with the small
 one darker than the large, because the loudest slice of one happened to be duller. Sharing a source
 makes the size difference a property of the pitch alone. Every pair is verified small-brighter:
-roar 2.11x, bite 2.56x, death 1.71x.
+roar 2.11x, bite 2.26x, death 1.71x.
 
 **The bites are cut differently from the rest.** The other four take the loudest stretch of the
 recording, which is right for a sound an animal holds. For a bite it was wrong: the loudest part of
 a dog take is the middle of a sustained snarl, so the finished clip peaked 91% of the way through
 and took 355ms to get there — the envelope of a growl, on the sound the game plays most often.
 
-They are now cut at the sharpest *rise* in the source rather than the highest level (each of the six
-dog takes contains real barks that come up from silence in 7-10ms), and given a percussive envelope:
-2ms attack, exponential decay to -45dB. Measured after the change, the heavy bite peaks 10% into the
-clip with a crest factor of 3.74, against 91% and 2.19 before.
+They are now cut at the sharpest *rise* in the source rather than the highest level — each of the six
+dog takes contains real barks that come up from silence in 7-10ms.
+
+The first attempt at the envelope then overcorrected into the opposite fault. Riding the clip down to
+-45dB left the heavy bite with 90ms of audible content and the light one with 39ms, and 39ms of
+anything is a click; it sounded like two sticks tapping rather than a jaw. A bark already decays on
+its own, so there is now no forced decay at all — just a 2ms attack and a 25ms fade at the end, with
+the window length deciding how much of the bark is kept.
+
+Measured across the three versions, audible content (envelope above -20dB of peak):
+
+| | heavy bite | light bite |
+|---|---|---|
+| loudest-slice (growl envelope) | 90ms, peak 91% through | 39ms, ended at 53% of peak |
+| onset cut + forced -45dB decay | 90ms, peak 10% through | 39ms, peak 15% through |
+| onset cut, natural decay | **186ms, peak 7% through** | **100ms, peak 5% through** |
 
 The attack that survives is longer than the 2ms envelope — 40ms heavy, 17ms light — because the
 recording's own rise is stretched by the pitch drop. That is worth keeping: a bigger jaw does close
