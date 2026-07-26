@@ -29,23 +29,28 @@ Google Play에 마블 캐릭터가 포함된 앱을 올리면:
 | Ancient King, Apex Predator | Godzilla, Kaiju (Toho 상표) |
 | Megarachne (실존 멸종 속명) | Distortus Rex (쥬라기 월드 리버스) |
 
-### 현재 리포지토리에 들어 있는 상표명 (배포 전 반드시 변경)
+### 실제로 겪은 사례 — 이미 정리했습니다
 
-소유자가 **본인 폰에만 설치하는 빌드**를 위해 요청해서 들어와 있습니다. 상표의 문제는
-"상거래에서의 사용"이므로 개인 기기 한정 빌드에는 해당하지 않지만, 공개 배포 시점에는
-그 근거가 사라집니다.
+보스 두 종이 한동안 `Indominus Rex` / `Distortus Rex` 라는 이름으로 들어가 있었습니다.
+소유자가 **본인 폰에만 설치하는 빌드**를 위해 요청한 것이었고, 상표의 문제는 "상거래에서의 사용"
+이라 개인 기기 한정이면 실질적 위험이 없었습니다.
 
-| 현재 이름 | 출처 | 대체 후보 |
+그 근거는 **소스를 공개 리포지토리에 올리는 순간 사라졌습니다.** 그래서 푸시 전에 바꿨습니다:
+
+| 이전 이름 | 현재 이름 | 원본 출처 |
 |---|---|---|
-| `Indominus Rex` | 쥬라기 월드 (Universal) | Alpha Hybrid, Pale Tyrant |
-| `Distortus Rex` | 쥬라기 월드 리버스 (Universal) | Malformed Rex, Failed Tyrant |
+| `Indominus Rex` | **`Alpha Hybrid`** | 쥬라기 월드 (Universal) |
+| `Distortus Rex` | **`Malformed Rex`** | 쥬라기 월드 리버스 (Universal) |
 
-둘 다 `Assets/Editor/CreatureBlueprints.cs` 의 `BossBlueprints` 에 있고 이름 문자열 하나씩만
-바꾸면 됩니다. **모델 자체는 문제없습니다** — Quaternius T-Rex를 코드로 변형한 것이라
-서드파티 애셋이 아닙니다. 상표는 이름에만 붙습니다.
+**바뀐 것은 이름뿐입니다.** 모델은 어차피 Universal 것이 아니라 Quaternius T-Rex를 코드로 변형한
+것이고, 각각 무엇을 참고했는지는 `BodyShape` 정의에 그대로 적혀 있습니다 — 그건 브랜딩이 아니라
+설계 근거이고, 작품을 지칭하는 서술적 언급은 상표 문제가 아닙니다.
 
-반면 `Megarachne` 는 실존 멸종 속명(한때 사상 최대 거미로 기재됨)이라 자연물 이름이며
-그대로 배포 가능합니다.
+`Megarachne` 는 실존 멸종 속명(한때 사상 최대 거미로 기재됨)이라 자연물 이름이며 변경이
+불필요했습니다.
+
+**교훈**: 이름은 나중에 바꾸면 되지만, 공개 리포지토리의 git 히스토리는 지워도 남습니다.
+배포 대상이 바뀌는 시점(폰 → 공개)에 반드시 이 문서를 다시 보세요.
 
 ## 애셋 라이선스
 

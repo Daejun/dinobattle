@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c28d35c407bc3d54e9f95971f3375aa2, type: 3}
+  m_Name: Creature_AlphaHybrid
+  m_EditorClassIdentifier: Assembly-CSharp::DinoBattle.Data.CreatureDefinition
+  displayName: Alpha Hybrid
+  description: Placeholder stat block for Alpha Hybrid.
+  icon: {fileID: 0}
+  prefab: {fileID: 6380352160336625531, guid: 80249912b2492024b953c704ad53cf91, type: 3}
+  cost: 3000
+  footprintRadius: 6.9
+  maxHealth: 40000
+  armor: 70
+  moveSpeed: 5.4
+  turnSpeedDegrees: 165
+  mass: 60000
+  attackDamage: 1150
+  attackInterval: 1.9
+  attackRange: 7.5
+  attackWindup: 0.475
+  aggroRange: 90

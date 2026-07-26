@@ -129,10 +129,12 @@ roster has — and being Quaternius it matches the dinosaurs exactly in style.
 The name is a real extinct genus, once described as the largest spider that ever lived before being
 reclassified as a sea scorpion. Natural names carry no trademark, unlike the two below.
 
-**Indominus Rex** and **Distortus Rex** are not downloaded models. Both are the Quaternius T-Rex above, reshaped by
-`CreatureSkinBuilder` with different `BodyShape` entries — no third-party asset involved, so nothing
-to attribute. The NAMES, however, are Universal trademarks; see `Docs/legal.md`. They are present
-only for a build that goes on the owner's own phone, and must be renamed before any public release.
+**Alpha Hybrid** and **Malformed Rex** are not downloaded models. Both are the Quaternius T-Rex
+above, reshaped by `CreatureSkinBuilder` with different `BodyShape` entries — no third-party asset
+involved, so nothing to attribute.
+
+Both carried Jurassic World names until this repository went public; see `Docs/legal.md` for what
+changed and why. The models never came from Universal, only the names did, and those are gone.
 
 ## Arena vegetation
 

@@ -74,13 +74,14 @@ namespace DinoBattle.EditorTools
     /// mirror matches — walks the roster, and a boss turning up as an ordinary pick would not be a
     /// fight, it would be a rout with the budget spent on one model.
     ///
-    /// LICENSING, read before shipping this: "Indominus Rex" is a Universal / Jurassic World
-    /// trademark, and Docs/legal.md and CLAUDE.md both rule it out for exactly that reason — a Play
-    /// Store listing using it is removed and the account is at risk. It is here because the owner of
-    /// this project asked for it for a build that only ever goes on their own phone, where trademark
-    /// does not bite: the concern is use in commerce, and there is none. Rename this entry before any
-    /// public release. The model is not Universal's either — no free Indominus model exists — it is
-    /// the CC0 T-Rex scaled up and painted bone white, which is what the animal looks like anyway.
+    /// NAMING. Two of these were originally called after Jurassic World creatures, which are
+    /// Universal trademarks that Docs/legal.md and CLAUDE.md both rule out. That was tolerable while
+    /// the build only ever went on the owner's own phone — trademark bites on use in commerce, and
+    /// there was none — but the source is public now, so they carry their own names.
+    ///
+    /// Only the names changed. The models are not Universal's either way: both are the CC0 T-Rex
+    /// reshaped in code, and what each one is modelled on is described where its BodyShape is
+    /// defined, since that is engineering rationale rather than branding.
     /// </summary>
     internal static class BossBlueprints
     {
@@ -101,14 +102,14 @@ namespace DinoBattle.EditorTools
         ///
         /// So these are all tuned to roughly the same time-to-kill, around 24 seconds, and the
         /// health figures fall out of that. The lightly armoured spider needs the most health to
-        /// survive as long as the heavily armoured Distortus on much less. Change armour here and
+        /// survive as long as the heavily armoured Malformed Rex on much less. Change armour here and
         /// the health has to move with it, in the opposite direction.
         /// </summary>
         public static readonly CreatureBlueprint[] All =
         {
             new()
             {
-                Name = "Indominus Rex", Model = "Trex", Recolor = true,
+                Name = "Alpha Hybrid", Model = "Trex", Recolor = true,
                 Cost = 3000, Health = 40000f, Armor = 70f,
                 Damage = 1150f, Interval = 1.9f, Range = 7.5f,
                 Speed = 5.4f, Mass = 60000f,
@@ -136,9 +137,9 @@ namespace DinoBattle.EditorTools
             },
             new()
             {
-                // A real genus, not an invention: Megarachne was described as the largest spider that
-                // ever lived before being reclassified as a sea scorpion. A natural name, so free of
-                // the trademark problem that hangs over the Indominus.
+                // A real genus, not an invention: Megarachne was described as the largest spider
+                // that ever lived before being reclassified as a sea scorpion. Natural names carry no
+                // trademark, so this one needed no renaming when the repository went public.
                 //
                 // The third boss exists to fight differently, not just to look different. The others
                 // are armoured and hit like a truck at a long reach; this one is the fastest thing on
@@ -168,7 +169,7 @@ namespace DinoBattle.EditorTools
                 Speed = 7.4f, Mass = 46000f,
 
                 // The model scales off BodySize.z, and this rig is 1.18x as wide as it is long, so
-                // 9.5 puts the leg span at about 11 units — wider than the Indominus is long.
+                // 9.5 puts the leg span at about 11 units — wider than the Alpha Hybrid is long.
                 // BodySize.x is NOT that span: it drives the footprint and the physics capsule, and
                 // those should describe the solid body in the middle, not the reach of the legs.
                 BodySize = new Vector3(5.0f, 3.4f, 9.5f),
@@ -180,15 +181,11 @@ namespace DinoBattle.EditorTools
             },
             new()
             {
-                // Same trademark problem as the Indominus, and here for the same reason: the owner
-                // asked for it for a build that goes on their own phone. Docs/legal.md rules the name
-                // out for distribution — rename before any public release.
-                //
                 // The failed-experiment boss. Slowest and shortest-reaching of the four, but the most
                 // health, the heaviest single hit and the most armour: something that has to be worn
                 // down rather than out-traded. It is the mirror of the Megarachne, which is fast and
                 // fragile and wins on rate of fire.
-                Name = "Distortus Rex", Model = "Trex", Recolor = true,
+                Name = "Malformed Rex", Model = "Trex", Recolor = true,
                 Cost = 3000, Health = 38500f, Armor = 78f,
                 Damage = 1330f, Interval = 2.35f, Range = 6.8f,
                 Speed = 4.8f, Mass = 64000f,
@@ -196,7 +193,7 @@ namespace DinoBattle.EditorTools
 
                 // Pale and grey, with the tint doing nearly all the work — the film design reads as
                 // bleached lab-grown flesh, and the pack's own body colour is dark enough to fight
-                // that unless it is almost fully overridden. Same reason the Indominus sits at 0.93.
+                // that unless it is almost fully overridden. Same reason the Alpha Hybrid sits at 0.93.
                 TintStrength = 0.94f,
                 Tint = new Color(0.80f, 0.79f, 0.76f),
                 Accent = new Color(0.72f, 0.36f, 0.36f),

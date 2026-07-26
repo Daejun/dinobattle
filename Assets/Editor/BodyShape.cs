@@ -42,7 +42,9 @@ namespace DinoBattle.EditorTools
         public Part[] Parts = System.Array.Empty<Part>();
 
         /// <summary>
-        /// The Jurassic World hybrid's silhouette, from the descriptions of the film design.
+        /// Alpha Hybrid: the silhouette of the Jurassic World hybrid, from descriptions of the film
+        /// design. Named for what it is modelled on, which is reference, not branding — the creature
+        /// itself carries an original name. See BossBlueprints.
         ///
         /// Three things separate it from the T-Rex it is built on, and only the first two are
         /// reachable by moving existing vertices:
@@ -83,9 +85,10 @@ namespace DinoBattle.EditorTools
         };
 
         /// <summary>
-        /// The Rebirth mutant: a T-Rex that went wrong in the tank.
+        /// Malformed Rex: a T-Rex that went wrong in the tank, after the Jurassic World Rebirth
+        /// mutant. Same note as above — the reference is here, the name is not.
         ///
-        /// Almost the opposite brief to <see cref="Hybrid"/>. The Indominus is a well-made animal
+        /// Almost the opposite brief to <see cref="Hybrid"/>. That one is a well-made animal
         /// exaggerated in the directions a predator is already built; this one is a failed one, and
         /// what sells it is proportions that look like a mistake rather than an upgrade.
         ///
@@ -97,9 +100,9 @@ namespace DinoBattle.EditorTools
         /// inversion is the whole silhouette.
         ///
         /// Then the limbs. Polymelia in the film, six of them, and vertex displacement cannot add a
-        /// pair of arms any more than it could add osteoderms to the Indominus. What it can do is the
+        /// pair of arms any more than it could add osteoderms to the hybrid. What it can do is the
         /// other half of the description — long, heavy, disproportionate forelimbs and a hunched
-        /// ape-like bulk through the shoulders — so the arms go further than the Indominus's and the
+        /// ape-like bulk through the shoulders — so the arms go further than the hybrid's and the
         /// torso is thickened to match. Four-armed is out of reach; wrong-looking is not.
         /// </summary>
         public static BodyShape Malformed => new()
@@ -112,7 +115,7 @@ namespace DinoBattle.EditorTools
                 new Part(new[] { "Head" }, new Vector3(2.0f, 1.9f, 0.8f)),
 
                 // The cranial dome over the eyes. Biased to the top of the head's own extent, the
-                // same trick the Indominus uses for its brow, pushed much further.
+                // same trick the hybrid uses for its brow, pushed much further.
                 new Part(new[] { "Head" }, new Vector3(1.15f, 1.5f, 1.05f), upperBias: 0.75f),
 
                 // Short thick neck — a head that heavy cannot sit on a graceful one.
