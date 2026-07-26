@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using DinoBattle.CameraRig;
 using DinoBattle.Core;
 using DinoBattle.Data;
@@ -70,8 +71,10 @@ namespace DinoBattle.EditorTools
             var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
             CreateEnvironment();
+            var gauntletArena = CreateGauntletArena();
             var cameraRig = CreateCamera();
             var (manager, placement, autoPlacer) = CreateManagers(cameraRig);
+            CreateGauntletDirector(manager, gauntletArena, cameraRig);
             CreateHud(manager, placement, autoPlacer);
             CreateAudio(manager);
 
@@ -319,6 +322,37 @@ namespace DinoBattle.EditorTools
 
         private const string EnvironmentShader = "DinoBattle/EnvironmentFlat";
 
+        // ---------------------------------------------------------------- gauntlet board
+        //
+        // Every constant here is a measurement, not a preference. RampClimbProbe walked the shipping
+        // locomotion up this geometry before any of it was built; the numbers and the reasoning are
+        // in Docs/gauntlet-step1-ramp-probe.md section 14.
+
+        /// <summary>
+        /// Ramp angle. The probe cleared 8-25 degrees at 75/75 arrivals with zero backslide, so this
+        /// is not the limit — it is the limit minus margin. Above 15 the fastest creature starts
+        /// launching off crests, and a launched creature has no steering authority at all.
+        /// </summary>
+        private const float GauntletRampAngle = 12f;
+
+        private const int GauntletTiers = 10;
+        private const float GauntletTierRise = 2f;
+        private const float GauntletPlatformDepth = 22f;
+        private const float GauntletWidth = 26f;
+
+        /// <summary>
+        /// Hard ceiling on any vertical lip anywhere on the board.
+        ///
+        /// Measured, per species, and it tracks collider radius: the Velociraptor climbs 0.1 and
+        /// fails at 0.2. The parent design guessed 0.3 — twice too generous. Anything on this board
+        /// with a taller step than this stops a raptor dead, and the symptom would be "the fights on
+        /// tier six are weird" rather than anything pointing at the geometry.
+        /// </summary>
+        private const float GauntletMaxLedge = 0.15f;
+
+        /// <summary>Far from the versus arena, which covers +/-88 on the ground plane.</summary>
+        private const float GauntletOriginX = 600f;
+
         private static readonly string[] RockModels = { "Rock_1", "Rock_2", "Rock_3", "Rock_4", "Rock_5" };
         private static readonly string[] PalmModels = { "PalmTree_1", "PalmTree_2", "PalmTree_3", "PalmTree_4", "PalmTree_5" };
         private static readonly string[] BushModels = { "Bush", "Bush_Large", "Bush_Small" };
@@ -466,6 +500,179 @@ namespace DinoBattle.EditorTools
 
                 renderer.sharedMaterials = painted;
             }
+        }
+
+        /// <summary>
+        /// The gauntlet board: a start platform and ten tiers climbing away from it, joined by ramps.
+        ///
+        /// Built into the same scene as the round arena and switched off. Two arenas resident beats
+        /// loading a second scene — an inactive renderer costs nothing at runtime, and it keeps both
+        /// layouts inside one generated artefact that a diff can review.
+        ///
+        /// The steps are RAMPS, not steps, and that is the whole reason step 1 existed.
+        /// CreatureLocomotion propels on X and Z only; its steering force has no vertical component
+        /// and it stops steering altogether when its ground probe misses. A horizontal push is
+        /// redirected up an incline by the surface normal, so a ramp works — but at a vertical face
+        /// there is nothing to redirect, and creatures simply stop. The probe measured where that
+        /// starts to bite (GauntletMaxLedge) and how steep a ramp can be before the fast ones launch
+        /// off the top (GauntletRampAngle).
+        ///
+        /// So: no kerbs, no lips, no decorative rocks on the walking surface. Every joint here is
+        /// flush by construction, and the walls are the only vertical geometry.
+        /// </summary>
+        private static GauntletArena CreateGauntletArena()
+        {
+            var root = new GameObject("GauntletArena");
+            root.transform.position = new Vector3(GauntletOriginX, 0f, 0f);
+
+            var arena = root.AddComponent<GauntletArena>();
+            var tiers = new List<GauntletTier>();
+
+            float run = GauntletTierRise / Mathf.Tan(GauntletRampAngle * Mathf.Deg2Rad);
+            float z = 0f;
+            float y = 0f;
+
+            // Somewhere to muster that is unambiguously not tier one, so the first wave has a moment
+            // of walking before anything happens to it.
+            var start = AddBoardSlab(root.transform, "StartPlatform",
+                new Vector3(0f, -0.5f, z + GauntletPlatformDepth * 0.5f),
+                new Vector3(GauntletWidth, 1f, GauntletPlatformDepth));
+            z += GauntletPlatformDepth;
+
+            for (int i = 0; i < GauntletTiers; i++)
+            {
+                var ramp = AddBoardSlab(root.transform, $"Ramp_{i:00}",
+                    new Vector3(0f, y + GauntletTierRise * 0.5f - 0.5f * Mathf.Cos(GauntletRampAngle * Mathf.Deg2Rad),
+                                z + run * 0.5f),
+                    new Vector3(GauntletWidth, 1f, Mathf.Sqrt(run * run + GauntletTierRise * GauntletTierRise)));
+                ramp.transform.localRotation = Quaternion.Euler(-GauntletRampAngle, 0f, 0f);
+
+                z += run;
+                y += GauntletTierRise;
+
+                var platform = AddBoardSlab(root.transform, $"Tier_{i:00}",
+                    new Vector3(0f, y - 0.5f, z + GauntletPlatformDepth * 0.5f),
+                    new Vector3(GauntletWidth, 1f, GauntletPlatformDepth));
+
+                var tier = platform.AddComponent<GauntletTier>();
+
+                // The objective sits a third of the way onto the platform, not at its centre: the
+                // wave should step clear of the ramp mouth and stop, rather than walking into the
+                // middle of the monsters it is about to meet.
+                var objective = new GameObject("Objective").transform;
+                objective.SetParent(platform.transform, false);
+                objective.position = new Vector3(GauntletOriginX, y, z + GauntletPlatformDepth * 0.3f);
+
+                // Monsters wait at the far end, spread across the width, facing back down the board.
+                var points = new List<Transform>();
+                for (int n = 0; n < 12; n++)
+                {
+                    var point = new GameObject($"Spawn_{n:00}").transform;
+                    point.SetParent(platform.transform, false);
+
+                    int row = n / 4;
+                    int column = n % 4;
+                    point.position = new Vector3(
+                        GauntletOriginX + (column - 1.5f) * (GauntletWidth * 0.22f),
+                        y,
+                        z + GauntletPlatformDepth * (0.62f + row * 0.14f));
+                    points.Add(point);
+                }
+
+                tier.Configure(objective, points);
+                tiers.Add(tier);
+
+                z += GauntletPlatformDepth;
+            }
+
+            AddBoardWalls(root.transform, z, y);
+
+            // Static flags and shadow casting are applied HERE rather than by MarkSceneryStatic and
+            // StripSceneryShadowCasting, which sweep the scene by name via GameObject.Find. Find does
+            // not return inactive objects, and this board is deactivated on the next line — so both
+            // sweeps would silently skip it and the only symptom would be thirty extra shadow casters
+            // appearing the first time anyone selected the mode.
+            foreach (var child in root.GetComponentsInChildren<Transform>(true))
+            {
+                GameObjectUtility.SetStaticEditorFlags(child.gameObject,
+                    StaticEditorFlags.BatchingStatic | StaticEditorFlags.OccludeeStatic);
+            }
+
+            foreach (var renderer in root.GetComponentsInChildren<Renderer>(true))
+            {
+                renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                renderer.receiveShadows = true;
+            }
+
+            arena.Configure(tiers, start.transform);
+            root.SetActive(false);
+
+            Debug.Log($"[BattleSceneBuilder] Gauntlet board: {GauntletTiers} tiers at {GauntletRampAngle}deg, " +
+                      $"{z:0} units long, rising {y:0}. Max permitted ledge {GauntletMaxLedge}.");
+            return arena;
+        }
+
+        /// <summary>
+        /// Walls down both sides, so a creature shoved sideways on a ramp cannot leave the board.
+        ///
+        /// Shoving is real and measured — CreatureImpact throws creatures by mass ratio — and unlike
+        /// the round arena there is nowhere safe to land here. Placed OUTSIDE the walking surface and
+        /// tall enough to cover the climb, with no lip where they meet the deck.
+        /// </summary>
+        private static void AddBoardWalls(Transform parent, float length, float rise)
+        {
+            for (int side = -1; side <= 1; side += 2)
+            {
+                var wall = AddBoardSlab(parent, side < 0 ? "Wall_Left" : "Wall_Right",
+                    new Vector3(side * (GauntletWidth * 0.5f + 0.5f), rise * 0.5f + 2f, length * 0.5f),
+                    new Vector3(1f, rise + 8f, length));
+
+                // Invisible: a wall this tall alongside the whole board would box the shot in and
+                // there is nothing to see on it. It only has to stop things.
+                var renderer = wall.GetComponent<Renderer>();
+                if (renderer != null) Object.DestroyImmediate(renderer);
+            }
+        }
+
+        private static GameObject AddBoardSlab(Transform parent, string slabName, Vector3 localPosition, Vector3 size)
+        {
+            var slab = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            slab.name = slabName;
+            slab.transform.SetParent(parent, false);
+            slab.transform.localPosition = localPosition;
+            slab.transform.localScale = size;
+
+            TintShared(slab, new Color(0.21f, 0.24f, 0.17f));
+            return slab;
+        }
+
+        private static void CreateGauntletDirector(BattleManager manager, GauntletArena arena,
+                                                   OrbitCameraController cameraRig)
+        {
+            var director = manager.gameObject.AddComponent<GauntletDirector>();
+            var serialized = new SerializedObject(director);
+
+            serialized.FindProperty("arena").objectReferenceValue = arena;
+            serialized.FindProperty("ladder").objectReferenceValue =
+                AssetDatabase.LoadAssetAtPath<Data.GauntletLadder>(SampleContentBuilder.GauntletLadderPath);
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+
+            // Pan box from the board's real extents rather than a guessed constant, with a margin so
+            // the camera can sit behind the start platform and past the boss tier.
+            float run = GauntletTierRise / Mathf.Tan(GauntletRampAngle * Mathf.Deg2Rad);
+            float length = GauntletPlatformDepth + GauntletTiers * (run + GauntletPlatformDepth);
+
+            var switcher = manager.gameObject.AddComponent<ArenaSwitcher>();
+            var versusRoots = new List<GameObject>();
+            foreach (string name in new[] { "Ground", "Boundary", "Environment" })
+            {
+                var root = GameObject.Find(name);
+                if (root != null) versusRoots.Add(root);
+            }
+
+            switcher.Configure(versusRoots, arena.gameObject, cameraRig,
+                new Vector2(GauntletOriginX - GauntletWidth, -30f),
+                new Vector2(GauntletOriginX + GauntletWidth, length + 30f));
         }
 
         private static void CreateTerrainDressing()
@@ -731,6 +938,23 @@ namespace DinoBattle.EditorTools
             var startButton = CreateButton(placementPanel.transform, "Start", "전투 시작",
                 new Vector2(0.65f, 0.18f), new Vector2(0.96f, 0.82f), icon: ButtonIconBuilder.Start);
 
+            // ---- mode bar (top of the setup screen) ----
+            //
+            // Top, not bottom, because the bottom bar is the setup controls and the mode is a choice
+            // ABOUT that setup — it changes what "자동 배치" and "전투 시작" will do. It also has to
+            // be somewhere a thumb does not rest during placement, or a mis-tap throws the arrangement
+            // away.
+            //
+            // Only shown during placement. Switching arena mid-fight would leave creatures standing
+            // on geometry that had just been deactivated.
+            var modePanel = CreatePanel(canvasObject.transform, "ModePanel",
+                new Vector2(0.22f, 0.90f), new Vector2(0.78f, 1f));
+
+            var versusModeButton = CreateButton(modePanel.transform, "ModeVersus", "대결",
+                new Vector2(0.04f, 0.15f), new Vector2(0.48f, 0.85f));
+            var gauntletModeButton = CreateButton(modePanel.transform, "ModeGauntlet", "계단 등반",
+                new Vector2(0.52f, 0.15f), new Vector2(0.96f, 0.85f));
+
             // ---- fighting panel (top bar) ----
             var fightingPanel = CreatePanel(canvasObject.transform, "FightingPanel",
                 new Vector2(0f, 0.90f), new Vector2(1f, 1f));
@@ -775,6 +999,29 @@ namespace DinoBattle.EditorTools
                 new Vector2(0.30f, 0.08f), new Vector2(0.545f, 0.92f), icon: ButtonIconBuilder.Replay);
             var fightQuitButton = CreateButton(fightingPanel.transform, "FightQuit", "종료",
                 new Vector2(0.565f, 0.08f), new Vector2(0.72f, 0.92f), icon: ButtonIconBuilder.Quit);
+
+            // ---- gauntlet readouts (under the fight bar, gauntlet mode only) ----
+            //
+            // Its own panel rather than fields borrowed from the fight bar, because the two modes
+            // want to say different things: versus reports two armies' strength, a climb reports how
+            // far up you are and what you have left to spend.
+            //
+            // "더 보내기" is the whole economy in one button. It is only interactable when everything
+            // sent is dead, so it cannot be used to stack waves — the run is a sequence of attempts,
+            // not a tap-to-win.
+            var gauntletPanel = CreatePanel(canvasObject.transform, "GauntletPanel",
+                new Vector2(0.0f, 0.795f), new Vector2(1f, 0.895f));
+
+            var tierLabel = CreateLabel(gauntletPanel.transform, "Tier", "1층 / 10",
+                new Vector2(0.03f, 0.1f), new Vector2(0.33f, 0.9f), TextAnchor.MiddleLeft);
+
+            var budgetLabel = CreateLabel(gauntletPanel.transform, "Budget", "",
+                new Vector2(0.34f, 0.1f), new Vector2(0.63f, 0.9f), TextAnchor.MiddleCenter);
+
+            var sendWaveButton = CreateButton(gauntletPanel.transform, "SendWave", "더 보내기",
+                new Vector2(0.65f, 0.08f), new Vector2(0.97f, 0.92f), icon: ButtonIconBuilder.Start);
+
+            gauntletPanel.SetActive(false);
 
             // ---- result panel (center) ----
             // Sits high on the screen, not across the middle.
@@ -836,6 +1083,14 @@ namespace DinoBattle.EditorTools
             s.FindProperty("winnerLabel").objectReferenceValue = winnerLabel;
             s.FindProperty("resultSummaryLabel").objectReferenceValue = resultSummary;
             s.FindProperty("rematchButton").objectReferenceValue = rematchButton;
+
+            s.FindProperty("modePanel").objectReferenceValue = modePanel;
+            s.FindProperty("versusModeButton").objectReferenceValue = versusModeButton;
+            s.FindProperty("gauntletModeButton").objectReferenceValue = gauntletModeButton;
+            s.FindProperty("gauntletPanel").objectReferenceValue = gauntletPanel;
+            s.FindProperty("tierLabel").objectReferenceValue = tierLabel;
+            s.FindProperty("gauntletBudgetLabel").objectReferenceValue = budgetLabel;
+            s.FindProperty("sendWaveButton").objectReferenceValue = sendWaveButton;
             s.ApplyModifiedPropertiesWithoutUndo();
         }
 

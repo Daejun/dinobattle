@@ -1,0 +1,109 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0ab44325d2f3d6642a78b75024bc081a, type: 3}
+  m_Name: GauntletLadder
+  m_EditorClassIdentifier: Assembly-CSharp::DinoBattle.Data.GauntletLadder
+  tiers:
+  - label: "1\uCE35"
+    species:
+    - {fileID: 11400000, guid: 2341b2ca315eb7f47bb8e13c42f5aabe, type: 2}
+    - {fileID: 11400000, guid: 4d1123ceabfc46e4bbb8a1cd1345d583, type: 2}
+    count: 3
+    healthScale: 1
+    damageScale: 1
+    isBoss: 0
+  - label: "2\uCE35"
+    species:
+    - {fileID: 11400000, guid: 2341b2ca315eb7f47bb8e13c42f5aabe, type: 2}
+    - {fileID: 11400000, guid: 4d1123ceabfc46e4bbb8a1cd1345d583, type: 2}
+    count: 4
+    healthScale: 1.1
+    damageScale: 1
+    isBoss: 0
+  - label: "3\uCE35"
+    species:
+    - {fileID: 11400000, guid: 2341b2ca315eb7f47bb8e13c42f5aabe, type: 2}
+    - {fileID: 11400000, guid: 4d1123ceabfc46e4bbb8a1cd1345d583, type: 2}
+    - {fileID: 11400000, guid: d84caa89649d518449beee268d6b31b8, type: 2}
+    - {fileID: 11400000, guid: 66e0063bd24f5a5429b8beaaa8d0b31e, type: 2}
+    count: 5
+    healthScale: 1.2
+    damageScale: 1.05
+    isBoss: 0
+  - label: "4\uCE35"
+    species:
+    - {fileID: 11400000, guid: 2341b2ca315eb7f47bb8e13c42f5aabe, type: 2}
+    - {fileID: 11400000, guid: 4d1123ceabfc46e4bbb8a1cd1345d583, type: 2}
+    - {fileID: 11400000, guid: d84caa89649d518449beee268d6b31b8, type: 2}
+    - {fileID: 11400000, guid: 66e0063bd24f5a5429b8beaaa8d0b31e, type: 2}
+    count: 5
+    healthScale: 1.35
+    damageScale: 1.1
+    isBoss: 0
+  - label: "5\uCE35"
+    species:
+    - {fileID: 11400000, guid: 2341b2ca315eb7f47bb8e13c42f5aabe, type: 2}
+    - {fileID: 11400000, guid: 4d1123ceabfc46e4bbb8a1cd1345d583, type: 2}
+    - {fileID: 11400000, guid: d84caa89649d518449beee268d6b31b8, type: 2}
+    - {fileID: 11400000, guid: 66e0063bd24f5a5429b8beaaa8d0b31e, type: 2}
+    count: 6
+    healthScale: 1.5
+    damageScale: 1.15
+    isBoss: 0
+  - label: "6\uCE35"
+    species:
+    - {fileID: 11400000, guid: 4d1123ceabfc46e4bbb8a1cd1345d583, type: 2}
+    - {fileID: 11400000, guid: d84caa89649d518449beee268d6b31b8, type: 2}
+    - {fileID: 11400000, guid: 66e0063bd24f5a5429b8beaaa8d0b31e, type: 2}
+    - {fileID: 11400000, guid: 5091c124fbae8e44184dbe3e06fc2876, type: 2}
+    count: 7
+    healthScale: 1.7
+    damageScale: 1.2
+    isBoss: 0
+  - label: "7\uCE35"
+    species:
+    - {fileID: 11400000, guid: 4d1123ceabfc46e4bbb8a1cd1345d583, type: 2}
+    - {fileID: 11400000, guid: d84caa89649d518449beee268d6b31b8, type: 2}
+    - {fileID: 11400000, guid: 66e0063bd24f5a5429b8beaaa8d0b31e, type: 2}
+    - {fileID: 11400000, guid: 5091c124fbae8e44184dbe3e06fc2876, type: 2}
+    count: 8
+    healthScale: 1.9
+    damageScale: 1.25
+    isBoss: 0
+  - label: "8\uCE35"
+    species:
+    - {fileID: 11400000, guid: 4d1123ceabfc46e4bbb8a1cd1345d583, type: 2}
+    - {fileID: 11400000, guid: d84caa89649d518449beee268d6b31b8, type: 2}
+    - {fileID: 11400000, guid: 66e0063bd24f5a5429b8beaaa8d0b31e, type: 2}
+    - {fileID: 11400000, guid: 5091c124fbae8e44184dbe3e06fc2876, type: 2}
+    count: 9
+    healthScale: 2.1
+    damageScale: 1.3
+    isBoss: 0
+  - label: "9\uCE35"
+    species:
+    - {fileID: 11400000, guid: 4d1123ceabfc46e4bbb8a1cd1345d583, type: 2}
+    - {fileID: 11400000, guid: d84caa89649d518449beee268d6b31b8, type: 2}
+    - {fileID: 11400000, guid: 66e0063bd24f5a5429b8beaaa8d0b31e, type: 2}
+    - {fileID: 11400000, guid: 5091c124fbae8e44184dbe3e06fc2876, type: 2}
+    count: 10
+    healthScale: 2.4
+    damageScale: 1.4
+    isBoss: 0
+  - label: "\uBCF4\uC2A4"
+    species:
+    - {fileID: 11400000, guid: 4020df1d3af71024b9b61c3a5cbe4e8b, type: 2}
+    count: 1
+    healthScale: 1
+    damageScale: 1
+    isBoss: 1
+  runBudget: 5000

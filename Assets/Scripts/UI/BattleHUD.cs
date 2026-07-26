@@ -25,6 +25,18 @@ namespace DinoBattle.UI
         [SerializeField] private GameObject fightingPanel;
         [SerializeField] private GameObject resultPanel;
 
+        [Header("Gauntlet")]
+        [Tooltip("Mode toggle, shown during placement only.")]
+        [SerializeField] private GameObject modePanel;
+        [SerializeField] private Button versusModeButton;
+        [SerializeField] private Button gauntletModeButton;
+
+        [Tooltip("Tier and budget readout, shown while a climb is running.")]
+        [SerializeField] private GameObject gauntletPanel;
+        [SerializeField] private Text tierLabel;
+        [SerializeField] private Text gauntletBudgetLabel;
+        [SerializeField] private Button sendWaveButton;
+
         [Header("Placement controls")]
         [SerializeField] private AutoPlacer autoPlacer;
         [SerializeField] private Button autoFillButton;
@@ -118,8 +130,15 @@ namespace DinoBattle.UI
             HookButton(fightReplayButton, () => battleManager.Replay());
             HookButton(fightQuitButton, () => battleManager.EnterPlacement());
 
+            HookButton(versusModeButton, () => battleManager.SetMode(GameMode.Versus));
+            HookButton(gauntletModeButton, () => battleManager.SetMode(GameMode.Gauntlet));
+            HookButton(sendWaveButton, () => battleManager.SendGauntletWave());
+
+            battleManager.ModeChanged += HandleModeChanged;
+
             BuildRosterButtons();
             HandlePhaseChanged(battleManager.Phase);
+            HandleModeChanged(battleManager.Mode);
         }
 
         private void OnDisable()
@@ -129,6 +148,7 @@ namespace DinoBattle.UI
             battleManager.PhaseChanged -= HandlePhaseChanged;
             battleManager.BattleEnded -= HandleBattleEnded;
             battleManager.UnitCountChanged -= RefreshCounts;
+            battleManager.ModeChanged -= HandleModeChanged;
         }
 
         private void Update()
@@ -136,6 +156,65 @@ namespace DinoBattle.UI
             if (battleManager == null) return;
             if (battleManager.Phase == BattlePhase.Placement) RefreshPlacementLabels();
             else RefreshTeamHealth();
+
+            if (battleManager.Mode == GameMode.Gauntlet) RefreshGauntlet();
+        }
+
+        // ---------------------------------------------------------------- gauntlet
+
+        private void HandleModeChanged(GameMode mode)
+        {
+            bool gauntlet = mode == GameMode.Gauntlet;
+
+            // The mode bar belongs to setup only — switching arenas mid-climb would deactivate the
+            // ground the creatures are standing on.
+            SetActive(modePanel, battleManager.Phase == BattlePhase.Placement);
+            SetActive(gauntletPanel, gauntlet && battleManager.Phase != BattlePhase.Placement);
+
+            // Versus-only controls. A boss battle arranges two armies on the round arena, which is
+            // not the board, and the fight-bar replay restarts a match rather than a run.
+            SetActive(bossButton != null ? bossButton.gameObject : null, !gauntlet);
+
+            HighlightMode(versusModeButton, !gauntlet);
+            HighlightMode(gauntletModeButton, gauntlet);
+        }
+
+        /// <summary>Selected mode reads as pressed, so the toggle shows its own state.</summary>
+        private static void HighlightMode(Button button, bool selected)
+        {
+            if (button == null) return;
+
+            var image = button.GetComponent<Image>();
+            if (image == null) return;
+
+            image.color = selected ? new Color(0.30f, 0.52f, 0.34f, 0.95f)
+                                   : new Color(0.14f, 0.16f, 0.20f, 0.80f);
+        }
+
+        private void RefreshGauntlet()
+        {
+            var run = battleManager.Gauntlet;
+            if (run == null) return;
+
+            if (tierLabel != null)
+                tierLabel.text = $"{run.CurrentTierLabel} / {run.TierCount}";
+
+            if (gauntletBudgetLabel != null)
+                gauntletBudgetLabel.text = run.State switch
+                {
+                    GauntletState.Cleared => "클리어!",
+                    GauntletState.Defeated => "실패",
+                    _ => $"남은 예산 {run.BudgetRemaining}",
+                };
+
+            // Only offer another wave when there is nobody left to send it after, and only when it
+            // can actually be paid for. An always-live button would let the player stack waves and
+            // the climb would stop being a climb.
+            if (sendWaveButton != null)
+            {
+                bool affordable = battleManager.Loadout.SpentBy(Team.Red) <= run.BudgetRemaining;
+                sendWaveButton.interactable = run.CanSendWave && affordable;
+            }
         }
 
         // ---------------------------------------------------------------- phase handling
@@ -145,6 +224,10 @@ namespace DinoBattle.UI
             SetActive(placementPanel, phase == BattlePhase.Placement);
             SetActive(fightingPanel, phase == BattlePhase.Fighting);
             SetActive(resultPanel, phase == BattlePhase.Finished);
+
+            bool gauntlet = battleManager.Mode == GameMode.Gauntlet;
+            SetActive(modePanel, phase == BattlePhase.Placement);
+            SetActive(gauntletPanel, gauntlet && phase == BattlePhase.Fighting);
 
             RefreshPlacementLabels();
             RefreshSpeedLabel();

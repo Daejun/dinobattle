@@ -234,6 +234,43 @@ for present in Assets/Audio/Music/*.mp3; do
   fi
 done
 
+# ---------------------------------------------------------------- 4bb. MonoBehaviour file names
+head2 "4bb. Every serializable MonoBehaviour is in a file of its own name"
+
+# Unity binds a MonoBehaviour to a script asset by FILE NAME. A second MonoBehaviour sharing a file
+# compiles, runs, and can even be AddComponent'd at runtime — but it cannot be serialized into a
+# scene or prefab. It is dropped on save, silently.
+#
+# This cost real time: GauntletTier shared a file with GauntletArena, so the board saved with a tier
+# list of the correct length and ten null entries, and the mode looked wired until it was run.
+#
+# Runtime-only helpers are exempt, so the exception list is explicit rather than a pattern — anything
+# added to it is a deliberate decision that the type will never be serialized.
+RUNTIME_ONLY_MONOBEHAVIOURS="RampClimbSampler"
+
+offenders=""
+while IFS= read -r file; do
+  base=$(basename "$file" .cs)
+
+  # Class declarations that derive from MonoBehaviour, directly or via a known base.
+  while IFS= read -r cls; do
+    [[ -z "$cls" ]] && continue
+    [[ "$cls" == "$base" ]] && continue
+    grep -qw "$cls" <<< "$RUNTIME_ONLY_MONOBEHAVIOURS" && continue
+
+    offenders+="  $cls in $file (file is named $base.cs)"$'\n'
+  done < <(grep -oE '^\s*(public |internal |sealed |abstract )*class\s+([A-Za-z0-9_]+)\s*:\s*MonoBehaviour' "$file" \
+           | sed -E 's/.*class[[:space:]]+([A-Za-z0-9_]+).*/\1/')
+done < <(cs_files Assets/Scripts Assets/Editor)
+
+if [[ -z "$offenders" ]]; then
+  pass "no MonoBehaviour shares a file with a differently-named one"
+else
+  fail "MonoBehaviour(s) in a file that does not match the class name — Unity cannot serialize these:"
+  printf '%s' "$offenders"
+  info "Move each into its own .cs, or add it to RUNTIME_ONLY_MONOBEHAVIOURS if it is never serialized."
+fi
+
 # ---------------------------------------------------------------- 4c. mobile rendering budget
 head2 "4c. Mobile rendering settings"
 

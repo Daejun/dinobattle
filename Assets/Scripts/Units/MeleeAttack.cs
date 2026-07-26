@@ -82,11 +82,11 @@ namespace DinoBattle.Units
             if (animator == null) animator = GetComponentInChildren<Animator>();
         }
 
-        public void Configure(CreatureDefinition definition)
+        public void Configure(CreatureDefinition definition, float damageScale = 1f)
         {
             if (definition == null) return;
 
-            damage = definition.attackDamage;
+            damage = definition.attackDamage * Mathf.Max(0.01f, damageScale);
             interval = definition.attackInterval;
             range = definition.attackRange;
             windup = Mathf.Min(definition.attackWindup, definition.attackInterval);

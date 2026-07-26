@@ -339,6 +339,30 @@ ModeBar  (y 0.90–1.00, Placement에서만 활성)
 
 ---
 
+## 3.10 구현 완료 (2026-07-26)
+
+모드가 동작합니다. 실행 추적:
+
+```
+state=Engaging tier=0  blue=3  red=5     ← 0층 3마리로 기상, 교전
+TIER 1                 blue=0  red=4     ← 소탕, 1마리 손실
+state=Engaging tier=1  blue=4  red=4     ← 1층 4마리
+TIER 2                 blue=0  red=2     ← 소탕, 2마리 손실
+state=Engaging tier=2  blue=5  red=2     ← 2층 5마리
+state=WaveWiped tier=2 blue=5  red=0     ← 전멸
+→ SendGauntletWave()   예산 4010→3020, 웨이브 2회차가 출발대에서 시작
+                       tier 2 진행도 유지, 몬스터 5마리 그대로 대기
+```
+
+층별 마릿수(3/4/5)가 사다리와 일치하고, 소모 곡선(5→4→2→0)도 의도대로 나옵니다.
+모드 전환 후 대결 모드 회귀 없음 — 판 비활성, 원형 아레나 복귀, 판 위 잔존 개체 0.
+
+구현 중 하나 걸렸습니다: **`GauntletTier` 를 `GauntletArena.cs` 안에 같이 뒀더니 씬에 저장되지
+않았습니다.** Unity는 MonoBehaviour를 **파일명이 클래스명과 같을 때만** 스크립트 애셋에
+바인딩합니다. 컴파일도 되고 런타임 `AddComponent` 도 되지만 직렬화가 안 됩니다 — 증상은
+"길이 10짜리 tier 리스트에 전부 null" 이었습니다. `check-project.sh` 4bb 검사가 이제 이걸
+잡습니다 (회귀 주입으로 확인).
+
 ## 4. 구현 순서
 
 각 단계는 **검증 기준을 통과해야** 다음으로 갑니다. 특히 1단계.

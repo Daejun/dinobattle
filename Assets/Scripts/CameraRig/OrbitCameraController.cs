@@ -11,7 +11,13 @@ namespace DinoBattle.CameraRig
         [Header("Pivot")]
         [Tooltip("Point the camera orbits. Usually the center of the arena.")]
         [SerializeField] private Vector3 pivot = Vector3.zero;
+        [Tooltip("Legacy square pan clamp, used until SetPanBounds is called. The scene builder sets " +
+                 "it to the round arena's radius; the gauntlet replaces it with a real box.")]
         [SerializeField] private float panLimit = 80f;
+
+        private Vector2 panBoundsMin;
+        private Vector2 panBoundsMax;
+        private bool hasExplicitBounds;
 
         [Header("Orbit")]
         [SerializeField] private float yaw = 45f;
@@ -157,9 +163,34 @@ namespace DinoBattle.CameraRig
             targetPivot = ClampToArena(targetPivot + move);
         }
 
-        private Vector3 ClampToArena(Vector3 point) => new(
-            Mathf.Clamp(point.x, -panLimit, panLimit),
-            point.y,
-            Mathf.Clamp(point.z, -panLimit, panLimit));
+        /// <summary>
+        /// Rebind the pan box. Called when the arena changes.
+        ///
+        /// The clamp used to be a single radius, which can only describe a square centred on the
+        /// origin — fine for a round arena, useless for a board 290 units long sitting 600 units
+        /// away. Left as it was, the gauntlet camera could not have panned across a single tier.
+        /// </summary>
+        public void SetPanBounds(Vector2 min, Vector2 max)
+        {
+            panBoundsMin = min;
+            panBoundsMax = max;
+            hasExplicitBounds = true;
+
+            // Re-clamp whatever it is already looking at, so a mode switch cannot leave the pivot
+            // parked outside the new arena.
+            targetPivot = ClampToArena(targetPivot);
+            pivot = ClampToArena(pivot);
+        }
+
+        private Vector3 ClampToArena(Vector3 point)
+        {
+            Vector2 min = hasExplicitBounds ? panBoundsMin : new Vector2(-panLimit, -panLimit);
+            Vector2 max = hasExplicitBounds ? panBoundsMax : new Vector2(panLimit, panLimit);
+
+            return new Vector3(
+                Mathf.Clamp(point.x, min.x, max.x),
+                point.y,
+                Mathf.Clamp(point.z, min.y, max.y));
+        }
     }
 }

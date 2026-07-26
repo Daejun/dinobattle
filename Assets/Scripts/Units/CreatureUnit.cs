@@ -111,7 +111,8 @@ namespace DinoBattle.Units
         /// Called by the spawner immediately after Instantiate, before the object is enabled for the
         /// first Update. Stats always flow definition -> components so the prefab stays a dumb visual.
         /// </summary>
-        public void Initialize(CreatureDefinition creatureDefinition, Team assignedTeam, Color teamColor)
+        public void Initialize(CreatureDefinition creatureDefinition, Team assignedTeam, Color teamColor,
+                               float healthScale = 1f, float damageScale = 1f)
         {
             // Drop out of the old team's list before the team changes, or Unregister would later
             // search the wrong list and leave a phantom entry behind.
@@ -125,8 +126,23 @@ namespace DinoBattle.Units
             team = assignedTeam;
             initialized = true;
 
+            // Per-spawn scaling, for the gauntlet's difficulty ladder. Optional and defaulted, so
+            // every existing caller is unchanged and versus mode never sees it.
+            //
+            // It goes HERE, through the one funnel stats are allowed to enter a creature by, rather
+            // than into the definition or the prefab. The scale is a property of where this creature
+            // was spawned, not of what it is: the same Triceratops asset stands on tier two and tier
+            // nine, and only one of them should be hard.
+            //
+            // Armour is deliberately NOT scaled. Damage is subtractive — max(1, raw - armor) — so
+            // raising armour does not make a tier proportionally harder, it makes every attack in
+            // the game do exactly 1 the moment it crosses the attackers' damage. That is a cliff,
+            // not a curve. Health and damage scale predictably; armour does not.
+            healthScale = Mathf.Max(0.01f, healthScale);
+            damageScale = Mathf.Max(0.01f, damageScale);
+
             if (Health == null) Health = GetComponent<Health>();
-            if (definition != null) Health.Configure(definition.maxHealth, definition.armor);
+            if (definition != null) Health.Configure(definition.maxHealth * healthScale, definition.armor);
 
             foreach (var locomotion in GetComponentsInChildren<CreatureLocomotion>())
             {
@@ -135,7 +151,7 @@ namespace DinoBattle.Units
 
             foreach (var attack in GetComponentsInChildren<MeleeAttack>())
             {
-                attack.Configure(definition);
+                attack.Configure(definition, damageScale);
             }
 
             ApplyTeamTint(teamColor);

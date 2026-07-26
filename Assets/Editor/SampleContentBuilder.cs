@@ -28,6 +28,8 @@ namespace DinoBattle.EditorTools
         /// a boss appearing as an ordinary pick would spend the whole budget on one model.
         /// </summary>
         public const string BossRosterPath = "Assets/GameData/Rosters/Roster_Bosses.asset";
+
+        public const string GauntletLadderPath = "Assets/GameData/Rosters/GauntletLadder.asset";
         private const string PrefabPath = "Assets/Prefabs/Creatures";
 
         [MenuItem("Dino Battle/1. Generate Sample Content", priority = 100)]
@@ -60,6 +62,7 @@ namespace DinoBattle.EditorTools
 
             var roster = WriteRoster(RosterPath, definitions);
             WriteRoster(BossRosterPath, bosses);
+            WriteGauntletLadder(definitions, bosses);
 
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
@@ -660,6 +663,77 @@ namespace DinoBattle.EditorTools
         }
 
         /// <summary>Create or overwrite a roster asset listing exactly these definitions.</summary>
+        /// <summary>
+        /// The gauntlet's difficulty ladder: ten tiers, growing in both count and toughness.
+        ///
+        /// Both levers, deliberately. Count alone turns the late tiers into crowd management; stat
+        /// scaling alone draws the same picture with bigger numbers. Together the run changes
+        /// character as you climb, from a skirmish into a swarm.
+        ///
+        /// Health climbs far faster than damage — 2.4x against 1.4x by tier nine. Damage scaling
+        /// one-shots the player's creatures, which reads as unfair rather than hard; health scaling
+        /// only makes the fight longer. The boss balancing already taught this once: time-to-kill
+        /// predicted the win rate and raw health did not.
+        ///
+        /// There is no armour scale. Damage is applied as max(1, raw - armor), so armour is not a
+        /// proportional knob — past the point where it exceeds the attackers' damage every hit in
+        /// the game does exactly 1, and the curve becomes a wall.
+        ///
+        /// Peak concurrency is tier nine's ten monsters against roughly ten of the player's, so
+        /// twenty on the field — inside the twenty-four that Docs/performance.md measured as the
+        /// current ceiling. Lengthen this ladder and check that document first.
+        /// </summary>
+        private static void WriteGauntletLadder(List<CreatureDefinition> roster, List<CreatureDefinition> bosses)
+        {
+            var ladder = AssetDatabase.LoadAssetAtPath<GauntletLadder>(GauntletLadderPath);
+            if (ladder == null)
+            {
+                ladder = ScriptableObject.CreateInstance<GauntletLadder>();
+                AssetDatabase.CreateAsset(ladder, GauntletLadderPath);
+            }
+
+            // Sorted by cost so "weak" and "strong" mean something, and the ladder can reach for the
+            // cheap end early and the expensive end late without naming species in code.
+            var byCost = new List<CreatureDefinition>(roster);
+            byCost.Sort((a, b) => a.cost.CompareTo(b.cost));
+
+            List<CreatureDefinition> Cheapest(int n) => byCost.GetRange(0, Mathf.Min(n, byCost.Count));
+            List<CreatureDefinition> Strongest(int n) =>
+                byCost.GetRange(Mathf.Max(0, byCost.Count - n), Mathf.Min(n, byCost.Count));
+
+            int[] counts = { 3, 4, 5, 5, 6, 7, 8, 9, 10 };
+            float[] health = { 1.0f, 1.10f, 1.20f, 1.35f, 1.50f, 1.70f, 1.90f, 2.10f, 2.40f };
+            float[] damage = { 1.0f, 1.00f, 1.05f, 1.10f, 1.15f, 1.20f, 1.25f, 1.30f, 1.40f };
+
+            var tiers = new List<GauntletTierSpec>();
+            for (int i = 0; i < counts.Length; i++)
+            {
+                tiers.Add(new GauntletTierSpec
+                {
+                    label = $"{i + 1}층",
+                    // Widen the pool as the climb goes on: two cheap species at the bottom, the whole
+                    // roster by the top.
+                    species = i < 2 ? Cheapest(2) : i < 5 ? Cheapest(4) : Strongest(4),
+                    count = counts[i],
+                    healthScale = health[i],
+                    damageScale = damage[i],
+                });
+            }
+
+            tiers.Add(new GauntletTierSpec
+            {
+                label = "보스",
+                species = bosses.Count > 0 ? new List<CreatureDefinition> { bosses[0] } : Strongest(1),
+                count = 1,
+                healthScale = 1f,
+                damageScale = 1f,
+                isBoss = true,
+            });
+
+            ladder.SetTiers(tiers, 5000);
+            EditorUtility.SetDirty(ladder);
+        }
+
         private static CreatureRoster WriteRoster(string path, List<CreatureDefinition> definitions)
         {
             var roster = AssetDatabase.LoadAssetAtPath<CreatureRoster>(path);

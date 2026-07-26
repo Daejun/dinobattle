@@ -233,13 +233,47 @@ namespace DinoBattle.Units
 
             if (target == null)
             {
-                SetState(State.Idle);
+                if (MarchTarget.HasValue) March(MarchTarget.Value);
+                else SetState(State.Idle);
+
                 UpdateAnimator();
                 return;
             }
 
             TickCombat();
             UpdateAnimator();
+        }
+
+        /// <summary>
+        /// Somewhere to walk when there is nothing to fight, or null for the original behaviour.
+        ///
+        /// The gauntlet needs creatures to advance up the board between tiers. Without this they
+        /// reach the top of a ramp, find the next tier's monsters still inactive and therefore
+        /// invisible to targeting, and stand there.
+        ///
+        /// A FALLBACK, never an override: an enemy in range still wins, so a march order cannot walk
+        /// a creature past something that is trying to eat it. Nullable so that versus mode, which
+        /// never sets it, is bit-for-bit unaffected.
+        /// </summary>
+        public Vector3? MarchTarget { get; set; }
+
+        /// <summary>
+        /// Walk to a point. Deliberately reuses the Seek state and the same steering blend combat
+        /// uses, so a marching creature animates and separates exactly like a closing one — the
+        /// player should not be able to tell that the AI is doing something different.
+        /// </summary>
+        private void March(Vector3 destination)
+        {
+            SetState(State.Seek);
+
+            if (locomotion == null) return;
+
+            float maxSpeed = locomotion.MoveSpeed;
+            Vector3 desired = SteeringBehaviors.Blend(maxSpeed,
+                (SteeringBehaviors.Arrive(transform.position, destination, maxSpeed, 6f), 1f),
+                (SteeringBehaviors.Separation(self, separationRadius, maxSpeed), 1.1f));
+
+            locomotion.Steer(desired);
         }
 
         private void AcquireTarget()

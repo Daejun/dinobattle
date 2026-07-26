@@ -30,6 +30,7 @@ namespace DinoBattle.Core
         [SerializeField] private float verdictGrace = 1.5f;
 
         private CreatureSpawner spawner;
+        private GauntletDirector gauntlet;
         private readonly List<CreatureUnit> activeUnits = new();
         private int speedIndex;
 
@@ -47,6 +48,32 @@ namespace DinoBattle.Core
         private readonly Dictionary<Team, float> startingHealth = new();
 
         public BattlePhase Phase { get; private set; } = BattlePhase.Placement;
+
+        /// <summary>
+        /// Which mode the next match runs under. Only changeable during placement — switching arenas
+        /// mid-fight would leave creatures standing on geometry that had just been switched off.
+        /// </summary>
+        public GameMode Mode { get; private set; } = GameMode.Versus;
+
+        /// <summary>Raised when the player toggles the mode, so the HUD and arenas can follow.</summary>
+        public event Action<GameMode> ModeChanged;
+
+        public void SetMode(GameMode mode)
+        {
+            if (Mode == mode || Phase != BattlePhase.Placement) return;
+
+            Mode = mode;
+            Loadout.Clear();
+
+            if (gauntlet != null) gauntlet.EndRun();
+
+            UnitRegistry.Clear();
+            PackTactics.Clear();
+            spawner.DespawnAll();
+
+            ModeChanged?.Invoke(mode);
+            UnitCountChanged?.Invoke();
+        }
 
         /// <summary>
         /// Built at field-initialization rather than in Awake. Awake order between GameObjects is
@@ -78,6 +105,7 @@ namespace DinoBattle.Core
 
             Instance = this;
             spawner = GetComponent<CreatureSpawner>();
+            gauntlet = GetComponent<GauntletDirector>();
             Loadout.BudgetPerTeam = budgetPerTeam;
             Loadout.Changed += HandleLoadoutChanged;
             speedIndex = Mathf.Clamp(defaultSpeedIndex, 0, speedSteps.Length - 1);
@@ -123,6 +151,10 @@ namespace DinoBattle.Core
             activeUnits.Clear();
             UnitRegistry.Clear();
             PackTactics.Clear();
+
+            // Before DespawnAll, which destroys the creatures the run is still holding references to.
+            if (gauntlet != null) gauntlet.EndRun();
+
             spawner.DespawnAll();
             Loadout.Clear();
 
@@ -165,6 +197,8 @@ namespace DinoBattle.Core
         {
             if (Phase != BattlePhase.Placement) return false;
 
+            if (Mode == GameMode.Gauntlet) return StartGauntlet();
+
             if (!Loadout.IsReadyToFight)
             {
                 Debug.Log("[BattleManager] Both teams need at least one creature before the fight can start.");
@@ -199,6 +233,62 @@ namespace DinoBattle.Core
             UnitCountChanged?.Invoke();
             return true;
         }
+
+        /// <summary>
+        /// Start a climb. Only the player's side is placed — the board supplies the opposition.
+        ///
+        /// Deliberately does not go through the versus path: that requires a creature on both teams
+        /// (there is nobody to place on the monsters' side, they are already standing on the board),
+        /// spawns from the loadout's arena positions (which belong to a round arena on the other side
+        /// of the world), and records a starting-health total for a pair of armies that do not exist
+        /// here.
+        /// </summary>
+        private bool StartGauntlet()
+        {
+            if (gauntlet == null)
+            {
+                Debug.LogError("[BattleManager] Gauntlet mode selected but no GauntletDirector — rebuild the scene.");
+                return false;
+            }
+
+            if (Loadout.CountFor(Team.Red) == 0)
+            {
+                Debug.Log("[BattleManager] Pick at least one creature before setting off.");
+                return false;
+            }
+
+            UnitRegistry.Clear();
+            PackTactics.Clear();
+            activeUnits.Clear();
+            spawner.ClearPreviews();
+
+            gauntlet.BeginRun();
+
+            // Phase first: SendWave spawns creatures whose CreatureImpact only runs during Fighting.
+            SetPhase(BattlePhase.Fighting);
+            ApplySimulationSpeed();
+
+            if (!gauntlet.SendWave())
+            {
+                SetPhase(BattlePhase.Placement);
+                return false;
+            }
+
+            UnitCountChanged?.Invoke();
+            return true;
+        }
+
+        /// <summary>Send the next wave up the board. Returns false if it cannot be afforded.</summary>
+        public bool SendGauntletWave()
+        {
+            if (Mode != GameMode.Gauntlet || gauntlet == null) return false;
+            if (!gauntlet.SendWave()) return false;
+
+            UnitCountChanged?.Invoke();
+            return true;
+        }
+
+        public GauntletDirector Gauntlet => gauntlet;
 
         private void RecordStartingHealth()
         {
@@ -242,6 +332,12 @@ namespace DinoBattle.Core
         private void HandleUnitDied(CreatureUnit unit)
         {
             UnitCountChanged?.Invoke();
+
+            // A gauntlet does not end because one side is momentarily empty. Clearing a tier is
+            // progress, and losing a wave is a prompt to send another — GauntletDirector owns both
+            // judgements. Without this the run would be declared over the instant the first tier
+            // fell.
+            if (Mode == GameMode.Gauntlet) return;
 
             if (Phase != BattlePhase.Fighting || awaitingVerdict) return;
 

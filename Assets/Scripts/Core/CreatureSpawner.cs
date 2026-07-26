@@ -44,7 +44,11 @@ namespace DinoBattle.Core
             }
         }
 
-        public CreatureUnit Spawn(PlacedCreature placement)
+        /// <summary>
+        /// Spawn one placement. The scales are the gauntlet's per-tier difficulty and default to 1,
+        /// so versus mode and every existing caller are untouched.
+        /// </summary>
+        public CreatureUnit Spawn(PlacedCreature placement, float healthScale = 1f, float damageScale = 1f)
         {
             var definition = placement.Definition;
             if (definition == null || definition.prefab == null)
@@ -66,7 +70,7 @@ namespace DinoBattle.Core
                 return null;
             }
 
-            unit.Initialize(definition, placement.Team, ColorFor(placement.Team));
+            unit.Initialize(definition, placement.Team, ColorFor(placement.Team), healthScale, damageScale);
             return unit;
         }
 
