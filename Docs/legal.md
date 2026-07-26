@@ -27,6 +27,25 @@ Google Play에 마블 캐릭터가 포함된 앱을 올리면:
 | Bio T-Rex, Alpha Rex, Cyber Rex | Indominus Rex, Indoraptor |
 | Toxic Raptor, Armored Rex | Blue (쥬라기 월드 랩터 이름) |
 | Ancient King, Apex Predator | Godzilla, Kaiju (Toho 상표) |
+| Megarachne (실존 멸종 속명) | Distortus Rex (쥬라기 월드 리버스) |
+
+### 현재 리포지토리에 들어 있는 상표명 (배포 전 반드시 변경)
+
+소유자가 **본인 폰에만 설치하는 빌드**를 위해 요청해서 들어와 있습니다. 상표의 문제는
+"상거래에서의 사용"이므로 개인 기기 한정 빌드에는 해당하지 않지만, 공개 배포 시점에는
+그 근거가 사라집니다.
+
+| 현재 이름 | 출처 | 대체 후보 |
+|---|---|---|
+| `Indominus Rex` | 쥬라기 월드 (Universal) | Alpha Hybrid, Pale Tyrant |
+| `Distortus Rex` | 쥬라기 월드 리버스 (Universal) | Malformed Rex, Failed Tyrant |
+
+둘 다 `Assets/Editor/CreatureBlueprints.cs` 의 `BossBlueprints` 에 있고 이름 문자열 하나씩만
+바꾸면 됩니다. **모델 자체는 문제없습니다** — Quaternius T-Rex를 코드로 변형한 것이라
+서드파티 애셋이 아닙니다. 상표는 이름에만 붙습니다.
+
+반면 `Megarachne` 는 실존 멸종 속명(한때 사상 최대 거미로 기재됨)이라 자연물 이름이며
+그대로 배포 가능합니다.
 
 ## 애셋 라이선스
 

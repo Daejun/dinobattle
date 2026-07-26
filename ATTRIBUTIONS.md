@@ -114,10 +114,25 @@ where it came from — which is exactly the failure this file exists to prevent,
 asset whose provenance nobody wrote down is an asset nobody can re-verify later. Identified after
 the fact by matching its `DragonArmature|Dragon_*` clip naming against the Quaternius catalogue.
 
-**Indominus Rex** is not a downloaded model. It is the Quaternius T-Rex above, reshaped by
-`CreatureSkinBuilder` — no third-party asset involved, so nothing to attribute. The NAME, however,
-is a Universal trademark; see `Docs/legal.md`. It is present only for a build that goes on the
-owner's own phone, and must be renamed before any public release.
+**Megarachne** is Quaternius's `SK_Spider`, from the
+[Easy Enemy pack](https://quaternius.com/packs/easyenemy.html) — CC0 1.0 Universal. Cached at
+`.assets-cache/easyenemy/` with the pack's own `License.txt`, and copied into the project by
+`Dino Battle > 4b`. 5318 vertices over 39 bones, with Idle, Walk, Attack, Death and Jump clips.
+
+Chosen after failing to find a scorpion, which is what was actually wanted. There is no animated
+scorpion that is both licence-acceptable and downloadable without an account: Quaternius has none
+across 82 packs and 4078 models, OpenGameArt's only one is CC-BY-SA, Sketchfab has zero under CC0
+and gates its CC-BY ones behind a login, and every itch.io and Asset Store option is paid. A spider
+was the nearest thing in spirit — a giant arthropod, eight legs, a silhouette nothing else in the
+roster has — and being Quaternius it matches the dinosaurs exactly in style.
+
+The name is a real extinct genus, once described as the largest spider that ever lived before being
+reclassified as a sea scorpion. Natural names carry no trademark, unlike the two below.
+
+**Indominus Rex** and **Distortus Rex** are not downloaded models. Both are the Quaternius T-Rex above, reshaped by
+`CreatureSkinBuilder` with different `BodyShape` entries — no third-party asset involved, so nothing
+to attribute. The NAMES, however, are Universal trademarks; see `Docs/legal.md`. They are present
+only for a build that goes on the owner's own phone, and must be renamed before any public release.
 
 ## Arena vegetation
 

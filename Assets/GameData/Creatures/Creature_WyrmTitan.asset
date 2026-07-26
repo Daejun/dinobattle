@@ -18,12 +18,12 @@ MonoBehaviour:
   prefab: {fileID: 4993277790968026523, guid: 364f51daa51a7d84cbaa36ecf647b714, type: 3}
   cost: 3000
   footprintRadius: 6.3
-  maxHealth: 38000
+  maxHealth: 41500
   armor: 60
   moveSpeed: 6.2
   turnSpeedDegrees: 165
   mass: 52000
-  attackDamage: 820
+  attackDamage: 1050
   attackInterval: 1.7
   attackRange: 7
   attackWindup: 0.425

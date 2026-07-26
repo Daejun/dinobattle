@@ -98,7 +98,17 @@ namespace DinoBattle.Placement
         /// and desperation were all written for exactly this shape of fight and rarely all fire at
         /// once in an even match.
         /// </summary>
-        public void BossBattle()
+        public void BossBattle() => BossBattle(null);
+
+        /// <summary>
+        /// Set up the boss fight with a specific boss, or a random one when <paramref name="boss"/>
+        /// is null.
+        ///
+        /// The explicit overload exists for the balance probe. With one boss a random pick and a
+        /// per-boss pick were the same thing; with four, twelve random battles give three each,
+        /// which is far too few to tell a knife-edge matchup from a lopsided one.
+        /// </summary>
+        public void BossBattle(CreatureDefinition boss)
         {
             if (battleManager == null) battleManager = BattleManager.Instance;
             if (battleManager == null || battleManager.Phase != BattlePhase.Placement) return;
@@ -118,7 +128,7 @@ namespace DinoBattle.Placement
             // the screen appears: one thing in the middle, everything else closing on it. It also
             // gives the pack AI what it was written for, since the attackers already start spread
             // across every side rather than having to work their way around.
-            var boss = bossRoster.Creatures[Random.Range(0, bossRoster.Creatures.Count)];
+            boss ??= bossRoster.Creatures[Random.Range(0, bossRoster.Creatures.Count)];
 
             battleManager.Loadout.Add(new PlacedCreature
             {

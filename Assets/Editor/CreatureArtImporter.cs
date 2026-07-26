@@ -18,8 +18,29 @@ namespace DinoBattle.EditorTools
     /// </summary>
     public static class CreatureArtImporter
     {
-        private const string CacheFolder = ".assets-cache/quaternius-dinosaurs";
+        private const string CacheRoot = ".assets-cache";
         private const string ModelFolder = "Assets/Art/Models";
+
+        /// <summary>
+        /// Which cached download folder lands where under <see cref="ModelFolder"/>.
+        ///
+        /// An explicit table rather than a flat sweep, because the destination is not uniform:
+        /// creatures go to the root, where the animation step looks for them, and scenery goes to
+        /// Nature. Sweeping everything into one folder would import several hundred palm trees
+        /// alongside the dinosaurs, twice.
+        ///
+        /// It is a table rather than the single hardcoded path it used to be because that single
+        /// path is how the dragon boss came to be copied in by hand — and an asset copied in by hand
+        /// is an asset whose origin nobody wrote down, which is exactly what happened. Everything the
+        /// game ships should be reproducible by running this menu item against the cache.
+        /// </summary>
+        private static readonly (string Cache, string Destination)[] CacheMap =
+        {
+            ("quaternius-dinosaurs", ModelFolder),
+            ("monster",              ModelFolder),
+            ("easyenemy",            ModelFolder),
+            ("nature",               ModelFolder + "/Nature"),
+        };
 
         // ---------------------------------------------------------------- inspect (read-only)
 
@@ -37,7 +58,7 @@ namespace DinoBattle.EditorTools
 
             string cachePath = Path.Combine(
                 Directory.GetParent(Application.dataPath)!.FullName,
-                CacheFolder.Replace('/', Path.DirectorySeparatorChar));
+                CacheRoot.Replace('/', Path.DirectorySeparatorChar));
 
             report.AppendLine($"\n[cache] {cachePath}");
             if (!Directory.Exists(cachePath))
@@ -116,31 +137,45 @@ namespace DinoBattle.EditorTools
         [MenuItem("Dino Battle/4b. Copy FBX From Cache", priority = 121)]
         public static void CopyFbxFromCache()
         {
-            string cachePath = Path.Combine(
+            string root = Path.Combine(
                 Directory.GetParent(Application.dataPath)!.FullName,
-                CacheFolder.Replace('/', Path.DirectorySeparatorChar));
+                CacheRoot.Replace('/', Path.DirectorySeparatorChar));
 
-            if (!Directory.Exists(cachePath))
+            if (!Directory.Exists(root))
             {
-                Debug.LogError($"[CreatureArtImporter] Cache folder not found: {cachePath}");
+                Debug.LogError($"[CreatureArtImporter] Cache folder not found: {root}");
                 return;
             }
 
             SampleContentBuilder.EnsureFolder("Assets/Art");
-            SampleContentBuilder.EnsureFolder(ModelFolder);
 
             var copied = new List<string>();
-            foreach (var source in Directory.EnumerateFiles(cachePath, "*.fbx", SearchOption.AllDirectories))
+            var absent = new List<string>();
+
+            foreach (var (cache, destinationFolder) in CacheMap)
             {
-                string destination = Path.Combine(ModelFolder, Path.GetFileName(source));
-                File.Copy(source, destination, overwrite: true);
-                copied.Add(destination);
+                string sourceFolder = Path.Combine(root, cache);
+                if (!Directory.Exists(sourceFolder)) { absent.Add(cache); continue; }
+
+                SampleContentBuilder.EnsureFolder(destinationFolder);
+
+                foreach (var source in Directory.EnumerateFiles(sourceFolder, "*.fbx", SearchOption.AllDirectories))
+                {
+                    string destination = Path.Combine(destinationFolder, Path.GetFileName(source));
+                    File.Copy(source, destination, overwrite: true);
+                    copied.Add(destination);
+                }
             }
 
             AssetDatabase.Refresh();
 
-            if (copied.Count == 0) Debug.LogWarning($"[CreatureArtImporter] No .fbx found under {cachePath}");
-            else Debug.Log($"[CreatureArtImporter] Copied {copied.Count} FBX into {ModelFolder}:\n  " + string.Join("\n  ", copied));
+            // Not an error. The cache is gitignored, so a fresh clone has none of these until the
+            // fetch scripts have run, and copying whichever ones are present is the useful behaviour.
+            if (absent.Count > 0)
+                Debug.Log($"[CreatureArtImporter] Not in the cache yet: {string.Join(", ", absent)}");
+
+            if (copied.Count == 0) Debug.LogWarning($"[CreatureArtImporter] No .fbx found under {root}");
+            else Debug.Log($"[CreatureArtImporter] Copied {copied.Count} FBX:\n  " + string.Join("\n  ", copied));
         }
 
         // ---------------------------------------------------------------- import settings + controllers

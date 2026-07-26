@@ -10,21 +10,21 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: c28d35c407bc3d54e9f95971f3375aa2, type: 3}
-  m_Name: Creature_IndominusRex
+  m_Name: Creature_Megarachne
   m_EditorClassIdentifier: Assembly-CSharp::DinoBattle.Data.CreatureDefinition
-  displayName: Indominus Rex
-  description: Placeholder stat block for Indominus Rex.
+  displayName: Megarachne
+  description: Placeholder stat block for Megarachne.
   icon: {fileID: 0}
-  prefab: {fileID: 8834134575500624983, guid: 9819eb84eeed6aa489dfae5842b06d7e, type: 3}
+  prefab: {fileID: 7143229507937578908, guid: c0fd825d5a067a745a823f053125e15c, type: 3}
   cost: 3000
-  footprintRadius: 6.9
-  maxHealth: 40000
-  armor: 70
-  moveSpeed: 5.4
+  footprintRadius: 5.7000003
+  maxHealth: 44500
+  armor: 45
+  moveSpeed: 7.4
   turnSpeedDegrees: 165
-  mass: 60000
-  attackDamage: 1150
-  attackInterval: 1.9
-  attackRange: 7.5
-  attackWindup: 0.475
+  mass: 46000
+  attackDamage: 790
+  attackInterval: 1.15
+  attackRange: 6
+  attackWindup: 0.2875
   aggroRange: 90

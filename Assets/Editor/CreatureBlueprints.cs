@@ -84,13 +84,33 @@ namespace DinoBattle.EditorTools
     /// </summary>
     internal static class BossBlueprints
     {
+        /// <summary>
+        /// A note on why these health values look wrong next to the armour values.
+        ///
+        /// Armour is flat subtraction, not a percentage — see Health.TakeDamage. So it is worth far
+        /// more against the light hunters than the heavy ones: 78 armour takes 71% off a
+        /// Velociraptor's 110-damage bite and 14% off a Bio T-Rex's 560. Health and armour are
+        /// therefore not independent dials, and the number that actually decides a boss fight is
+        /// neither of them on its own but how long ten hunters need to chew through the pair.
+        ///
+        /// Measured against the current roster, that quantity predicts the outcome almost exactly,
+        /// while raw health does not. At 8 battles each: 31.9s survived -> won 6/8, 30.1s -> 6/8,
+        /// 26.5s -> 7/8, 22.1s -> 1/8. The boss that killed hunters FASTEST was the one that lost
+        /// almost every fight, because a pack that is still ten strong out-damages anything, and
+        /// living longer is what lets a boss thin it.
+        ///
+        /// So these are all tuned to roughly the same time-to-kill, around 24 seconds, and the
+        /// health figures fall out of that. The lightly armoured spider needs the most health to
+        /// survive as long as the heavily armoured Distortus on much less. Change armour here and
+        /// the health has to move with it, in the opposite direction.
+        /// </summary>
         public static readonly CreatureBlueprint[] All =
         {
             new()
             {
                 Name = "Indominus Rex", Model = "Trex", Recolor = true,
-                Cost = 3000, Health = 42000f, Armor = 70f,
-                Damage = 900f, Interval = 1.9f, Range = 7.5f,
+                Cost = 3000, Health = 40000f, Armor = 70f,
+                Damage = 1150f, Interval = 1.9f, Range = 7.5f,
                 Speed = 5.4f, Mass = 60000f,
                 BodySize = new Vector3(4.6f, 6.4f, 11.5f),
                 Accent = new Color(0.42f, 0.46f, 0.52f),
@@ -106,13 +126,81 @@ namespace DinoBattle.EditorTools
                 // The other pack's dragon, for variety. Genuinely a different silhouette rather than
                 // a second big theropod, and it comes with its own wing-beat animation.
                 Name = "Wyrm Titan", Model = "Dragon", Recolor = true,
-                Cost = 3000, Health = 38000f, Armor = 60f,
-                Damage = 820f, Interval = 1.7f, Range = 7f,
+                Cost = 3000, Health = 41500f, Armor = 60f,
+                Damage = 1050f, Interval = 1.7f, Range = 7f,
                 Speed = 6.2f, Mass = 52000f,
                 BodySize = new Vector3(5.0f, 5.6f, 10.5f),
                 TintStrength = 0.85f,
                 Accent = new Color(0.98f, 0.72f, 0.18f),
                 Tint = new Color(0.62f, 0.10f, 0.42f),
+            },
+            new()
+            {
+                // A real genus, not an invention: Megarachne was described as the largest spider that
+                // ever lived before being reclassified as a sea scorpion. A natural name, so free of
+                // the trademark problem that hangs over the Indominus.
+                //
+                // The third boss exists to fight differently, not just to look different. The others
+                // are armoured and hit like a truck at a long reach; this one is the fastest thing on
+                // the field with the shortest reach and the least armour, and it wins by rate of fire
+                // — 687 damage per second, the highest of the four, against the least health. Whether
+                // that trade is even is not something a stat block can tell you, so it was probed.
+                //
+                // Sourced rather than reshaped from a dinosaur, because eight legs are not something
+                // vertex displacement can add to a theropod.
+                //
+                // Health sits on the same equal-time-to-kill line as the others, at 44500. It was
+                // briefly raised to 49000 on the theory that flat armour leaves a lightly armoured
+                // boss more exposed to which hunters the pack happens to draw. Re-probing killed
+                // that theory: the raise did move this boss from 2/8 to 6/8, but in the same run the
+                // three bosses whose stats had not been touched at all moved 4/8 -> 2/8, 5/8 -> 1/8
+                // and 3/8 -> 1/8. An effect that size on unchanged configurations means the harness
+                // cannot resolve what was being tuned, so the adjustment was backed out rather than
+                // kept on the strength of a result that had already been shown to be noise.
+                //
+                // Two things it is NOT, both ruled out by measuring rather than assuming: reach and
+                // attack opportunity. Despite the shortest range on the widest body, it has a target
+                // within reach 97% of the time — the same as the others — and it swings more often
+                // than any of them, 21 times to their 10-13 over the same window.
+                Name = "Megarachne", Model = "Spider", Recolor = true,
+                Cost = 3000, Health = 44500f, Armor = 45f,
+                Damage = 790f, Interval = 1.15f, Range = 6.0f,
+                Speed = 7.4f, Mass = 46000f,
+
+                // The model scales off BodySize.z, and this rig is 1.18x as wide as it is long, so
+                // 9.5 puts the leg span at about 11 units — wider than the Indominus is long.
+                // BodySize.x is NOT that span: it drives the footprint and the physics capsule, and
+                // those should describe the solid body in the middle, not the reach of the legs.
+                BodySize = new Vector3(5.0f, 3.4f, 9.5f),
+
+                TintStrength = 0.88f,
+                Accent = new Color(0.95f, 0.20f, 0.10f),
+                Tint = new Color(0.17f, 0.11f, 0.24f),
+                Shape = BodyShape.Broodmother,
+            },
+            new()
+            {
+                // Same trademark problem as the Indominus, and here for the same reason: the owner
+                // asked for it for a build that goes on their own phone. Docs/legal.md rules the name
+                // out for distribution — rename before any public release.
+                //
+                // The failed-experiment boss. Slowest and shortest-reaching of the four, but the most
+                // health, the heaviest single hit and the most armour: something that has to be worn
+                // down rather than out-traded. It is the mirror of the Megarachne, which is fast and
+                // fragile and wins on rate of fire.
+                Name = "Distortus Rex", Model = "Trex", Recolor = true,
+                Cost = 3000, Health = 38500f, Armor = 78f,
+                Damage = 1330f, Interval = 2.35f, Range = 6.8f,
+                Speed = 4.8f, Mass = 64000f,
+                BodySize = new Vector3(5.2f, 7.0f, 12.5f),
+
+                // Pale and grey, with the tint doing nearly all the work — the film design reads as
+                // bleached lab-grown flesh, and the pack's own body colour is dark enough to fight
+                // that unless it is almost fully overridden. Same reason the Indominus sits at 0.93.
+                TintStrength = 0.94f,
+                Tint = new Color(0.80f, 0.79f, 0.76f),
+                Accent = new Color(0.72f, 0.36f, 0.36f),
+                Shape = BodyShape.Malformed,
             },
         };
     }

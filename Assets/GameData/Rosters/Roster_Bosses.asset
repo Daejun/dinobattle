@@ -15,3 +15,5 @@ MonoBehaviour:
   creatures:
   - {fileID: 11400000, guid: 11e6c5cdeb620af40b9c9097333cc144, type: 2}
   - {fileID: 11400000, guid: 4feb235b6062ba144becfd82904eb841, type: 2}
+  - {fileID: 11400000, guid: 97c2aea13c2b655408f0555ba41cedb7, type: 2}
+  - {fileID: 11400000, guid: ecb1de81aee2e0c499ef82d5c56f0581, type: 2}
