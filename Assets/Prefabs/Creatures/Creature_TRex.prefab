@@ -69,6 +69,7 @@ GameObject:
   - component: {fileID: 4806787402762675556}
   - component: {fileID: 3051708778442673693}
   - component: {fileID: 2416436832017312073}
+  - component: {fileID: 5319989130106143049}
   - component: {fileID: 66196815698126629}
   m_Layer: 0
   m_Name: Creature_TRex
@@ -294,6 +295,26 @@ MonoBehaviour:
   - Skull
   maxYaw: 55
   responsiveness: 90
+--- !u!114 &5319989130106143049
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1901665197370020436}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7f87550823f669940ba70f218777e333, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DinoBattle.Units.CreatureImpact
+  minimumImpactSpeed: 3.5
+  contactFraction: 0.75
+  shoveStrength: 1.6
+  shoveLift: 0.28
+  staggerDuration: 0.22
+  maximumShove: 12
+  impactCooldown: 1.4
+  scanInterval: 0.06
 --- !u!82 &66196815698126629
 AudioSource:
   m_ObjectHideFlags: 0

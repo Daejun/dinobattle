@@ -69,6 +69,7 @@ GameObject:
   - component: {fileID: 4960348156559893881}
   - component: {fileID: 3277999180842498217}
   - component: {fileID: 2542580388087836590}
+  - component: {fileID: 5220995428503554806}
   - component: {fileID: 5969145485752616968}
   m_Layer: 0
   m_Name: Creature_Parasaurolophus
@@ -294,6 +295,26 @@ MonoBehaviour:
   - Skull
   maxYaw: 55
   responsiveness: 90
+--- !u!114 &5220995428503554806
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2870443527841078448}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7f87550823f669940ba70f218777e333, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DinoBattle.Units.CreatureImpact
+  minimumImpactSpeed: 3.5
+  contactFraction: 0.75
+  shoveStrength: 1.6
+  shoveLift: 0.28
+  staggerDuration: 0.22
+  maximumShove: 12
+  impactCooldown: 1.4
+  scanInterval: 0.06
 --- !u!82 &5969145485752616968
 AudioSource:
   m_ObjectHideFlags: 0

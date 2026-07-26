@@ -158,6 +158,9 @@ namespace DinoBattle.EditorTools
             // placeholder primitives: with no skeleton it finds no head bone and does nothing.
             EnsureComponent<HeadLook>(root);
 
+            // Body-to-body shoves. Needs the Rigidbody and collider added above it.
+            EnsureComponent<CreatureImpact>(root);
+
             // Real art if the pack has been imported, blocked-out primitives otherwise. Keeping both
             // paths here means one generator owns the prefab and re-running the menu never wipes art.
             Animator animator = AttachModelVisual(root, blueprint, safeName);

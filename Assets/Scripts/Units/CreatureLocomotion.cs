@@ -72,6 +72,12 @@ namespace DinoBattle.Units
         /// </summary>
         private Vector3 commandedVelocity;
 
+        /// <summary>
+        /// Seconds of lost footing remaining. While this is running the steering does not touch
+        /// velocity, so a collision shove survives instead of being erased on the next physics step.
+        /// </summary>
+        private float staggerRemaining;
+
         public bool IsGrounded { get; private set; }
 
         /// <summary>Horizontal speed this frame. Feed it to the animator's locomotion blend.</summary>
@@ -123,6 +129,14 @@ namespace DinoBattle.Units
             Vector3 horizontal = body.linearVelocity;
             horizontal.y = 0f;
             CurrentSpeed = horizontal.magnitude;
+
+            if (staggerRemaining > 0f)
+            {
+                // Knocked off balance: physics has the creature until it recovers. Rotation still
+                // runs, so it keeps facing its enemy while being shoved back.
+                staggerRemaining -= Time.fixedDeltaTime;
+                return;
+            }
 
             if (!stopped) ApplySteering();
         }
@@ -184,6 +198,19 @@ namespace DinoBattle.Units
             commandedVelocity = flat;
         }
 
+        /// <summary>
+        /// Knock this creature off balance for a moment, letting physics carry it.
+        ///
+        /// Takes the longest pending stagger rather than adding: being hit twice in a scrum should
+        /// not accumulate into a creature that cannot move for a second and a half.
+        /// </summary>
+        public void Stagger(float seconds)
+        {
+            if (stopped) return;
+
+            staggerRemaining = Mathf.Max(staggerRemaining, seconds);
+        }
+
         /// <summary>Rotate toward a point. Returns the remaining angle in degrees.</summary>
         public float FaceTowards(Vector3 target)
         {
@@ -239,6 +266,7 @@ namespace DinoBattle.Units
         public void OnUnitDied()
         {
             stopped = true;
+            staggerRemaining = 0f;
             desiredVelocity = Vector3.zero;
             commandedVelocity = Vector3.zero;
 
