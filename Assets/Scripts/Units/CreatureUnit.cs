@@ -241,6 +241,25 @@ namespace DinoBattle.Units
             if (!voice.isPlaying) voice.PlayOneShot(roarClip, 0.7f);
         }
 
+        /// <summary>
+        /// Roar now, on demand.
+        ///
+        /// Deliberately not subject to the CombatEnabled gate that silences the ambient timer. That
+        /// gate exists so the last creature standing does not keep bellowing over the result screen,
+        /// but the victory celebration wants exactly one roar at exactly that moment — the whole
+        /// point being that a player who cannot read still knows who won.
+        ///
+        /// Louder than the ambient call, and allowed to interrupt one, because it is a punctuation
+        /// mark rather than atmosphere.
+        /// </summary>
+        public void Roar()
+        {
+            if (voice == null || roarClip == null || IsDead) return;
+
+            voice.Stop();
+            voice.PlayOneShot(roarClip, 1f);
+        }
+
         private void HandleDied()
         {
             // Leave the registry right away so nothing keeps chasing a corpse.

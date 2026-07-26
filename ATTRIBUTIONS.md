@@ -136,6 +136,37 @@ involved, so nothing to attribute.
 Both carried Jurassic World names until this repository went public; see `Docs/legal.md` for what
 changed and why. The models never came from Universal, only the names did, and those are gone.
 
+## Music
+
+Both tracks by **cynicmusic** (cynicmusic.com / pixelsphere.org), **CC0 1.0 Universal**, from
+OpenGameArt. CC0 requires no attribution; recorded here because this file is the only record of
+where anything came from.
+
+| In-game | Source | Licence |
+|---|---|---|
+| `music_placement.mp3` | [enchanted tiki 86](https://opengameart.org/content/enchanted-tiki-86) | CC0 |
+| `music_battle.mp3` | [Battle Theme A](https://opengameart.org/content/battle-theme-a) | CC0 |
+
+The tiki track for the setup screen because the arena is a jungle and it is the only thing in the
+CC0 catalogue that sounds like one.
+
+Added after a four-year-old's playtest found the game completely silent: "노래가 아예 없어.
+조용하니까 좀 이상해." Silence did not read as calm, it read as something being broken.
+
+`sfx_victory.wav` is **not** downloaded — it is synthesised by
+[`FanfareBuilder.cs`](Assets/Editor/FanfareBuilder.cs). A major triad climbing to the octave plus a
+noise cymbal, which is well inside what a few oscillators can do, unlike the creature voices that
+had to be real recordings. No licence, no download, no fourth-party file.
+
+## UI icons
+
+Not downloaded either. [`ButtonIconBuilder.cs`](Assets/Editor/ButtonIconBuilder.cs) rasterises the
+six button icons from polygons and circles into `Assets/Art/UI/`. An icon set would be a licence and
+an attribution entry each, for six silhouettes at 128px.
+
+Same playtest: every button was Korean text and the tester cannot read, so he chose one by pressing
+the biggest — including, twice, the one that quits the app.
+
 ## Arena vegetation
 
 Models: **Quaternius** — [Ultimate Stylized Nature Pack](https://quaternius.com/packs/ultimatestylizednature.html),

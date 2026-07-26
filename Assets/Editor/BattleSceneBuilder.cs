@@ -73,6 +73,7 @@ namespace DinoBattle.EditorTools
             var cameraRig = CreateCamera();
             var (manager, placement, autoPlacer) = CreateManagers(cameraRig);
             CreateHud(manager, placement, autoPlacer);
+            CreateAudio(manager);
 
             WarnAboutObstructions();
 
@@ -82,6 +83,32 @@ namespace DinoBattle.EditorTools
             AddSceneToBuildSettings();
 
             Debug.Log($"[BattleSceneBuilder] Built {ScenePath}. Press Play, tap the ground to place, then Start Battle.");
+        }
+
+        /// <summary>
+        /// Background music and the victory celebration.
+        ///
+        /// Both hang off their own object rather than the camera: the camera is where listening
+        /// happens, and a 2D music source parented to a rig that orbits and zooms is asking for one
+        /// of them to start panning the soundtrack the first time someone changes the audio settings.
+        /// </summary>
+        private static void CreateAudio(BattleManager manager)
+        {
+            var host = new GameObject("Audio");
+
+            var music = host.AddComponent<BattleMusic>();
+            var musicSerialized = new SerializedObject(music);
+            musicSerialized.FindProperty("placementTrack").objectReferenceValue =
+                AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Audio/Music/music_placement.mp3");
+            musicSerialized.FindProperty("battleTrack").objectReferenceValue =
+                AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Audio/Music/music_battle.mp3");
+            musicSerialized.ApplyModifiedPropertiesWithoutUndo();
+
+            var celebration = host.AddComponent<VictoryCelebration>();
+            var celebrationSerialized = new SerializedObject(celebration);
+            celebrationSerialized.FindProperty("fanfare").objectReferenceValue =
+                AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Audio/SFX/sfx_victory.wav");
+            celebrationSerialized.ApplyModifiedPropertiesWithoutUndo();
         }
 
         // ---------------------------------------------------------------- environment
@@ -624,11 +651,11 @@ namespace DinoBattle.EditorTools
                 new Vector2(0f, 0f), new Vector2(1f, 0.16f));
 
             var autoFillButton = CreateButton(placementPanel.transform, "AutoFill", "자동 배치",
-                new Vector2(0.04f, 0.18f), new Vector2(0.35f, 0.82f));
+                new Vector2(0.04f, 0.18f), new Vector2(0.35f, 0.82f), icon: ButtonIconBuilder.AutoFill);
             var bossButton = CreateButton(placementPanel.transform, "BossBattle", "보스 전투",
-                new Vector2(0.37f, 0.18f), new Vector2(0.63f, 0.82f));
+                new Vector2(0.37f, 0.18f), new Vector2(0.63f, 0.82f), icon: ButtonIconBuilder.Boss);
             var startButton = CreateButton(placementPanel.transform, "Start", "전투 시작",
-                new Vector2(0.65f, 0.18f), new Vector2(0.96f, 0.82f));
+                new Vector2(0.65f, 0.18f), new Vector2(0.96f, 0.82f), icon: ButtonIconBuilder.Start);
 
             // ---- fighting panel (top bar) ----
             var fightingPanel = CreatePanel(canvasObject.transform, "FightingPanel",
@@ -660,9 +687,9 @@ namespace DinoBattle.EditorTools
             // resolves in under a minute it was a button that changed how fast the thing you came to
             // watch went past, and nothing else.
             var fightReplayButton = CreateButton(fightingPanel.transform, "FightReplay", "다시 하기",
-                new Vector2(0.30f, 0.08f), new Vector2(0.545f, 0.92f));
+                new Vector2(0.30f, 0.08f), new Vector2(0.545f, 0.92f), icon: ButtonIconBuilder.Replay);
             var fightQuitButton = CreateButton(fightingPanel.transform, "FightQuit", "종료",
-                new Vector2(0.565f, 0.08f), new Vector2(0.72f, 0.92f));
+                new Vector2(0.565f, 0.08f), new Vector2(0.72f, 0.92f), icon: ButtonIconBuilder.Quit);
 
             // ---- result panel (center) ----
             // Sits high on the screen, not across the middle.
@@ -688,9 +715,9 @@ namespace DinoBattle.EditorTools
             // which is what you want after a close result; "new setup" throws the arrangement away.
             // One button labelled "rematch" used to do the second while reading as the first.
             var replayButton = CreateButton(resultPanel.transform, "Replay", "한 번 더",
-                new Vector2(0.08f, 0.04f), new Vector2(0.48f, 0.30f));
+                new Vector2(0.08f, 0.04f), new Vector2(0.48f, 0.30f), icon: ButtonIconBuilder.Replay);
             var rematchButton = CreateButton(resultPanel.transform, "Rematch", "새로 짜기",
-                new Vector2(0.52f, 0.04f), new Vector2(0.92f, 0.30f));
+                new Vector2(0.52f, 0.04f), new Vector2(0.92f, 0.30f), icon: ButtonIconBuilder.Shuffle);
 
             resultPanel.SetActive(false);
             fightingPanel.SetActive(false);
@@ -759,6 +786,36 @@ namespace DinoBattle.EditorTools
             return fill;
         }
 
+        /// <summary>
+        /// Put a generated icon on the left of a button. Silently does nothing when the icon is
+        /// missing, so a scene built before 'Generate Button Icons' has run is still usable.
+        /// </summary>
+        private static void AddIcon(Transform parent, string icon)
+        {
+            if (string.IsNullOrEmpty(icon)) return;
+
+            var sprite = AssetDatabase.LoadAssetAtPath<Sprite>($"Assets/Art/UI/{icon}.png");
+            if (sprite == null)
+            {
+                Debug.LogWarning($"[BattleSceneBuilder] Icon '{icon}' not found — run " +
+                                 "'Dino Battle > 7. Generate Button Icons'.");
+                return;
+            }
+
+            var iconObject = new GameObject("Icon", typeof(Image));
+            iconObject.transform.SetParent(parent, false);
+
+            // Square, hugging the left edge. Anchored rather than sized in pixels so it keeps its
+            // proportions on any display.
+            Stretch(iconObject.GetComponent<RectTransform>(), new Vector2(0.05f, 0.14f), new Vector2(0.32f, 0.86f));
+
+            var image = iconObject.GetComponent<Image>();
+            image.sprite = sprite;
+            image.preserveAspect = true;
+            image.raycastTarget = false;
+            image.color = new Color(1f, 0.95f, 0.80f);
+        }
+
         private static GameObject CreatePanel(Transform parent, string name, Vector2 anchorMin, Vector2 anchorMax)
         {
             var panel = new GameObject(name, typeof(Image));
@@ -772,7 +829,7 @@ namespace DinoBattle.EditorTools
         }
 
         private static Button CreateButton(Transform parent, string name, string caption,
-            Vector2 anchorMin, Vector2 anchorMax)
+            Vector2 anchorMin, Vector2 anchorMax, string icon = null)
         {
             var buttonObject = new GameObject(name, typeof(Image), typeof(Button));
             buttonObject.transform.SetParent(parent, false);
@@ -780,13 +837,20 @@ namespace DinoBattle.EditorTools
 
             buttonObject.GetComponent<Image>().color = new Color(0.20f, 0.24f, 0.32f, 0.95f);
 
+            // A picture as well as the words. The four-year-old this was tested on cannot read, and
+            // picked a button by pressing the biggest one — including, twice, the one that quits.
+            // The caption stays for everyone who can read; the icon is what makes the button mean
+            // something to someone who cannot.
+            AddIcon(buttonObject.transform, icon);
+
             // The caption fills 80% of the button, by insetting its rect 10% on every side and
             // letting best-fit grow the glyphs into what is left. Sizing captions with a fixed point
             // size meant they sat as small text in the middle of a large slab whatever the button's
             // dimensions were — and this game's audience includes people who cannot read yet, for
             // whom a big label is most of what makes a control legible.
             var label = CreateLabel(buttonObject.transform, "Label", caption,
-                new Vector2(0.10f, 0.10f), new Vector2(0.90f, 0.90f), TextAnchor.MiddleCenter);
+                icon == null ? new Vector2(0.10f, 0.10f) : new Vector2(0.36f, 0.10f),
+                new Vector2(0.90f, 0.90f), TextAnchor.MiddleCenter);
 
             var button = buttonObject.GetComponent<Button>();
             button.targetGraphic = buttonObject.GetComponent<Image>();

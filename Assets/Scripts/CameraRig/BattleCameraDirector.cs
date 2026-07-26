@@ -128,6 +128,17 @@ namespace DinoBattle.CameraRig
         /// <summary>The creature the player asked to watch, or null. Exposed so the HUD can show it.</summary>
         public CreatureUnit Followed => followed != null && !followed.IsDead ? followed : null;
 
+        /// <summary>
+        /// The survivor this camera is framing after a win, or null before one is chosen.
+        ///
+        /// Exposed so the victory celebration bursts over the creature that is actually on screen.
+        /// The two used to choose independently — the camera takes the survivor with the LEAST health
+        /// because the animal that nearly died is the one worth looking at, while the confetti took
+        /// the one with the MOST — and the result was 220 flakes thrown over a creature outside the
+        /// frame. Measured: 220 alive, 0 inside the viewport. One definition, one subject.
+        /// </summary>
+        public CreatureUnit Victor => victor != null && !victor.IsDead ? victor : null;
+
         private void Start()
         {
             battleManager = BattleManager.Instance;
