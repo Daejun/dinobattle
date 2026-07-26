@@ -101,6 +101,24 @@ The attack that survives is longer than the 2ms envelope — 40ms heavy, 17ms li
 recording's own rise is stretched by the pitch drop. That is worth keeping: a bigger jaw does close
 more slowly.
 
+## Boss models
+
+**Wyrm Titan** is Quaternius's `SK_Dragon`, from the
+[Animated Monsters pack](https://quaternius.com/packs/lowpolyanimatedmonsters.html) — CC0 1.0
+Universal, same author as the dinosaurs and the vegetation. In `Assets/Art/Models/Dragon.fbx`,
+2180 vertices over 27 bones, with `Dragon_Attack`, `Dragon_Attack2`, `Dragon_Death`,
+`Dragon_Flying` and `Dragon_Hit` clips.
+
+This entry was missing until now. The model went in with the boss-mode commit and nothing recorded
+where it came from — which is exactly the failure this file exists to prevent, since CC0 or not, an
+asset whose provenance nobody wrote down is an asset nobody can re-verify later. Identified after
+the fact by matching its `DragonArmature|Dragon_*` clip naming against the Quaternius catalogue.
+
+**Indominus Rex** is not a downloaded model. It is the Quaternius T-Rex above, reshaped by
+`CreatureSkinBuilder` — no third-party asset involved, so nothing to attribute. The NAME, however,
+is a Universal trademark; see `Docs/legal.md`. It is present only for a build that goes on the
+owner's own phone, and must be renamed before any public release.
+
 ## Arena vegetation
 
 Models: **Quaternius** — [Ultimate Stylized Nature Pack](https://quaternius.com/packs/ultimatestylizednature.html),
