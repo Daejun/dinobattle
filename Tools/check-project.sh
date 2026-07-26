@@ -234,6 +234,43 @@ for present in Assets/Audio/Music/*.mp3; do
   fi
 done
 
+# ---------------------------------------------------------------- 4c. mobile rendering budget
+head2 "4c. Mobile rendering settings"
+
+# GPU skinning. Twelve skinned meshes were being deformed on the CPU every frame because this was
+# never turned on. It is one boolean, it lives in a settings file nobody opens, and nothing else in
+# the project would notice if it flipped back.
+if grep -qE '^\s+gpuSkinning: 1' ProjectSettings/ProjectSettings.asset; then
+  pass "GPU skinning is on"
+else
+  fail "gpuSkinning is off — 12 skinned creature meshes would be skinned on the CPU every frame"
+fi
+
+# Scenery shadow casters. Measured before this was fixed: 280 casters in a live battle, of which
+# ten were dinosaurs. Everything else was a palm, a bush, a boulder or a floor tuft, each one a
+# second full geometry pass into the shadow map, on a phone.
+#
+# BattleSceneBuilder.StripSceneryShadowCasting turns them off, but the scene is a generated
+# artefact — re-running an older builder, or hand-editing the scene, silently puts them all back.
+# Two spellings to count: renderers serialised in the scene, and prefab instances that carry the
+# flag as an override.
+if [[ -f Assets/Scenes/Arena.unity ]]; then
+  direct_on=$(grep -cE '^\s+m_CastShadows: 1' Assets/Scenes/Arena.unity || true)
+  override_on=$(grep -A 1 'propertyPath: m_CastShadows' Assets/Scenes/Arena.unity \
+                | grep -cE '^\s+value: 1' || true)
+  casters=$((direct_on + override_on))
+
+  # A generous ceiling. The creatures are spawned at runtime and are not in this count at all, so
+  # anything left here is scenery, the placement preview, or something new that needs a look.
+  if (( casters <= 8 )); then
+    pass "$casters shadow caster(s) in the scene — scenery is not casting"
+  else
+    fail "$casters shadow casters in Arena.unity — scenery shadows are back; re-run 'Dino Battle > 2. Build Battle Scene'"
+  fi
+else
+  info "Assets/Scenes/Arena.unity not built yet — skipping shadow caster count"
+fi
+
 # ---------------------------------------------------------------- 5. hygiene
 head2 "5. Repository hygiene"
 

@@ -203,10 +203,43 @@ namespace DinoBattle.EditorTools
             brainSerialized.ApplyModifiedPropertiesWithoutUndo();
 
             AddHealthBar(root, blueprint, safeName);
+            StripMarkerShadows(root);
 
             var prefab = PrefabUtility.SaveAsPrefabAsset(root, path);
             Object.DestroyImmediate(root);
             return prefab;
+        }
+
+        /// <summary>
+        /// The health bar and the team ring are readouts, not objects in the world. Take them out of
+        /// the shadow pass.
+        ///
+        /// Four renderers per creature, three of them markers: the bar's trough and fill, and the
+        /// disc under its feet. At a full field that is three quarters of the creature renderers
+        /// being submitted to shadow culling for no possible benefit — a floating rectangle and a
+        /// ground decal have no shadow anyone would want.
+        ///
+        /// Mostly a culling saving rather than a drawing one, and worth being precise about: both
+        /// use Sprites/Default, which has no ShadowCaster pass, so they were never actually drawn
+        /// into the shadow map. What they were doing was being gathered, bounds-tested and sorted as
+        /// candidates every frame. Turning the flag off is free and removes them from that entirely.
+        ///
+        /// The body keeps casting. A dinosaur's shadow is what plants it on the ground.
+        /// </summary>
+        private static void StripMarkerShadows(GameObject root)
+        {
+            foreach (var renderer in root.GetComponentsInChildren<Renderer>(true))
+            {
+                bool marker = renderer.GetComponentInParent<HealthBarBillboard>() != null
+                              || renderer.gameObject.name == CreatureRig.TeamRing;
+                if (!marker) continue;
+
+                renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+
+                // Nor should they be lit by the shadows of others: a bar that darkens when its owner
+                // walks under a tree is a bar the player cannot read.
+                renderer.receiveShadows = false;
+            }
         }
 
         /// <summary>
@@ -251,6 +284,21 @@ namespace DinoBattle.EditorTools
 
             animator.runtimeAnimatorController = controller;
             animator.applyRootMotion = false;   // CreatureLocomotion drives the Rigidbody, not the clip.
+
+            // Do not pose a rig nobody can see. The default is AlwaysAnimate, which evaluates every
+            // bone of every creature whether or not it is on screen — and the camera deliberately
+            // frames only 80% of the battle (framingCoverage), so there is reliably a share of the
+            // field being animated for no one.
+            //
+            // CullUpdateTransforms and not CullCompletely: the state machine has to keep running.
+            // Death is a transition, and a creature that dies off screen must be lying down when the
+            // camera swings back to it rather than frozen mid-stride. This mode keeps the graph
+            // ticking and skips only the transform writes, which is exactly the expensive half.
+            //
+            // Safe because nothing reads bone positions: locomotion drives the Rigidbody, attacks
+            // resolve on distance, and the animator is purely visual. If a future feature attaches
+            // anything to a bone — a mounted rider, a bite socket — this has to be revisited.
+            animator.cullingMode = AnimatorCullingMode.CullUpdateTransforms;
 
             if (controller == null)
             {

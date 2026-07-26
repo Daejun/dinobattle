@@ -164,6 +164,7 @@ namespace DinoBattle.EditorTools
             RenderSettings.ambientIntensity = 1f;
 
             MarkSceneryStatic();
+            StripSceneryShadowCasting();
         }
 
         /// <summary>
@@ -274,6 +275,49 @@ namespace DinoBattle.EditorTools
                 }
             }
         }
+
+        /// <summary>
+        /// Stop the scenery casting shadows. It still receives them.
+        ///
+        /// Measured in a live battle: 280 shadow casters, of which ten were dinosaurs. The other
+        /// two hundred and seventy were palms, bushes, boulders, hills, floor tufts and stones —
+        /// every one of them submitted to the shadow map as a second full geometry pass, on a phone,
+        /// so that a shrub outside the boundary wall could darken a patch of ground nobody is
+        /// looking at.
+        ///
+        /// Casting is what costs; receiving is nearly free and is what actually reads. A creature's
+        /// shadow is worth paying for because it is what plants the animal on the ground and sells
+        /// its size — so creatures are untouched, and they still land their shadows on all of this.
+        /// The scenery's own shadows contribute nothing the player would miss.
+        ///
+        /// Deliberately not done by giving the props a shader with no caster pass: which objects
+        /// cast is a property of this scene, not of the material, and the next arena may want its
+        /// obstacles casting.
+        /// </summary>
+        private static void StripSceneryShadowCasting()
+        {
+            int stripped = 0;
+
+            foreach (string name in new[] { "Ground", "Boundary", "Environment" })
+            {
+                var root = GameObject.Find(name);
+                if (root == null) continue;
+
+                foreach (var renderer in root.GetComponentsInChildren<Renderer>(true))
+                {
+                    renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+
+                    // The ground is the surface every creature shadow lands on, so it must keep
+                    // receiving even though it has nothing worth casting.
+                    renderer.receiveShadows = true;
+                    stripped++;
+                }
+            }
+
+            Debug.Log($"[BattleSceneBuilder] {stripped} scenery renderer(s) no longer cast shadows.");
+        }
+
+        private const string EnvironmentShader = "DinoBattle/EnvironmentFlat";
 
         private static readonly string[] RockModels = { "Rock_1", "Rock_2", "Rock_3", "Rock_4", "Rock_5" };
         private static readonly string[] PalmModels = { "PalmTree_1", "PalmTree_2", "PalmTree_3", "PalmTree_4", "PalmTree_5" };
@@ -698,7 +742,18 @@ namespace DinoBattle.EditorTools
                 new Vector2(0.02f, 0.1f), new Vector2(0.09f, 0.9f), TextAnchor.MiddleLeft);
             redCount.color = new Color(1f, 0.45f, 0.40f);
 
-            var redHealthFill = CreateTeamHealthBar(fightingPanel.transform, "RedHealth",
+            // The two bars go on their own nested canvas. They are the only UI in the game that
+            // changes every frame — BattleHUD writes fillAmount and colour from Update while the
+            // health is draining — and in UGUI a single dirty Graphic rebuilds and re-batches its
+            // WHOLE canvas. On one canvas for the entire HUD, that meant every button, icon and
+            // label being re-batched sixty times a second so that two bars could move.
+            //
+            // A nested Canvas is the standard fix: it makes its own rebuild scope, so the churn stops
+            // at this boundary. The cost is that its contents cannot batch with the panel around them
+            // — a draw call or two — which is a good trade against a full rebuild per frame.
+            var liveReadouts = CreateIsolatedLayer(fightingPanel.transform, "LiveReadouts");
+
+            var redHealthFill = CreateTeamHealthBar(liveReadouts, "RedHealth",
                 new Vector2(0.10f, 0.28f), new Vector2(0.29f, 0.72f),
                 new Color(1f, 0.30f, 0.25f), Image.OriginHorizontal.Left);
 
@@ -708,7 +763,7 @@ namespace DinoBattle.EditorTools
 
             // Filled from the right, mirroring the red bar, so both drain toward the middle and the
             // two lengths can be compared directly.
-            var blueHealthFill = CreateTeamHealthBar(fightingPanel.transform, "BlueHealth",
+            var blueHealthFill = CreateTeamHealthBar(liveReadouts, "BlueHealth",
                 new Vector2(0.71f, 0.28f), new Vector2(0.90f, 0.72f),
                 new Color(0.35f, 0.65f, 1f), Image.OriginHorizontal.Right);
 
@@ -790,6 +845,26 @@ namespace DinoBattle.EditorTools
         /// A team strength bar: a dark trough with a filled bar inside it. Returns the fill Image, so
         /// the HUD drives it with fillAmount and never has to know how it was assembled.
         /// </summary>
+        /// <summary>
+        /// A transparent child canvas covering its parent, used to fence off UI that changes every
+        /// frame from UI that does not.
+        ///
+        /// Stretched to the full parent rect on purpose: everything inside keeps addressing the same
+        /// coordinate space it did before, so the anchors of whatever moves in here do not have to be
+        /// recomputed. No GraphicRaycaster — nothing on this layer is meant to be touched, and adding
+        /// one would put it in front of the buttons underneath.
+        /// </summary>
+        private static Transform CreateIsolatedLayer(Transform parent, string name)
+        {
+            var layer = new GameObject(name, typeof(RectTransform), typeof(Canvas));
+            layer.transform.SetParent(parent, false);
+            Stretch(layer.GetComponent<RectTransform>(), Vector2.zero, Vector2.one);
+
+            // Inherit the parent's sorting rather than override it, so draw order is unchanged.
+            layer.GetComponent<Canvas>().overrideSorting = false;
+            return layer.transform;
+        }
+
         private static Image CreateTeamHealthBar(Transform parent, string name,
             Vector2 anchorMin, Vector2 anchorMax, Color color, Image.OriginHorizontal origin)
         {
@@ -989,12 +1064,27 @@ namespace DinoBattle.EditorTools
             SampleContentBuilder.EnsureFolder("Assets/Art/Materials");
             string path = $"Assets/Art/Materials/Env_Palette_{r}_{g}_{b}.mat";
 
+            var shader = Shader.Find(EnvironmentShader) ?? Shader.Find("Standard");
+
             var material = AssetDatabase.LoadAssetAtPath<Material>(path);
             if (material == null)
             {
-                material = new Material(Shader.Find("Standard"));
+                material = new Material(shader);
                 AssetDatabase.CreateAsset(material, path);
             }
+            else if (material.shader != shader)
+            {
+                // These materials were created on Standard and are cached on disk, so simply changing
+                // the line above would have left every existing one untouched — the same serialized-
+                // value staleness that has caught this project three times. Re-point them.
+                material.shader = shader;
+            }
+
+            // Free if static batching already covers a prop, and the fallback when it does not:
+            // shadow passes and anything later excluded from batching can still be instanced. Every
+            // prop sharing a palette colour shares this exact material, so a plain uniform is enough
+            // — no per-instance property block needed.
+            material.enableInstancing = true;
 
             var quantised = new Color(r / 12f, g / 12f, b / 12f);
             if (material.HasProperty("_BaseColor")) material.SetColor("_BaseColor", quantised);
@@ -1024,6 +1114,16 @@ namespace DinoBattle.EditorTools
                 material = new Material(renderer.sharedMaterial);
                 AssetDatabase.CreateAsset(material, path);
             }
+
+            // The ground gets the flat shader too, and it is the one that matters most: it is a
+            // single quad covering most of the screen, so every pixel of it runs this shader. It was
+            // inheriting Standard from the primitive's Default-Material — a full PBR evaluation, at
+            // very nearly full-screen resolution, to draw one flat olive colour.
+            //
+            // Same staleness trap as the palette materials: the asset is cached on disk, so a new
+            // shader in the code above would never reach a material that already exists.
+            var flat = Shader.Find(EnvironmentShader);
+            if (flat != null && material.shader != flat) material.shader = flat;
 
             if (material.HasProperty("_BaseColor")) material.SetColor("_BaseColor", color);
             if (material.HasProperty("_Color")) material.SetColor("_Color", color);
