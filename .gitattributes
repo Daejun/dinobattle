@@ -34,3 +34,9 @@
 *.wav   filter=lfs diff=lfs merge=lfs -text
 *.ogg   filter=lfs diff=lfs merge=lfs -text
 *.mp3   filter=lfs diff=lfs merge=lfs -text
+
+# The published APK under dist/. LFS because a 26 MB binary committed normally is 26 MB added to
+# every clone forever, once per release; in LFS the history holds pointers and only the versions
+# you actually check out are fetched.
+*.apk   filter=lfs diff=lfs merge=lfs -text
+*.aab   filter=lfs diff=lfs merge=lfs -text

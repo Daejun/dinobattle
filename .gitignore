@@ -44,11 +44,19 @@ crashlytics-build.properties
 /[Aa]ssets/[Ss]cripts/[Gg]enerated/
 
 # Builds
+#
+# Build/ is the editor's scratch output and stays out of the repository — it is rewritten wholesale
+# by every build, so tracking it would mean a 26 MB binary diff on each one. A release that is meant
+# to be kept gets copied to dist/ deliberately, and dist/ IS tracked (via LFS, see .gitattributes).
+# (Build/ itself is already ignored at the top of this file.)
 *.apk
 *.aab
 *.unitypackage
 *.app
 *.ipa
+
+!dist/**/*.apk
+!dist/**/*.aab
 
 # OS noise
 .DS_Store
