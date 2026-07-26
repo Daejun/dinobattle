@@ -139,7 +139,20 @@ namespace DinoBattle.UI
 
         private void Play(AudioClip clip, float fadeLength, float targetVolume)
         {
-            if (clip == null || clip == wanted) return;
+            if (clip == null) return;
+
+            // Same track, but the phase wants it at a different level — the setup screen and the win
+            // may be the same song, and the win is meant to be louder. Retarget the volume without
+            // restarting it, which would make returning to setup re-cue the track from the top.
+            if (clip == wanted)
+            {
+                if (Mathf.Approximately(activeVolume, targetVolume)) return;
+
+                activeVolume = targetVolume;
+                activeFadeLength = fadeLength;
+                fadeProgress = 0f;
+                return;
+            }
 
             wanted = clip;
             activeFadeLength = fadeLength;
@@ -165,7 +178,9 @@ namespace DinoBattle.UI
                 ? 1f
                 : Mathf.Clamp01(fadeProgress + Time.unscaledDeltaTime / activeFadeLength);
 
-            active.volume = activeVolume * fadeProgress;
+            // Ease toward the target rather than multiplying by progress, so a volume-only change on
+            // an already-playing track slides instead of dropping to silence and climbing back.
+            active.volume = Mathf.Lerp(active.volume, activeVolume, fadeProgress);
             fading.volume = volume * (1f - fadeProgress);
 
             if (fadeProgress < 1f) return;

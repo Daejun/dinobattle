@@ -147,6 +147,16 @@ where anything came from.
 | `music_placement.mp3` | [enchanted tiki 86](https://opengameart.org/content/enchanted-tiki-86) | CC0 |
 | `music_battle.mp3` | [Battle Theme A](https://opengameart.org/content/battle-theme-a) | CC0 |
 | `music_victory.mp3` | [Happy Adventure (Loop)](https://opengameart.org/content/happy-adventure-loop) by **TinyWorlds** | CC0 |
+| `music_tyranno.mp3` | **프로젝트 소유자 본인 제작** — "티라노와 거미등", Suno로 생성 (ID3 태그: `TPE1=pdaejun`, 2026-07-26) | 소유자 소유 |
+
+`music_tyranno.mp3` 가 현재 **배치 화면과 승리 화면 양쪽**에 쓰입니다 (`music_victory.mp3` 는
+받아뒀지만 현재 미사용). 파일명은 `티라노.mp3` 로 들어왔는데 ASCII로 바꿨습니다 — 안드로이드 빌드
+파이프라인과 LFS 포인터 모두 non-ASCII 에셋 경로를 잘 다루지 못하고, 그게 어디서 터지는지
+확인할 가치는 없습니다.
+
+소유자 본인 창작물이라 서드파티 라이선스 문제가 없습니다. 다만 리포지토리가 **공개**이므로,
+Suno로 생성한 결과물의 상업적 이용 범위는 사용하신 요금제 약관을 따릅니다 — 배포 계획이 생기면
+그때 한 번 확인하세요.
 
 The tiki track for the setup screen because the arena is a jungle and it is the only thing in the
 CC0 catalogue that sounds like one.

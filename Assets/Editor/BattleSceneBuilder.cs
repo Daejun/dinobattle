@@ -98,12 +98,15 @@ namespace DinoBattle.EditorTools
 
             var music = host.AddComponent<BattleMusic>();
             var musicSerialized = new SerializedObject(music);
+            // The owner's own track, used for both the setup screen and the win. Renamed from the
+            // Korean filename it arrived with: the Android build pipeline and the LFS pointer both
+            // handle non-ASCII asset paths poorly enough that it is not worth finding out where.
             musicSerialized.FindProperty("placementTrack").objectReferenceValue =
-                AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Audio/Music/music_placement.mp3");
+                AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Audio/Music/music_tyranno.mp3");
             musicSerialized.FindProperty("battleTrack").objectReferenceValue =
                 AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Audio/Music/music_battle.mp3");
             musicSerialized.FindProperty("victoryTrack").objectReferenceValue =
-                AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Audio/Music/music_victory.mp3");
+                AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Audio/Music/music_tyranno.mp3");
             musicSerialized.ApplyModifiedPropertiesWithoutUndo();
 
             var celebration = host.AddComponent<VictoryCelebration>();
@@ -490,41 +493,66 @@ namespace DinoBattle.EditorTools
 
             CreateJungle(root, random, Range);
 
-            // Flat scatter across the floor for a sense of scale underfoot. No colliders: these must
-            // never trip a charging creature.
-            // Fewer and smaller than before, and barely tinted.
-            //
-            // At forty patches of 2.5-7 units across an arena of radius 22, they covered most of the
-            // floor and overlapped constantly — the result read as blotchy stains rather than as
-            // ground, and a playtester singled them out as the thing they disliked most about the
-            // arena. Ground dressing works when you do not notice it.
-            const int patchCount = 16;
-            for (int i = 0; i < patchCount; i++)
+            ScatterFloorDressing(root, random, Range, half);
+        }
+
+        /// <summary>
+        /// Small grass tufts and stones scattered over the arena floor.
+        ///
+        /// These used to be flat tinted discs, and that was the problem: a disc lying on the ground
+        /// under a creature is exactly what a team ring is, so the floor dressing and the red/blue
+        /// markers read as the same kind of object. A player could not tell which circles meant
+        /// something. Reported directly — "바닥에 동그란 지형은 다른 걸로 바꿔줘 파란/빨강 표시하는거랑
+        /// 헷갈려".
+        ///
+        /// Actual geometry standing up off the floor cannot be confused with a marker painted on it,
+        /// which makes the team rings the only circles in the arena again.
+        ///
+        /// No colliders, like everything else inside the ring — PlaceModel strips them, and
+        /// WarnAboutObstructions fails the build if anything solid slips in.
+        /// </summary>
+        private static void ScatterFloorDressing(
+            Transform root, System.Random random, System.Func<float, float, float> Range, float half)
+        {
+            // Kept sparse and small. The discs were singled out by a playtester for covering the
+            // floor, and the fix for that was fewer and fainter — swapping the shape is no licence to
+            // fill the arena again. Ground dressing works when you do not notice it.
+            const int tuftCount = 22;
+            const int stoneCount = 9;
+
+            for (int i = 0; i < tuftCount; i++)
             {
                 float angle = Range(0f, Mathf.PI * 2f);
-                float radius = half * Range(0.05f, 0.9f);
-                float size = Range(1.6f, 3.4f);
+                float radius = half * Range(0.05f, 0.92f);
 
-                var patch = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-                patch.name = $"GroundPatch_{i}";
-                Object.DestroyImmediate(patch.GetComponent<Collider>());
-                patch.transform.SetParent(root, false);
-                // Every patch gets its own height. Placing them all on one plane meant any two that
-                // overlapped had identical depth, so the GPU picked a different winner per frame and
-                // the floor visibly flickered. A few millimetres of separation each makes the
-                // ordering deterministic, and the stack stays far too shallow to see from the camera.
-                // Keep the whole stack under the team ring's height, or a creature's marker ends up
-                // buried beneath the scenery it is standing on.
-                float lift = 0.02f + i * 0.003f;
+                var tuft = PlaceModel(root, random.Next(2) == 0 ? "Grass_Small" : "Grass_Large",
+                    $"FloorTuft_{i}",
+                    new Vector3(Mathf.Cos(angle) * radius, 0f, Mathf.Sin(angle) * radius),
+                    Range(0f, 360f), Range(0.5f, 0.95f));
 
-                patch.transform.localPosition = new Vector3(
-                    Mathf.Cos(angle) * radius, lift, Mathf.Sin(angle) * radius);
-                patch.transform.localScale = new Vector3(size, 0.01f, size * Range(0.6f, 1.4f));
+                if (tuft == null) continue;
 
-                // Within a hair of the ground colour (0.24, 0.28, 0.20). The previous spread was wide
-                // enough to see each disc's outline, which is what made them read as stains.
-                TintShared(patch, Color.Lerp(
-                    new Color(0.155f, 0.175f, 0.105f), new Color(0.175f, 0.200f, 0.125f), (float)random.NextDouble()));
+                // Darker and less saturated than the treeline undergrowth, so the floor reads as
+                // ground with things on it rather than as a second layer of canopy.
+                Color blade = Color.Lerp(new Color(0.17f, 0.28f, 0.14f), new Color(0.26f, 0.37f, 0.18f),
+                    (float)random.NextDouble());
+                PaintModel(tuft, blade, blade);
+            }
+
+            for (int i = 0; i < stoneCount; i++)
+            {
+                float angle = Range(0f, Mathf.PI * 2f);
+                float radius = half * Range(0.1f, 0.9f);
+
+                var stone = PlaceModel(root, $"Rock_{random.Next(1, 6)}", $"FloorStone_{i}",
+                    new Vector3(Mathf.Cos(angle) * radius, 0f, Mathf.Sin(angle) * radius),
+                    Range(0f, 360f), Range(0.25f, 0.5f));
+
+                if (stone == null) continue;
+
+                Color grey = Color.Lerp(new Color(0.30f, 0.30f, 0.28f), new Color(0.42f, 0.41f, 0.37f),
+                    (float)random.NextDouble());
+                PaintModel(stone, grey, grey);
             }
         }
 
