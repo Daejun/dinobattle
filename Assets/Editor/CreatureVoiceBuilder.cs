@@ -39,18 +39,30 @@ namespace DinoBattle.EditorTools
             /// <summary>Playback rate. Below 1 lowers pitch and lengthens the clip together.</summary>
             public readonly float Pitch;
 
-            /// <summary>Seconds of the source to keep, taken from its loudest stretch.</summary>
+            /// <summary>Seconds of the source to keep.</summary>
             public readonly float SourceSeconds;
 
             public readonly float Peak;
 
-            public Recipe(string output, string source, float pitch, float sourceSeconds, float peak = 0.92f)
+            /// <summary>
+            /// Cut at an attack and impose a decay, instead of taking the loudest sustained stretch.
+            ///
+            /// A bite is an event, not a sound an animal holds. Selecting by energy always landed in
+            /// the middle of the snarl — measured, the finished bite peaked 91% of the way through a
+            /// 0.4s clip and took 355ms to get there, which is the envelope of a growl. What makes a
+            /// snap read as a snap is that it is loudest immediately and then gone.
+            /// </summary>
+            public readonly bool Percussive;
+
+            public Recipe(string output, string source, float pitch, float sourceSeconds,
+                          float peak = 0.92f, bool percussive = false)
             {
                 Output = output;
                 Source = source;
                 Pitch = pitch;
                 SourceSeconds = sourceSeconds;
                 Peak = peak;
+                Percussive = percussive;
             }
         }
 
@@ -60,7 +72,7 @@ namespace DinoBattle.EditorTools
             // becomes something the size of a bus, close enough that it still articulates.
             new("sfx_roar_large",  "growl1",    0.38f, 0.85f),
             new("sfx_death_large", "voice3",    0.42f, 0.70f),
-            new("sfx_bite_large",  "angerdog2", 0.40f, 0.16f, 0.85f),
+            new("sfx_bite_large",  "angerdog2", 0.40f, 0.16f, 0.85f, percussive: true),
 
             // Light creatures. Less shift, so they stay quick and sharp rather than turning into
             // small versions of the same bellow.
@@ -72,7 +84,7 @@ namespace DinoBattle.EditorTools
             // bite measured lower than the large one, because the loudest slice of one take happened
             // to be darker than the other's. Sharing a source makes the size relationship a property
             // of the pitch alone, and therefore guaranteed rather than lucky.
-            new("sfx_bite_small",  "angerdog2", 0.95f, 0.12f, 0.85f),
+            new("sfx_bite_small",  "angerdog2", 0.95f, 0.12f, 0.85f, percussive: true),
         };
 
         [MenuItem("Dino Battle/5. Generate Creature Audio", priority = 130)]
@@ -97,10 +109,14 @@ namespace DinoBattle.EditorTools
                 }
 
                 var mono = ToMono(source);
-                var slice = LoudestSlice(mono, source.frequency, recipe.SourceSeconds);
+                var slice = recipe.Percussive
+                    ? SharpestOnsetSlice(mono, source.frequency, recipe.SourceSeconds)
+                    : LoudestSlice(mono, source.frequency, recipe.SourceSeconds);
                 var shifted = Resample(slice, source.frequency, recipe.Pitch);
 
-                Shape(shifted);
+                if (recipe.Percussive) ShapePercussive(shifted);
+                else Shape(shifted);
+
                 Normalise(shifted, recipe.Peak);
 
                 WriteWav($"{OutputFolder}/{recipe.Output}.wav", shifted);
@@ -179,6 +195,60 @@ namespace DinoBattle.EditorTools
         }
 
         /// <summary>
+        /// The window starting at the source's sharpest attack.
+        ///
+        /// <see cref="LoudestSlice"/> is the wrong tool for a bite. It finds the most energetic
+        /// stretch, and in a dog recording that is the middle of a sustained snarl — every bite built
+        /// that way came out as a growl fragment that swelled to its loudest near the end. These
+        /// takes do contain real barks: measured across the six sources, each has attacks that rise
+        /// from silence in 7-10ms.
+        ///
+        /// Finding them is a matter of looking for the biggest RISE in the envelope rather than the
+        /// biggest value, then backing up a few milliseconds so the very start of the attack is
+        /// included — cutting exactly on the peak of the rise clips the leading edge, which is the
+        /// part that carries the snap.
+        /// </summary>
+        private static float[] SharpestOnsetSlice(float[] samples, int sourceRate, float seconds)
+        {
+            int window = Mathf.Min(samples.Length, Mathf.RoundToInt(seconds * sourceRate));
+            if (window <= 0 || window >= samples.Length) return samples;
+
+            // Short smoothing, so the envelope follows the attack rather than individual cycles.
+            int smoothing = Mathf.Max(1, Mathf.RoundToInt(sourceRate * 0.003f));
+            var envelope = new float[samples.Length];
+            float running = 0f;
+
+            for (int i = 0; i < samples.Length; i++)
+            {
+                running += Mathf.Abs(samples[i]);
+                if (i >= smoothing) running -= Mathf.Abs(samples[i - smoothing]);
+                envelope[i] = running / smoothing;
+            }
+
+            // Rise over a 10ms lookahead. Long enough to span a whole attack, short enough that a
+            // slow swell does not compete with a real one.
+            int lookahead = Mathf.Max(1, Mathf.RoundToInt(sourceRate * 0.010f));
+            float bestRise = float.NegativeInfinity;
+            int bestIndex = 0;
+
+            for (int i = 0; i + lookahead < samples.Length; i++)
+            {
+                float rise = envelope[i + lookahead] - envelope[i];
+                if (rise <= bestRise) continue;
+
+                bestRise = rise;
+                bestIndex = i;
+            }
+
+            int preroll = Mathf.RoundToInt(sourceRate * 0.008f);
+            int start = Mathf.Clamp(bestIndex - preroll, 0, samples.Length - window);
+
+            var slice = new float[window];
+            System.Array.Copy(samples, start, slice, 0, window);
+            return slice;
+        }
+
+        /// <summary>
         /// Resample at <paramref name="pitch"/> times the original rate, output at 44.1kHz.
         ///
         /// Linear interpolation. Slowing down means reading between existing samples rather than
@@ -221,6 +291,40 @@ namespace DinoBattle.EditorTools
                 float t = i / (float)fade;
                 samples[i] *= t;
                 samples[samples.Length - 1 - i] *= t;
+            }
+        }
+
+        /// <summary>
+        /// A percussive envelope: near-instant attack, then a decay to silence.
+        ///
+        /// The attack is 2ms rather than zero only to avoid starting on a discontinuity; at that
+        /// length it is inaudible as a fade. Note that the finished clip's attack is longer than this
+        /// — the recording's own 9ms rise is stretched by the pitch drop, so the heavy bite arrives in
+        /// about 44ms and the light one in 19ms. That difference is worth keeping: a bigger jaw does
+        /// close more slowly, and hearing that is part of why the two read as different animals.
+        ///
+        /// The decay is exponential to -45dB across the clip, which is quiet enough to count as gone
+        /// without the gated sound of cutting to digital silence.
+        /// </summary>
+        private static void ShapePercussive(float[] samples)
+        {
+            if (samples.Length == 0) return;
+
+            int attack = Mathf.Min(samples.Length, Mathf.Max(1, SampleRate / 500));
+            const float tailDecibels = -45f;
+
+            for (int i = 0; i < samples.Length; i++)
+            {
+                float gain = Mathf.Pow(10f, tailDecibels / 20f * (i / (float)samples.Length));
+                if (i < attack) gain *= i / (float)attack;
+                samples[i] *= gain;
+            }
+
+            // The decay lands near silence on its own; this only guarantees it.
+            int fade = Mathf.Min(samples.Length, Mathf.Max(1, SampleRate / 250));
+            for (int i = 0; i < fade; i++)
+            {
+                samples[samples.Length - 1 - i] *= i / (float)fade;
             }
         }
 

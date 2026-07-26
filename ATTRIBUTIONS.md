@@ -25,11 +25,14 @@ CC0라 표기 의무는 없지만 출처 추적을 위해 기록합니다. 원�
 
 | 애셋 | 제작자 | 라이선스 | 출처 | 사용처 |
 |---|---|---|---|---|
-| `sfx_bite/roar/death_{small,large}.wav` | 이 프로젝트 (절차적 생성) | 해당 없음 (자체 생성물) | [`ProceduralAudioBuilder.cs`](Assets/Editor/ProceduralAudioBuilder.cs) | 물기·포효·사망 효과음 |
+| `sfx_bite/roar/death_{small,large}.wav` | lavender.pet (원본 녹음) | CC0 1.0 | [CC0-Public-Domain-Sounds](https://github.com/lavenderdotpet/CC0-Public-Domain-Sounds) | 물기·포효·사망 효과음 |
 
-**서드파티 오디오를 쓰지 않았습니다.** 모든 효과음은 `Dino Battle > 5. Generate Creature Audio`
-가 합성해 WAV로 씁니다. 녹음 음원으로 교체할 때는 [`Docs/assets.md`](Docs/assets.md) 의
-CC0 소스를 쓰고 이 표에 한 줄 추가하세요.
+실제 동물 녹음을 피치다운해서 만듭니다 — 자세한 대응표와 이유는 아래
+[Creature audio](#creature-audio) 를 보세요. `Dino Battle > 5. Generate Creature Audio` 가
+`Assets/Editor/AudioSources/` 의 원본에서 6개 음성을 다시 굽습니다.
+
+`ProceduralAudioBuilder.cs` 의 합성 버전은 **더 이상 쓰이지 않습니다.** 스펙트럼은 맞았지만
+목소리로 들리지 않았습니다. 코드는 `Dino Battle > Advanced` 아래에 참고용으로 남아 있습니다.
 
 ## 텍스처 / VFX
 
@@ -64,13 +67,27 @@ build. `Dino Battle > 5. Generate Creature Audio` rebuilds the six voices from t
 | `sfx_roar_small`  | `beast_or_animal/Growl 2.wav` | 0.68x | 0.81s, centroid 166 Hz |
 | `sfx_death_large` | `beast_or_animal/Voice 3.wav` | 0.42x | 1.67s, centroid 183 Hz |
 | `sfx_death_small` | `beast_or_animal/Voice 1.wav` | 0.72x | 0.62s, centroid 284 Hz |
-| `sfx_bite_large`  | `angerdog/angerdog2.ogg`      | 0.40x | 0.40s, centroid 420 Hz |
-| `sfx_bite_small`  | `angerdog/angerdog2.ogg`      | 0.95x | 0.13s, centroid 640 Hz |
+| `sfx_bite_large`  | `angerdog/angerdog2.ogg`      | 0.40x | 0.40s, centroid 480 Hz |
+| `sfx_bite_small`  | `angerdog/angerdog2.ogg`      | 0.95x | 0.13s, centroid 1227 Hz |
 
 The two bites share a source deliberately: built from different takes they came out with the small
 one darker than the large, because the loudest slice of one happened to be duller. Sharing a source
-makes the size difference a property of the pitch alone. Every pair is now verified small-brighter:
-roar 1.86x, bite 1.52x, death 1.56x.
+makes the size difference a property of the pitch alone. Every pair is verified small-brighter:
+roar 2.11x, bite 2.56x, death 1.71x.
+
+**The bites are cut differently from the rest.** The other four take the loudest stretch of the
+recording, which is right for a sound an animal holds. For a bite it was wrong: the loudest part of
+a dog take is the middle of a sustained snarl, so the finished clip peaked 91% of the way through
+and took 355ms to get there — the envelope of a growl, on the sound the game plays most often.
+
+They are now cut at the sharpest *rise* in the source rather than the highest level (each of the six
+dog takes contains real barks that come up from silence in 7-10ms), and given a percussive envelope:
+2ms attack, exponential decay to -45dB. Measured after the change, the heavy bite peaks 10% into the
+clip with a crest factor of 3.74, against 91% and 2.19 before.
+
+The attack that survives is longer than the 2ms envelope — 40ms heavy, 17ms light — because the
+recording's own rise is stretched by the pitch drop. That is worth keeping: a bigger jaw does close
+more slowly.
 
 ## Arena vegetation
 
