@@ -755,7 +755,7 @@ namespace DinoBattle.EditorTools
             text.alignment = alignment;
             text.color = Color.white;
             text.raycastTarget = false;
-            text.font = LoadBuiltinFont();
+            text.font = LoadUiFont();
 
             // Best-fit rather than a point size. The HUD is laid out in screen fractions, so the
             // pixel size of every box depends on the device; a fixed font size that looks right on
@@ -769,6 +769,31 @@ namespace DinoBattle.EditorTools
             text.resizeTextMaxSize = 300;
 
             return text;
+        }
+
+        private const string KoreanFontPath = "Assets/Fonts/NanumGothic-Regular.ttf";
+
+        /// <summary>
+        /// The HUD font. Prefers the bundled Korean face, falls back to the builtin.
+        ///
+        /// Every string in this game is Korean, and the builtin font is Arial — it has no Hangul at
+        /// all. In the editor that is invisible, because Unity's dynamic font system quietly borrows
+        /// glyphs from the operating system, and Windows has Malgun Gothic. Android has no such
+        /// guarantee: the fallback list varies by manufacturer and Android version, and when it comes
+        /// up empty every label renders as blank boxes. Shipping the face inside the APK is the only
+        /// way to make the text a property of the build rather than of the phone.
+        ///
+        /// Nanum Gothic covers all 11,172 Hangul syllables plus ASCII, verified against the font's
+        /// own cmap, and costs 2 MB.
+        /// </summary>
+        private static Font LoadUiFont()
+        {
+            var korean = AssetDatabase.LoadAssetAtPath<Font>(KoreanFontPath);
+            if (korean != null) return korean;
+
+            Debug.LogWarning($"[BattleSceneBuilder] {KoreanFontPath} is missing — falling back to the " +
+                             "builtin font, which has no Hangul. Korean labels may be blank on device.");
+            return LoadBuiltinFont();
         }
 
         /// <summary>The builtin font was renamed in newer editors; try both names before giving up.</summary>

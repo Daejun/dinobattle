@@ -89,3 +89,20 @@ creatures are flat-shaded, so photographic bark beside them would look like two 
 together. `BattleSceneBuilder.PaintModel` assigns flat colours per material slot instead, splitting
 foliage from wood by material name. Colours are quantised to a 12-step palette so several hundred
 scenery objects share 21 materials and still static-batch.
+
+## UI font
+
+**Nanum Gothic** (`NanumGothic-Regular.ttf`) — designed by Sandoll Communications for Naver,
+released under the [SIL Open Font License 1.1](https://scripts.sil.org/OFL). Fetched from
+[google/fonts](https://github.com/google/fonts/tree/main/ofl/nanumgothic). In `Assets/Fonts/`.
+
+The OFL permits bundling in an application without attribution in the UI; this entry is the record,
+and the only real obligation is that the font is not sold on its own and keeps its name.
+
+Bundled rather than relying on the system font because every string in this game is Korean and
+Unity's builtin face is Arial, which has no Hangul at all. On Windows the editor hides that by
+borrowing glyphs from Malgun Gothic; Android makes no such promise — the fallback chain varies by
+manufacturer, and when it comes up empty every label draws as blank boxes. 2 MB buys the guarantee.
+
+Verified against the font's own cmap: all 11,172 Hangul syllables plus ASCII, and every character
+that appears in the HUD.
