@@ -162,7 +162,7 @@ namespace DinoBattle.Units
 
         [SerializeField] private Animator animator;
         [SerializeField] private string speedParameterName = "Speed";
-        [SerializeField] private string deathTriggerName = "Die";
+        [SerializeField] private string deadParameterName = "Dead";
 
         private CreatureUnit self;
         private CreatureLocomotion locomotion;
@@ -815,11 +815,14 @@ namespace DinoBattle.Units
             retreatRemaining = 0f;
             CombatEnabled = false;
 
-            if (animator != null && !string.IsNullOrEmpty(deathTriggerName))
+            if (animator != null && !string.IsNullOrEmpty(deadParameterName))
             {
                 // Clear Speed too, or the death clip blends against a stale locomotion value.
                 if (!string.IsNullOrEmpty(speedParameterName)) animator.SetFloat(speedParameterName, 0f);
-                animator.SetTrigger(deathTriggerName);
+
+                // A latched bool rather than a trigger: it also gates the Attack transition, so
+                // nothing can drag the corpse back onto its feet.
+                animator.SetBool(deadParameterName, true);
             }
         }
     }

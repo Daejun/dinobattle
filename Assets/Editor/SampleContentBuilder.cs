@@ -429,8 +429,10 @@ namespace DinoBattle.EditorTools
             background.transform.localScale = new Vector3(width, barThickness, 1f);
 
             // Warm dark red behind the fill, so the drained portion reads as damage taken rather than
-            // as empty space — the same green-over-orange treatment the reference uses.
-            TintRenderer(background, new Color(0.42f, 0.13f, 0.06f), safeName);
+            // as empty space — the same green-over-orange treatment the reference uses. Darker than
+            // the fill by a wide margin: contrast against the fill is what makes the level readable
+            // at a glance, and the two used to sit close enough in value to blur together.
+            TintRenderer(background, new Color(0.22f, 0.05f, 0.03f), safeName, unlit: true);
 
             var fillPivot = new GameObject("FillPivot");
             fillPivot.transform.SetParent(bar.transform, false);
@@ -443,7 +445,11 @@ namespace DinoBattle.EditorTools
             // Pivot the quad at its left edge so scaling X drains the bar from the right.
             fill.transform.localPosition = new Vector3(0.5f, 0f, 0f);
             fill.transform.localScale = Vector3.one;
-            TintRenderer(fill, new Color(0.30f, 0.80f, 0.25f), safeName);
+            // Unlit, like the team rings. A health bar is a readout, not part of the scene, and a lit
+            // one is at the mercy of the arena: under green fog and an overcast sky the fill was
+            // being darkened and desaturated toward the exact colour of the ground behind it.
+            // HealthBarBillboard recolours this at runtime; the value here is only the full-health case.
+            TintRenderer(fill, new Color(0.10f, 1f, 0.20f), safeName, unlit: true);
 
             fillPivot.transform.localScale = new Vector3(width, barThickness * 0.8f, 1f);
 
@@ -466,9 +472,9 @@ namespace DinoBattle.EditorTools
         /// This used to call GenerateUniqueAssetPath keyed on the GameObject name, which produced
         /// "Placeholder_Visual_Body 1..5" -- unidentifiable, and another full set on every re-run.
         /// </summary>
-        private static void TintRenderer(GameObject target, Color color, string creatureName)
+        private static void TintRenderer(GameObject target, Color color, string creatureName, bool unlit = false)
         {
-            if (!target.TryGetComponent<Renderer>(out var renderer)) return;
+            if (!target.TryGetComponent<Renderer>(out var renderer) ) return;
 
             EnsureFolder("Assets/Art");
             EnsureFolder("Assets/Art/Materials");
@@ -479,6 +485,14 @@ namespace DinoBattle.EditorTools
             {
                 material = new Material(renderer.sharedMaterial);
                 AssetDatabase.CreateAsset(material, path);
+            }
+
+            // Re-point an existing material too: these assets are reused across runs, so a material
+            // created before this option existed would otherwise keep its lit shader forever.
+            if (unlit)
+            {
+                var flat = Shader.Find("Unlit/Color") ?? Shader.Find("Sprites/Default");
+                if (flat != null && material.shader != flat) material.shader = flat;
             }
 
             if (material.HasProperty("_BaseColor")) material.SetColor("_BaseColor", color);

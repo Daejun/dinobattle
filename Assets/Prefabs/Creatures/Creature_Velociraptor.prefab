@@ -383,8 +383,9 @@ MonoBehaviour:
   fill: {fileID: 387688648996376406}
   fillRenderer: {fileID: 4444426010830761144}
   hideWhenFull: 0
-  healthyColor: {r: 0.3, g: 0.8, b: 0.25, a: 1}
-  criticalColor: {r: 0.85, g: 0.18, b: 0.1, a: 1}
+  healthyColor: {r: 0.1, g: 1, b: 0.2, a: 1}
+  warningColor: {r: 1, g: 0.92, b: 0.05, a: 1}
+  criticalColor: {r: 1, g: 0.1, b: 0.05, a: 1}
 --- !u!1 &8754482483661431112
 GameObject:
   m_ObjectHideFlags: 0
@@ -477,7 +478,7 @@ Rigidbody:
   m_ImplicitTensor: 1
   m_UseGravity: 1
   m_IsKinematic: 0
-  m_Interpolate: 0
+  m_Interpolate: 1
   m_Constraints: 112
   m_CollisionDetection: 0
 --- !u!114 &7028882020402550719
@@ -585,7 +586,7 @@ MonoBehaviour:
   turnDuration: 1.8
   animator: {fileID: 5504059301969475509}
   speedParameterName: Speed
-  deathTriggerName: Die
+  deadParameterName: Dead
 --- !u!114 &3200453257667801
 MonoBehaviour:
   m_ObjectHideFlags: 0

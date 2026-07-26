@@ -58,6 +58,11 @@ namespace DinoBattle.UI
         [SerializeField] private Text redCountLabel;
         [SerializeField] private Text blueCountLabel;
 
+        [Tooltip("Filled Images showing each team's remaining share of its starting health. Optional, " +
+                 "like every other reference here — the HUD assembles from whatever is wired up.")]
+        [SerializeField] private Image redHealthFill;
+        [SerializeField] private Image blueHealthFill;
+
         [Header("Result")]
         [SerializeField] private Text winnerLabel;
 
@@ -121,6 +126,7 @@ namespace DinoBattle.UI
         {
             if (battleManager == null) return;
             if (battleManager.Phase == BattlePhase.Placement) RefreshPlacementLabels();
+            else RefreshTeamHealth();
         }
 
         // ---------------------------------------------------------------- phase handling
@@ -272,6 +278,21 @@ namespace DinoBattle.UI
 
             if (redCountLabel != null) redCountLabel.text = battleManager.AliveCount(Team.Red).ToString();
             if (blueCountLabel != null) blueCountLabel.text = battleManager.AliveCount(Team.Blue).ToString();
+        }
+
+        /// <summary>
+        /// Drive the two team health bars.
+        ///
+        /// Separate from <see cref="RefreshCounts"/> and driven from Update rather than the death
+        /// event, because health falls continuously while the counts only change when something dies
+        /// — that is the whole reason for showing it.
+        /// </summary>
+        private void RefreshTeamHealth()
+        {
+            if (battleManager == null) return;
+
+            if (redHealthFill != null) redHealthFill.fillAmount = battleManager.TeamHealthFraction(Team.Red);
+            if (blueHealthFill != null) blueHealthFill.fillAmount = battleManager.TeamHealthFraction(Team.Blue);
         }
 
         // ---------------------------------------------------------------- helpers

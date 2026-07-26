@@ -24,9 +24,27 @@ namespace DinoBattle.Core
         [SerializeField] private float[] speedSteps = { 0.25f, 0.5f, 1f, 2f, 4f };
         [SerializeField] private int defaultSpeedIndex = 2;
 
+        [Header("Result")]
+        [Tooltip("Longest the result waits for swings already in the air before judging anyway. A " +
+                 "backstop only — normally the wait ends as soon as the last swing resolves.")]
+        [SerializeField] private float verdictGrace = 1.5f;
+
         private CreatureSpawner spawner;
         private readonly List<CreatureUnit> activeUnits = new();
         private int speedIndex;
+
+        /// <summary>One side has been wiped out, but attacks already committed have not landed yet.</summary>
+        private bool awaitingVerdict;
+        private float verdictDeadline;
+
+        /// <summary>
+        /// Total health each side started the match with.
+        ///
+        /// The denominator has to be what the team STARTED with, not what its survivors are worth now.
+        /// Measured against the living total, a team's bar would climb every time one of its own died,
+        /// which is precisely backwards.
+        /// </summary>
+        private readonly Dictionary<Team, float> startingHealth = new();
 
         public BattlePhase Phase { get; private set; } = BattlePhase.Placement;
 
@@ -99,6 +117,7 @@ namespace DinoBattle.Core
         {
             Time.timeScale = 1f;
             Winner = Team.Neutral;
+            awaitingVerdict = false;
 
             DetachUnitEvents();
             activeUnits.Clear();
@@ -126,6 +145,7 @@ namespace DinoBattle.Core
 
             Time.timeScale = 1f;
             Winner = Team.Neutral;
+            awaitingVerdict = false;
 
             DetachUnitEvents();
             activeUnits.Clear();
@@ -172,22 +192,104 @@ namespace DinoBattle.Core
                 foreach (var brain in unit.GetComponentsInChildren<CreatureBrain>()) brain.CombatEnabled = true;
             }
 
+            RecordStartingHealth();
+
             SetPhase(BattlePhase.Fighting);
             ApplySimulationSpeed();
             UnitCountChanged?.Invoke();
             return true;
         }
 
+        private void RecordStartingHealth()
+        {
+            startingHealth.Clear();
+
+            for (int i = 0; i < activeUnits.Count; i++)
+            {
+                var unit = activeUnits[i];
+                if (unit == null || unit.Health == null) continue;
+
+                startingHealth.TryGetValue(unit.Team, out float total);
+                startingHealth[unit.Team] = total + unit.Health.Max;
+            }
+        }
+
+        /// <summary>
+        /// How much of a team's original strength is still standing, 0 to 1.
+        ///
+        /// Survivor counts alone hide the shape of a battle: three creatures on their last legs and
+        /// three untouched read identically, and they are opposite situations. Summed health is what
+        /// tells the spectator who is actually winning.
+        /// </summary>
+        public float TeamHealthFraction(Team team)
+        {
+            if (!startingHealth.TryGetValue(team, out float total) || total <= 0f) return 0f;
+
+            float current = 0f;
+            var alive = UnitRegistry.AliveOf(team);
+
+            for (int i = 0; i < alive.Count; i++)
+            {
+                var unit = alive[i];
+                if (unit == null || unit.Health == null) continue;
+
+                current += Mathf.Max(0f, unit.Health.Current);
+            }
+
+            return Mathf.Clamp01(current / total);
+        }
+
         private void HandleUnitDied(CreatureUnit unit)
         {
             UnitCountChanged?.Invoke();
 
-            if (Phase != BattlePhase.Fighting) return;
+            if (Phase != BattlePhase.Fighting || awaitingVerdict) return;
 
+            if (UnitRegistry.AliveCount(Team.Red) > 0 && UnitRegistry.AliveCount(Team.Blue) > 0) return;
+
+            // Do not call it yet. A bite lands after a windup, so at the moment the last defender
+            // falls its own killing blow may still be in the air — and judging here awarded the match
+            // to whoever happened to resolve first, turning a mutual kill into a clean win. Wait for
+            // the swings that were already committed, then look at who is actually left.
+            awaitingVerdict = true;
+            verdictDeadline = Time.time + verdictGrace;
+        }
+
+        private void Update()
+        {
+            if (!awaitingVerdict) return;
+
+            if (Time.time < verdictDeadline && AnySwingInFlight()) return;
+
+            awaitingVerdict = false;
+            DeclareResult();
+        }
+
+        /// <summary>
+        /// Is any creature — living or freshly killed — part way through a swing?
+        ///
+        /// Dead attackers count. Death does not disable <see cref="MeleeAttack"/>, so a creature that
+        /// dies mid-windup still lands the blow, and that blow is exactly the one this is waiting for.
+        /// </summary>
+        private bool AnySwingInFlight()
+        {
+            for (int i = 0; i < activeUnits.Count; i++)
+            {
+                var unit = activeUnits[i];
+                if (unit == null || unit.Attack == null) continue;
+                if (unit.Attack.IsSwinging) return true;
+            }
+
+            return false;
+        }
+
+        private void DeclareResult()
+        {
             int red = UnitRegistry.AliveCount(Team.Red);
             int blue = UnitRegistry.AliveCount(Team.Blue);
-            if (red > 0 && blue > 0) return;
 
+            // Neutral is a real outcome, not a fallback: both sides can genuinely wipe each other out
+            // on the same exchange, and the HUD already words that as a draw.
             Winner = red > 0 ? Team.Red : blue > 0 ? Team.Blue : Team.Neutral;
 
             // Stand the survivors down. StartBattle switches combat on but nothing ever switched it

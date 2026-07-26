@@ -124,7 +124,7 @@ git clone --depth 1 https://github.com/lavenderdotpet/CC0-Public-Domain-Sounds
 1. **모델**: Quaternius FBX → `Assets/Art/Models/` 에 드롭
 2. **임포트 설정**: Inspector → Rig → Animation Type = **Generic**, Root node 지정
 3. **애니메이션 추출**: FBX 하위 클립을 `Assets/Art/Animations/` 로 복사(Ctrl+D)
-4. **Animator Controller**: `Speed`(float) + `Attack`(trigger) + `Die`(trigger) 파라미터로 구성
+4. **Animator Controller**: `Speed`(float) + `Attack`(trigger) + `Dead`(bool) 파라미터로 구성
    — [`CreatureBrain`](../Assets/Scripts/Units/CreatureBrain.cs)과
    [`MeleeAttack`](../Assets/Scripts/Units/MeleeAttack.cs)이 기대하는 이름입니다
 5. **프리팹**: `Assets/Prefabs/Creatures/Creature_TRex.prefab` 의 플레이스홀더 캡슐 비주얼을

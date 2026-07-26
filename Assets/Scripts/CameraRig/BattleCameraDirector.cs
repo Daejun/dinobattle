@@ -55,6 +55,11 @@ namespace DinoBattle.CameraRig
                  "rather wasted the point of showing them at all.")]
         [SerializeField] private float placementDistance = 34f;
 
+        [Tooltip("Fraction of the living creatures the shot must contain. Below 1 so a straggler still " +
+                 "walking in does not hold the camera at arm's length while the fight is already on.")]
+        [Range(0.3f, 1f)]
+        [SerializeField] private float framingCoverage = 0.8f;
+
         [Header("Victory shot")]
         [Tooltip("Closest the victory shot will frame, whatever the survivor's size. Stops a raptor " +
                  "from filling the screen with one thigh.")]
@@ -79,6 +84,12 @@ namespace DinoBattle.CameraRig
         private CreatureUnit victor;
 
         private BattlePhase lastPhase = BattlePhase.Placement;
+
+        /// <summary>Reused so the per-frame percentile sort does not allocate.</summary>
+        private readonly List<float> distanceScratch = new();
+
+        /// <summary>Measured creature heights. Renderer bounds are not cheap enough to query per frame.</summary>
+        private readonly Dictionary<CreatureUnit, float> heightCache = new();
 
         private void Awake()
         {
@@ -145,10 +156,19 @@ namespace DinoBattle.CameraRig
             }
 
             Vector3 center = victor.transform.position;
-            center.y = 0f;
+
+            if (!heightCache.TryGetValue(victor, out float height))
+            {
+                height = MeasureHeight(victor);
+                heightCache[victor] = height;
+            }
+
+            // Same headroom rule as combat framing: aim at the middle of the animal, not its feet.
+            center.y = height * 0.5f;
 
             float footprint = victor.Definition != null ? victor.Definition.footprintRadius : 1f;
-            ApplyFraming(center, footprint * victoryFramingFactor, victoryMinimumRadius);
+            float radius = Mathf.Max(footprint * victoryFramingFactor, height * 0.6f);
+            ApplyFraming(center, radius, victoryMinimumRadius);
         }
 
         /// <summary>
@@ -259,11 +279,109 @@ namespace DinoBattle.CameraRig
             // leaving the fight slides the shot instead of jumping it.
             if (!AccumulateWeighted(red, blue, out center)) return false;
 
-            radius = Mathf.Max(
-                FurthestFrom(red, center),
-                FurthestFrom(blue, center));
+            // Cover most of the battle, not all of it.
+            //
+            // Sizing to the outermost creature let a single straggler dictate the shot. Measured from
+            // the start of a fight: the armies closed from 24 units apart to 4.5 within two seconds
+            // and the camera stayed at its maximum distance for four, because one creature was still
+            // walking in. The fight was already happening and the camera was still framing the
+            // approach. A coverage fraction keeps the intent — the wider battle stays in view — while
+            // one late arrival no longer holds the whole shot open.
+            radius = CoveringRadius(red, blue, center);
+
+            // Tall creatures need headroom. The framing is worked out on the ground plane, so a boss
+            // several times the height of anything else had its head cropped off the top of the
+            // screen: the shot was correctly sized for its footprint and knew nothing about how far
+            // up it went. Lifting the centre and counting the height into the radius frames the
+            // animal rather than the ground it stands on.
+            float tallest = TallestAmong(red, blue);
+            if (tallest > 0f)
+            {
+                center.y = tallest * 0.5f;
+                radius = Mathf.Max(radius, tallest * 0.6f);
+            }
 
             return true;
+        }
+
+        /// <summary>
+        /// The distance from <paramref name="center"/> that contains <see cref="framingCoverage"/> of
+        /// the living creatures, so outliers do not set the scale on their own.
+        /// </summary>
+        private float CoveringRadius(
+            IReadOnlyList<CreatureUnit> red, IReadOnlyList<CreatureUnit> blue, Vector3 center)
+        {
+            distanceScratch.Clear();
+            CollectDistances(red, center);
+            CollectDistances(blue, center);
+
+            if (distanceScratch.Count == 0) return 0f;
+
+            distanceScratch.Sort();
+
+            int index = Mathf.Clamp(
+                Mathf.CeilToInt(distanceScratch.Count * framingCoverage) - 1, 0, distanceScratch.Count - 1);
+
+            return distanceScratch[index];
+        }
+
+        private void CollectDistances(IReadOnlyList<CreatureUnit> team, Vector3 center)
+        {
+            for (int i = 0; i < team.Count; i++)
+            {
+                var unit = team[i];
+                if (unit == null || unit.IsDead) continue;
+
+                distanceScratch.Add(PlanarDistance(unit, center));
+            }
+        }
+
+        /// <summary>
+        /// Height of the tallest living creature, from its renderers. Cached per creature: the bounds
+        /// query is not free and this runs every frame for everyone still on the field.
+        /// </summary>
+        private float TallestAmong(IReadOnlyList<CreatureUnit> red, IReadOnlyList<CreatureUnit> blue)
+        {
+            return Mathf.Max(TallestIn(red), TallestIn(blue));
+        }
+
+        private float TallestIn(IReadOnlyList<CreatureUnit> team)
+        {
+            float tallest = 0f;
+
+            for (int i = 0; i < team.Count; i++)
+            {
+                var unit = team[i];
+                if (unit == null || unit.IsDead) continue;
+
+                if (!heightCache.TryGetValue(unit, out float height))
+                {
+                    height = MeasureHeight(unit);
+                    heightCache[unit] = height;
+                }
+
+                tallest = Mathf.Max(tallest, height);
+            }
+
+            return tallest;
+        }
+
+        private static float MeasureHeight(CreatureUnit unit)
+        {
+            var renderers = unit.GetComponentsInChildren<Renderer>();
+            float top = 0f;
+
+            for (int i = 0; i < renderers.Length; i++)
+            {
+                // Skip the health bar and team ring: they are markers placed relative to the creature,
+                // and the bar in particular already sits above it, so including them would compound.
+                if (renderers[i] is not (MeshRenderer or SkinnedMeshRenderer)) continue;
+                if (renderers[i].GetComponentInParent<DinoBattle.UI.HealthBarBillboard>() != null) continue;
+
+                top = Mathf.Max(top, renderers[i].bounds.max.y - unit.transform.position.y);
+            }
+
+            return top;
         }
 
         private bool AccumulateWeighted(
@@ -301,22 +419,6 @@ namespace DinoBattle.CameraRig
             // LateUpdate, and a GetComponent here made framing cost scale with the size of the battle.
             var brain = unit.Brain;
             return brain != null && brain.Current == CreatureBrain.State.Attack;
-        }
-
-        /// <summary>Distance from the centre to the outermost living member of a team.</summary>
-        private static float FurthestFrom(IReadOnlyList<CreatureUnit> team, Vector3 center)
-        {
-            float furthest = 0f;
-
-            for (int i = 0; i < team.Count; i++)
-            {
-                var unit = team[i];
-                if (unit == null || unit.IsDead) continue;
-
-                furthest = Mathf.Max(furthest, PlanarDistance(unit, center));
-            }
-
-            return furthest;
         }
 
         private static float PlanarDistance(CreatureUnit unit, Vector3 center)

@@ -270,7 +270,10 @@ namespace DinoBattle.EditorTools
 
             controller.AddParameter("Speed", AnimatorControllerParameterType.Float);
             controller.AddParameter("Attack", AnimatorControllerParameterType.Trigger);
-            controller.AddParameter("Die", AnimatorControllerParameterType.Trigger);
+            // A bool, not a trigger. A trigger is consumed by whichever transition takes it and is
+            // easy to lose if the state machine happens to be mid-transition when it is raised; a
+            // bool simply stays true, so the corpse gets to Death whatever else was going on.
+            controller.AddParameter("Dead", AnimatorControllerParameterType.Bool);
 
             var machine = controller.layers[0].stateMachine;
 
@@ -299,6 +302,12 @@ namespace DinoBattle.EditorTools
 
                 var toAttack = machine.AddAnyStateTransition(attackState);
                 toAttack.AddCondition(UnityEditor.Animations.AnimatorConditionMode.If, 0f, "Attack");
+
+                // AnyState means ANY state, Death included. Without this guard a swing raised in the
+                // same frame the creature died pulled the corpse straight back out of Death, and the
+                // Attack state exits to Locomotion — leaving a dead dinosaur standing there idling.
+                // Measured after a 3v3: one corpse in three was upright, playing TRex_Idle.
+                toAttack.AddCondition(UnityEditor.Animations.AnimatorConditionMode.IfNot, 0f, "Dead");
                 toAttack.duration = 0.05f;
                 toAttack.hasExitTime = false;
                 toAttack.canTransitionToSelf = false;
@@ -316,7 +325,7 @@ namespace DinoBattle.EditorTools
 
                 // No transition out: the corpse holds the last pose until it is despawned.
                 var toDeath = machine.AddAnyStateTransition(deathState);
-                toDeath.AddCondition(UnityEditor.Animations.AnimatorConditionMode.If, 0f, "Die");
+                toDeath.AddCondition(UnityEditor.Animations.AnimatorConditionMode.If, 0f, "Dead");
                 toDeath.duration = 0.05f;
                 toDeath.hasExitTime = false;
                 toDeath.canTransitionToSelf = false;

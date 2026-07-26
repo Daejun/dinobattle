@@ -629,13 +629,26 @@ namespace DinoBattle.EditorTools
             var fightingPanel = CreatePanel(canvasObject.transform, "FightingPanel",
                 new Vector2(0f, 0.90f), new Vector2(1f, 1f));
 
+            // Count plus a bar of the team's remaining share of its starting health. The count on its
+            // own cannot distinguish three creatures at full strength from three about to fall over,
+            // and those are the two situations a spectator most wants to tell apart.
             var redCount = CreateLabel(fightingPanel.transform, "RedCount", "0",
-                new Vector2(0.02f, 0.1f), new Vector2(0.22f, 0.9f), TextAnchor.MiddleLeft);
+                new Vector2(0.02f, 0.1f), new Vector2(0.09f, 0.9f), TextAnchor.MiddleLeft);
             redCount.color = new Color(1f, 0.45f, 0.40f);
 
+            var redHealthFill = CreateTeamHealthBar(fightingPanel.transform, "RedHealth",
+                new Vector2(0.10f, 0.28f), new Vector2(0.29f, 0.72f),
+                new Color(1f, 0.30f, 0.25f), Image.OriginHorizontal.Left);
+
             var blueCount = CreateLabel(fightingPanel.transform, "BlueCount", "0",
-                new Vector2(0.78f, 0.1f), new Vector2(0.98f, 0.9f), TextAnchor.MiddleRight);
+                new Vector2(0.91f, 0.1f), new Vector2(0.98f, 0.9f), TextAnchor.MiddleRight);
             blueCount.color = new Color(0.45f, 0.70f, 1f);
+
+            // Filled from the right, mirroring the red bar, so both drain toward the middle and the
+            // two lengths can be compared directly.
+            var blueHealthFill = CreateTeamHealthBar(fightingPanel.transform, "BlueHealth",
+                new Vector2(0.71f, 0.28f), new Vector2(0.90f, 0.72f),
+                new Color(0.35f, 0.65f, 1f), Image.OriginHorizontal.Right);
 
             // Mid-fight controls, where a spectator actually wants them: restart this same match, or
             // stop watching. The speed control that used to sit here is gone — in a match that
@@ -701,6 +714,8 @@ namespace DinoBattle.EditorTools
             s.FindProperty("fightQuitButton").objectReferenceValue = fightQuitButton;
             s.FindProperty("redCountLabel").objectReferenceValue = redCount;
             s.FindProperty("blueCountLabel").objectReferenceValue = blueCount;
+            s.FindProperty("redHealthFill").objectReferenceValue = redHealthFill;
+            s.FindProperty("blueHealthFill").objectReferenceValue = blueHealthFill;
             s.FindProperty("winnerLabel").objectReferenceValue = winnerLabel;
             s.FindProperty("resultSummaryLabel").objectReferenceValue = resultSummary;
             s.FindProperty("rematchButton").objectReferenceValue = rematchButton;
@@ -708,6 +723,36 @@ namespace DinoBattle.EditorTools
         }
 
         // ---------------------------------------------------------------- uGUI helpers
+
+        /// <summary>
+        /// A team strength bar: a dark trough with a filled bar inside it. Returns the fill Image, so
+        /// the HUD drives it with fillAmount and never has to know how it was assembled.
+        /// </summary>
+        private static Image CreateTeamHealthBar(Transform parent, string name,
+            Vector2 anchorMin, Vector2 anchorMax, Color color, Image.OriginHorizontal origin)
+        {
+            var trough = new GameObject(name, typeof(Image));
+            trough.transform.SetParent(parent, false);
+            Stretch(trough.GetComponent<RectTransform>(), anchorMin, anchorMax);
+            trough.GetComponent<Image>().color = new Color(0f, 0f, 0f, 0.55f);
+
+            var fillObject = new GameObject("Fill", typeof(Image));
+            fillObject.transform.SetParent(trough.transform, false);
+            Stretch(fillObject.GetComponent<RectTransform>(), Vector2.zero, Vector2.one);
+
+            var fill = fillObject.GetComponent<Image>();
+            fill.color = color;
+
+            // Filled needs a sprite to fill; the builtin UI sprite is always present and is what an
+            // Image created from the menu uses. Without one the fill draws nothing at all.
+            fill.sprite = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/UISprite.psd");
+            fill.type = Image.Type.Filled;
+            fill.fillMethod = Image.FillMethod.Horizontal;
+            fill.fillOrigin = (int)origin;
+            fill.fillAmount = 1f;
+
+            return fill;
+        }
 
         private static GameObject CreatePanel(Transform parent, string name, Vector2 anchorMin, Vector2 anchorMax)
         {
