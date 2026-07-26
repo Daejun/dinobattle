@@ -76,6 +76,12 @@ namespace DinoBattle.CameraRig
         [Range(1f, 5f)]
         [SerializeField] private float victoryFramingFactor = 2.2f;
 
+        [Tooltip("Where up the screen the winner should sit while the result panel is showing, as a " +
+                 "viewport fraction — 0 is the bottom edge, 0.5 the middle. The panel covers the top " +
+                 "third, so centring on the screen centres the winner behind it.")]
+        [Range(0.15f, 0.5f)]
+        [SerializeField] private float victoryScreenHeight = 0.31f;
+
         private OrbitCameraController rig;
         private BattleManager battleManager;
         private Vector3 smoothedCenter;
@@ -226,9 +232,14 @@ namespace DinoBattle.CameraRig
             if (victor == null || victor.IsDead) victor = ChooseVictor();
 
             // A draw — both sides wiped out. Nothing to close in on, so leave the shot where it is.
+            // Still drop it clear of the panel: the result is on screen either way.
             if (victor == null)
             {
-                FrameCombatants();
+                if (TryGetCombatBounds(out Vector3 wide, out float wideRadius))
+                    ApplyFraming(wide, wideRadius, minimumFocusRadius, victoryScreenHeight);
+                else
+                    hasFraming = false;
+
                 return;
             }
 
@@ -245,7 +256,7 @@ namespace DinoBattle.CameraRig
 
             float footprint = victor.Definition != null ? victor.Definition.footprintRadius : 1f;
             float radius = Mathf.Max(footprint * victoryFramingFactor, height * 0.6f);
-            ApplyFraming(center, radius, victoryMinimumRadius);
+            ApplyFraming(center, radius, victoryMinimumRadius, victoryScreenHeight);
         }
 
         /// <summary>
@@ -303,7 +314,8 @@ namespace DinoBattle.CameraRig
         /// <summary>
         /// Ease the framing toward a new centre and radius, then point the rig at it.
         /// </summary>
-        private void ApplyFraming(Vector3 center, float radius, float minimumRadius)
+        private void ApplyFraming(Vector3 center, float radius, float minimumRadius,
+            float screenHeight = 0.5f)
         {
             radius = Mathf.Clamp(radius, minimumRadius, maximumFocusRadius);
 
@@ -324,7 +336,39 @@ namespace DinoBattle.CameraRig
                 smoothedRadius = Mathf.Lerp(smoothedRadius, radius, t);
             }
 
-            rig.FocusOn(smoothedCenter, DistanceToFit(smoothedRadius));
+            // The lift is applied after smoothing rather than eased toward, because it is not a
+            // target the shot is travelling to — it is a function of the distance the shot ended up
+            // at. Easing it would make it lag the zoom and drift the subject up the screen.
+            float distance = DistanceToFit(smoothedRadius);
+            rig.FocusOn(smoothedCenter + ViewLift(distance, screenHeight), distance);
+        }
+
+        /// <summary>
+        /// How far to raise the aim point so the subject sits at <paramref name="screenHeight"/> up
+        /// the viewport instead of halfway.
+        ///
+        /// The result panel covers the top third of the screen, and the victory shot pushes in on one
+        /// creature and centres it — directly behind the panel. Reported by the owner: "승리했을때
+        /// 글씨가 공룡들 가리네". The winners dance through the whole thing and nobody can see it.
+        ///
+        /// Moving the panel was the other option and is worse: the text belongs where the eye goes,
+        /// and shoving it into a corner to make room is fixing the wrong half. Aiming higher drops
+        /// the creature into the clear band below the panel and costs nothing — same distance, same
+        /// size on screen, just not behind the words.
+        ///
+        /// Raising the aim point along the CAMERA's up rather than the world's, so the offset stays
+        /// a pure vertical slide on screen at any pitch. Read from this transform, which is the
+        /// camera's: the director, the rig and the camera all live on the same GameObject. It is a
+        /// frame stale, which does not matter for a value the rig is smoothing anyway.
+        /// </summary>
+        private Vector3 ViewLift(float distance, float screenHeight)
+        {
+            if (Mathf.Approximately(screenHeight, 0.5f)) return Vector3.zero;
+
+            // World height the camera sees at the subject's depth.
+            float visibleHeight = 2f * distance * Mathf.Tan(rig.VerticalFieldOfView * Mathf.Deg2Rad * 0.5f);
+
+            return transform.up * ((0.5f - screenHeight) * visibleHeight);
         }
 
         /// <summary>

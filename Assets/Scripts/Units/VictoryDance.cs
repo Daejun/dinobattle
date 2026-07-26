@@ -96,6 +96,23 @@ namespace DinoBattle.Units
 
             battleManager.BattleEnded += HandleBattleEnded;
             battleManager.PhaseChanged += HandlePhaseChanged;
+
+            // Catch up on a result that was declared before this creature got its first Update.
+            //
+            // Subscribing only listens for the NEXT event, and BattleEnded fires exactly once. A
+            // creature spawned into a match that ends before its first Update would subscribe to an
+            // event that had already gone off and stand still through the entire celebration.
+            //
+            // Not reachable by playing normally — a fight takes seconds and every creature has
+            // updated long before anyone wins — but it is reachable, and it was: wiping a side
+            // programmatically on the same frame the creatures spawned produced four motionless
+            // winners. Update order within a frame is undefined, so BattleManager declaring the
+            // result before these components run their first Update is a coin toss, not an
+            // impossibility.
+            //
+            // Same shape as BattleMusic.TryBind, which syncs to the current phase for the same
+            // reason: a listener that binds late has to ask what it missed.
+            if (battleManager.Phase == BattlePhase.Finished) HandleBattleEnded(battleManager.Winner);
         }
 
         private void OnDestroy()
