@@ -159,8 +159,26 @@ namespace DinoBattle.Core
         private void ClearMonsters()
         {
             foreach (var tier in tierMonsters)
+            {
                 foreach (var unit in tier)
-                    if (unit != null) unit.Died -= HandleMonsterDied;
+                {
+                    if (unit == null) continue;
+
+                    unit.Died -= HandleMonsterDied;
+
+                    // Actually destroy them. Unsubscribing alone left a full board of monsters
+                    // standing, and BeginRun runs on every start — so pressing 전투 시작 twice put
+                    // a second set of fifty-eight on the tiers on top of the first. The camera
+                    // frames whatever is alive, which is how a repeated press sent the shot
+                    // somewhere nobody was.
+                    //
+                    // Deactivate before destroying: Destroy only lands at the end of the frame, and
+                    // a monster that is still registered until then is one the next run's framing
+                    // and targeting can both see.
+                    unit.gameObject.SetActive(false);
+                    Destroy(unit.gameObject);
+                }
+            }
 
             tierMonsters.Clear();
 

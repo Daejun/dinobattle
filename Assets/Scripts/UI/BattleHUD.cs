@@ -381,7 +381,9 @@ namespace DinoBattle.UI
                 budgetLabel.text = $"{battleManager.Loadout.RemainingFor(team)} / {battleManager.Loadout.BudgetPerTeam}";
             }
 
-            if (startButton != null) startButton.interactable = battleManager.Loadout.IsReadyToFight;
+            // Ask the manager, not the loadout. A gauntlet places one side only, so the loadout's own
+            // "both teams have someone" test can never pass there and the button never lit.
+            if (startButton != null) startButton.interactable = battleManager.CanStartBattle;
         }
 
         private void RefreshSpeedLabel()

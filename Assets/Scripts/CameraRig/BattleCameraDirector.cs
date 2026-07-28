@@ -109,6 +109,19 @@ namespace DinoBattle.CameraRig
         /// </summary>
         private CreatureUnit followed;
 
+        /// <summary>
+        /// Where the setup screen points. Set by <see cref="ArenaSwitcher"/> when the arena changes,
+        /// because only it knows which board is standing.
+        /// </summary>
+        private Vector3 placementFocus = Vector3.zero;
+
+        /// <summary>Aim the placement shot at a different arena.</summary>
+        public void SetPlacementFocus(Vector3 worldPoint, float distance)
+        {
+            placementFocus = worldPoint;
+            placementDistance = distance;
+        }
+
         private void Awake()
         {
             rig = GetComponent<OrbitCameraController>();
@@ -176,7 +189,12 @@ namespace DinoBattle.CameraRig
             {
                 case BattlePhase.Placement:
                     // Nothing is fighting yet; show the arena so the player can see where to drop.
-                    rig.FocusOn(Vector3.zero, placementDistance);
+                    //
+                    // The point is set per arena rather than hardcoded to the origin. That origin is
+                    // the round arena's centre, and this runs EVERY FRAME during placement — so on
+                    // the gauntlet board, 600 units away, it fought the pan clamp for the whole
+                    // setup screen and parked the shot on the board's edge looking at open water.
+                    rig.FocusOn(placementFocus, placementDistance);
                     hasFraming = false;
                     return;
 

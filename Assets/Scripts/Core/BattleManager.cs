@@ -58,6 +58,20 @@ namespace DinoBattle.Core
         /// <summary>Raised when the player toggles the mode, so the HUD and arenas can follow.</summary>
         public event Action<GameMode> ModeChanged;
 
+        /// <summary>
+        /// Can the fight start with what is arranged now?
+        ///
+        /// Lives here rather than in the HUD because <see cref="StartBattle"/> already answers the
+        /// same question to decide whether to run, and the two must not be able to disagree. They
+        /// did: the button asked <c>Loadout.IsReadyToFight</c>, which requires a creature on BOTH
+        /// sides, and a gauntlet only ever places one — the board supplies the opposition. So the
+        /// start button was permanently dead in the new mode while StartBattle would have been happy
+        /// to run.
+        /// </summary>
+        public bool CanStartBattle => Mode == GameMode.Gauntlet
+            ? Loadout.CountFor(Team.Red) > 0
+            : Loadout.IsReadyToFight;
+
         public void SetMode(GameMode mode)
         {
             if (Mode == mode || Phase != BattlePhase.Placement) return;
@@ -270,6 +284,10 @@ namespace DinoBattle.Core
 
             if (!gauntlet.SendWave())
             {
+                // Tear the board back down before going back to setup. BeginRun has already put
+                // fifty-eight monsters on the tiers by this point, and leaving them there meant a
+                // failed start banked a whole board that the next attempt would spawn on top of.
+                gauntlet.EndRun();
                 SetPhase(BattlePhase.Placement);
                 return false;
             }

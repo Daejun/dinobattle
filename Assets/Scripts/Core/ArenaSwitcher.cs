@@ -92,14 +92,25 @@ namespace DinoBattle.Core
 
             if (cameraRig == null) return;
 
+            // The director re-aims the setup shot every frame, so a one-off FocusOn here is
+            // overwritten before it is seen. It has to be told where the arena IS, not just pointed
+            // at it once.
+            var director = cameraRig.GetComponent<CameraRig.BattleCameraDirector>();
+
             if (gauntlet)
             {
                 cameraRig.SetPanBounds(gauntletPanMin, gauntletPanMax);
-                cameraRig.FocusOn(new Vector3((gauntletPanMin.x + gauntletPanMax.x) * 0.5f, 0f, 10f), 46f);
+
+                // Behind and above the start platform, looking up the board — the shot a player
+                // wants while deciding what to send.
+                Vector3 focus = new((gauntletPanMin.x + gauntletPanMax.x) * 0.5f, 2f, 26f);
+                if (director != null) director.SetPlacementFocus(focus, 44f);
+                cameraRig.FocusOn(focus, 44f);
             }
             else
             {
                 cameraRig.SetPanBounds(versusPanMin, versusPanMax);
+                if (director != null) director.SetPlacementFocus(Vector3.zero, 34f);
                 cameraRig.FocusOn(Vector3.zero, 34f);
             }
         }
