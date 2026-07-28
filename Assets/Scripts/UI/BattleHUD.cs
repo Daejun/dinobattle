@@ -31,10 +31,13 @@ namespace DinoBattle.UI
         [SerializeField] private Button versusModeButton;
         [SerializeField] private Button gauntletModeButton;
 
+        [Tooltip("The two team bars and their counts. Hidden in gauntlet mode, where neither can " +
+                 "mean anything — see HandleModeChanged.")]
+        [SerializeField] private GameObject versusReadouts;
+
         [Tooltip("Tier and budget readout, shown while a climb is running.")]
         [SerializeField] private GameObject gauntletPanel;
         [SerializeField] private Text tierLabel;
-        [SerializeField] private Text gauntletBudgetLabel;
         [SerializeField] private Button sendWaveButton;
 
         [Header("Placement controls")]
@@ -171,9 +174,28 @@ namespace DinoBattle.UI
             SetActive(modePanel, battleManager.Phase == BattlePhase.Placement);
             SetActive(gauntletPanel, gauntlet && battleManager.Phase != BattlePhase.Placement);
 
+            // The send button is not parented to the gauntlet strip — it sits over the arena so it
+            // can be big enough to hit — so leaving the mode has to take it down explicitly.
+            if (!gauntlet && sendWaveButton != null) SetActive(sendWaveButton.gameObject, false);
+
             // Versus-only controls. A boss battle arranges two armies on the round arena, which is
             // not the board, and the fight-bar replay restarts a match rather than a run.
             SetActive(bossButton != null ? bossButton.gameObject : null, !gauntlet);
+
+            // The team bars and counts come off entirely in gauntlet mode.
+            //
+            // Reported: "총 체력이랑 공룡 수가 전혀 안맞음 그냥 빼는것도?" — and they were right, both
+            // numbers were meaningless rather than merely odd. The health bars divide by a starting
+            // total recorded in the versus start path, which a climb never runs, so there is no
+            // denominator. And "blue" is not an army here, it is whichever single tier happens to be
+            // awake, so its count jumps from zero to five and back as the wave climbs.
+            //
+            // Neither is worth repairing, because neither question applies: a run is not two sides
+            // grinding each other down, it is how far up you got and what you have left to spend,
+            // which is exactly what the gauntlet strip already says.
+            SetActive(versusReadouts, !gauntlet);
+            SetActive(redCountLabel != null ? redCountLabel.gameObject : null, !gauntlet);
+            SetActive(blueCountLabel != null ? blueCountLabel.gameObject : null, !gauntlet);
 
             HighlightMode(versusModeButton, !gauntlet);
             HighlightMode(gauntletModeButton, gauntlet);
@@ -196,24 +218,27 @@ namespace DinoBattle.UI
             var run = battleManager.Gauntlet;
             if (run == null) return;
 
+            // One line. How far up, and how many of yours are still standing — with waves unlimited
+            // there is no third number worth the height a second row costs over the arena.
             if (tierLabel != null)
-                tierLabel.text = $"{run.CurrentTierLabel} / {run.TierCount}";
-
-            if (gauntletBudgetLabel != null)
-                gauntletBudgetLabel.text = run.State switch
-                {
-                    GauntletState.Cleared => "클리어!",
-                    GauntletState.Defeated => "실패",
-                    _ => $"남은 예산 {run.BudgetRemaining}",
-                };
+            {
+                string status = run.State == GauntletState.Cleared ? "  클리어!" : "";
+                tierLabel.text = $"{run.CurrentTierLabel} / {run.TierCount}" +
+                                 $"   <color=#7ad07a>{battleManager.AliveCount(Team.Red)}</color>{status}";
+            }
 
             // Only offer another wave when there is nobody left to send it after, and only when it
             // can actually be paid for. An always-live button would let the player stack waves and
             // the climb would stop being a climb.
+            //
+            // Hidden rather than greyed out. It sits over the arena, and a permanent dead button
+            // covering the fight is the same complaint that shrank these panels in the first place.
             if (sendWaveButton != null)
             {
-                bool affordable = battleManager.Loadout.SpentBy(Team.Red) <= run.BudgetRemaining;
-                sendWaveButton.interactable = run.CanSendWave && affordable;
+                bool offer = run.CanSendWave && battleManager.Phase == BattlePhase.Fighting;
+
+                SetActive(sendWaveButton.gameObject, offer);
+                sendWaveButton.interactable = offer;
             }
         }
 

@@ -205,8 +205,10 @@ namespace DinoBattle.CameraRig
                 heightCache[unit] = height;
             }
 
+            // Aim at the middle of the animal — its own feet plus half its height, NOT half its
+            // height above the world origin. The two are the same only on a flat arena.
             Vector3 center = unit.transform.position;
-            center.y = height * 0.5f;
+            center.y += height * 0.5f;
 
             // Wider than the victory shot on purpose: this is a creature in a fight, and framing it
             // as tightly as a winner standing alone would crop out whatever it is fighting.
@@ -252,7 +254,9 @@ namespace DinoBattle.CameraRig
             }
 
             // Same headroom rule as combat framing: aim at the middle of the animal, not its feet.
-            center.y = height * 0.5f;
+            // Added to where it is standing, not measured from the world origin — a winner on the
+            // ninth tier is twenty units up and the two are not the same number.
+            center.y += height * 0.5f;
 
             float footprint = victor.Definition != null ? victor.Definition.footprintRadius : 1f;
             float radius = Mathf.Max(footprint * victoryFramingFactor, height * 0.6f);
@@ -418,7 +422,10 @@ namespace DinoBattle.CameraRig
             float tallest = TallestAmong(red, blue);
             if (tallest > 0f)
             {
-                center.y = tallest * 0.5f;
+                // Lift ABOVE where they are standing. Assigning here instead of adding put the aim
+                // point a metre above the world origin no matter what the fighters were standing on,
+                // which is right on a flat arena and nineteen units wrong on the gauntlet's top tier.
+                center.y += tallest * 0.5f;
                 radius = Mathf.Max(radius, tallest * 0.6f);
             }
 
@@ -514,8 +521,12 @@ namespace DinoBattle.CameraRig
             AddTeam(red, ref sum, ref totalWeight);
             AddTeam(blue, ref sum, ref totalWeight);
 
+            // Keep the averaged height. It used to be flattened to zero, which was invisible while
+            // every arena was a single plane at y = 0 and catastrophic the moment one was not: on the
+            // gauntlet board the ninth tier stands twenty units up, and the camera was aiming at the
+            // ground floor while the fight happened in the sky. The framing radius is still worked
+            // out on the ground plane — only the aim point needs the height.
             center = totalWeight > 0f ? sum / totalWeight : Vector3.zero;
-            center.y = 0f;
             return totalWeight > 0f;
         }
 

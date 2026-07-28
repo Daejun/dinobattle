@@ -36,6 +36,25 @@ namespace DinoBattle.Core
         [SerializeField] private Vector2 gauntletPanMin = new(560f, -20f);
         [SerializeField] private Vector2 gauntletPanMax = new(640f, 320f);
 
+        [Header("Atmosphere")]
+        [Tooltip("Jungle haze for the round arena — the values the scene builder sets up.")]
+        [SerializeField] private Color versusFog = new(0.58f, 0.66f, 0.56f);
+        [SerializeField] private Color versusSky = new(0.50f, 0.58f, 0.52f);
+        [SerializeField] private Color versusEquator = new(0.36f, 0.42f, 0.33f);
+        [SerializeField] private Color versusGround = new(0.20f, 0.23f, 0.17f);
+        [SerializeField] private Vector2 versusFogRange = new(39.6f, 114.4f);
+
+        [Tooltip("Sea air. Cooler, brighter and much further out — a green jungle haze over open " +
+                 "water looks like a rendering fault rather than weather, and the board is long " +
+                 "enough that the versus fog range would bury its far end in soup.")]
+        [SerializeField] private Color gauntletFog = new(0.55f, 0.72f, 0.80f);
+        [SerializeField] private Color gauntletSky = new(0.55f, 0.70f, 0.82f);
+        [SerializeField] private Color gauntletEquator = new(0.40f, 0.55f, 0.65f);
+        [SerializeField] private Color gauntletGround = new(0.10f, 0.24f, 0.32f);
+        [Tooltip("Ends short of the gauntlet far clip (700) so the board fades out rather than " +
+                 "vanishing at a plane, and starts far enough back that the near tiers are clear.")]
+        [SerializeField] private Vector2 gauntletFogRange = new(220f, 640f);
+
         private BattleManager battleManager;
 
         private void Update()
@@ -69,6 +88,8 @@ namespace DinoBattle.Core
             if (gauntletRoot != null && gauntletRoot.activeSelf != gauntlet)
                 gauntletRoot.SetActive(gauntlet);
 
+            ApplyAtmosphere(gauntlet);
+
             if (cameraRig == null) return;
 
             if (gauntlet)
@@ -81,6 +102,45 @@ namespace DinoBattle.Core
                 cameraRig.SetPanBounds(versusPanMin, versusPanMax);
                 cameraRig.FocusOn(Vector3.zero, 34f);
             }
+        }
+
+        /// <summary>
+        /// Swap the lighting and haze with the arena.
+        ///
+        /// RenderSettings is scene-global, so the two boards cannot each carry their own — one has
+        /// to write them on the way in. The fog RANGE matters as much as the colour: the round arena
+        /// is 44 units across and the board is 336 long, so the jungle's fog distances would swallow
+        /// everything past the third tier.
+        /// </summary>
+        private void ApplyAtmosphere(bool gauntlet)
+        {
+            // The far clip is the one that actually broke the view. It is 200, which comfortably
+            // covers a 44-unit arena and cuts the 336-unit board off after its first platform — the
+            // rest of the climb was not fogged out, it was never drawn. Fog then has to end before
+            // the clip plane, or geometry pops out of existence while still visibly solid.
+            var camera = cameraRig != null ? cameraRig.GetComponent<Camera>() : Camera.main;
+            if (camera != null)
+            {
+                camera.farClipPlane = gauntlet ? 700f : 200f;
+
+                // Clear colour matched to the fog, so the horizon is a fade rather than a hard line
+                // between two unrelated colours. Left on the jungle green it read as a grey-green
+                // sky meeting a blue sea at a seam.
+                camera.backgroundColor = gauntlet ? gauntletFog : versusFog;
+            }
+
+            RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Trilight;
+            RenderSettings.ambientSkyColor = gauntlet ? gauntletSky : versusSky;
+            RenderSettings.ambientEquatorColor = gauntlet ? gauntletEquator : versusEquator;
+            RenderSettings.ambientGroundColor = gauntlet ? gauntletGround : versusGround;
+
+            RenderSettings.fog = true;
+            RenderSettings.fogMode = FogMode.Linear;
+            RenderSettings.fogColor = gauntlet ? gauntletFog : versusFog;
+
+            Vector2 range = gauntlet ? gauntletFogRange : versusFogRange;
+            RenderSettings.fogStartDistance = range.x;
+            RenderSettings.fogEndDistance = range.y;
         }
 
         /// <summary>Editor-only wiring, called by the scene builder.</summary>

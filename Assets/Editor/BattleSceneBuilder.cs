@@ -586,6 +586,7 @@ namespace DinoBattle.EditorTools
             }
 
             AddBoardWalls(root.transform, z, y);
+            AddSea(root.transform, z);
 
             // Static flags and shadow casting are applied HERE rather than by MarkSceneryStatic and
             // StripSceneryShadowCasting, which sweep the scene by name via GameObject.Find. Find does
@@ -642,8 +643,73 @@ namespace DinoBattle.EditorTools
             slab.transform.localPosition = localPosition;
             slab.transform.localScale = size;
 
-            TintShared(slab, new Color(0.21f, 0.24f, 0.17f));
+            slab.GetComponent<Renderer>().sharedMaterial = BrickMaterial();
             return slab;
+        }
+
+        /// <summary>
+        /// The board's masonry. One shared material for every slab, so the whole thing batches.
+        ///
+        /// World-space tiled — see EnvironmentBrick.shader. These slabs range from 1 unit thick to
+        /// 26 wide and the primitive cube's UVs do not care, so anything sampled by UV would paint a
+        /// single enormous brick on the long pieces.
+        /// </summary>
+        private static Material BrickMaterial()
+        {
+            const string path = "Assets/Art/Materials/Env_Brick.mat";
+
+            SampleContentBuilder.EnsureFolder("Assets/Art");
+            SampleContentBuilder.EnsureFolder("Assets/Art/Materials");
+
+            var shader = Shader.Find("DinoBattle/EnvironmentBrick") ?? Shader.Find(EnvironmentShader);
+            var material = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (material == null)
+            {
+                material = new Material(shader);
+                AssetDatabase.CreateAsset(material, path);
+            }
+            else if (material.shader != shader)
+            {
+                material.shader = shader;
+            }
+
+            var brick = AssetDatabase.LoadAssetAtPath<Texture2D>(BrickTextureBuilder.BrickTexturePath);
+            if (brick == null)
+            {
+                BrickTextureBuilder.Rebuild();
+                brick = AssetDatabase.LoadAssetAtPath<Texture2D>(BrickTextureBuilder.BrickTexturePath);
+            }
+
+            if (brick != null) material.SetTexture("_MainTex", brick);
+            if (material.HasProperty("_Tiling")) material.SetFloat("_Tiling", 0.22f);
+            if (material.HasProperty("_Color")) material.SetColor("_Color", new Color(0.92f, 0.90f, 0.88f));
+
+            material.enableInstancing = true;
+            EditorUtility.SetDirty(material);
+            return material;
+        }
+
+        /// <summary>
+        /// Open water under and around the board.
+        ///
+        /// The climb reads better with nothing beneath it: a staircase over a plain fades into the
+        /// backdrop, and the same staircase over the sea has stakes. It is also cheap — one big quad
+        /// on the flat environment shader, no reflection, no waves.
+        ///
+        /// Sized to the far clip rather than to the board so there is no visible edge to the world
+        /// from any camera angle the rig permits, and dropped below the start platform so the bottom
+        /// of the board sits just above the surface.
+        /// </summary>
+        private static void AddSea(Transform parent, float boardLength)
+        {
+            var sea = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            sea.name = "Sea";
+            sea.transform.SetParent(parent, false);
+            sea.transform.localPosition = new Vector3(0f, -3f, boardLength * 0.5f);
+            sea.transform.localScale = new Vector3(1600f, 1f, 1600f);
+
+            Object.DestroyImmediate(sea.GetComponent<Collider>());
+            TintShared(sea, new Color(0.06f, 0.24f, 0.36f));
         }
 
         private static void CreateGauntletDirector(BattleManager manager, GauntletArena arena,
@@ -956,8 +1022,18 @@ namespace DinoBattle.EditorTools
                 new Vector2(0.52f, 0.15f), new Vector2(0.96f, 0.85f));
 
             // ---- fighting panel (top bar) ----
+            // Reported: "hud가 너무 커서 공룡 전투액션을 다 가리는 문제가 잇어."
+            //
+            // This bar was a tenth of the screen, full width, at 72% opacity — and in a gauntlet it
+            // was joined by a second one just below it, so a fifth of the display was chrome laid
+            // over the only thing the player came to watch. A spectator game cannot afford that: the
+            // readouts exist to describe the fight, and they were covering it.
+            //
+            // Shorter and much more transparent. The counts and bars stay legible against it because
+            // they are bright on dark, and what is behind them now shows through.
             var fightingPanel = CreatePanel(canvasObject.transform, "FightingPanel",
-                new Vector2(0f, 0.90f), new Vector2(1f, 1f));
+                new Vector2(0f, 0.928f), new Vector2(1f, 1f));
+            fightingPanel.GetComponent<Image>().color = new Color(0.05f, 0.06f, 0.09f, 0.42f);
 
             // Count plus a bar of the team's remaining share of its starting health. The count on its
             // own cannot distinguish three creatures at full strength from three about to fall over,
@@ -1009,17 +1085,23 @@ namespace DinoBattle.EditorTools
             // "더 보내기" is the whole economy in one button. It is only interactable when everything
             // sent is dead, so it cannot be used to stack waves — the run is a sequence of attempts,
             // not a tap-to-win.
+            // A compact centred strip, not a second full-width bar. Two readouts and a button do not
+            // need the whole width, and stacking two opaque bands was what buried the fight.
             var gauntletPanel = CreatePanel(canvasObject.transform, "GauntletPanel",
-                new Vector2(0.0f, 0.795f), new Vector2(1f, 0.895f));
+                new Vector2(0.30f, 0.862f), new Vector2(0.70f, 0.924f));
+            gauntletPanel.GetComponent<Image>().color = new Color(0.05f, 0.06f, 0.09f, 0.42f);
 
+            // One line across the whole strip. There was a second label beside this one showing the
+            // remaining run budget; waves are unlimited now, so it had nothing to say and the strip
+            // gets the width back.
             var tierLabel = CreateLabel(gauntletPanel.transform, "Tier", "1층 / 10",
-                new Vector2(0.03f, 0.1f), new Vector2(0.33f, 0.9f), TextAnchor.MiddleLeft);
+                new Vector2(0.04f, 0.08f), new Vector2(0.96f, 0.92f), TextAnchor.MiddleCenter);
 
-            var budgetLabel = CreateLabel(gauntletPanel.transform, "Budget", "",
-                new Vector2(0.34f, 0.1f), new Vector2(0.63f, 0.9f), TextAnchor.MiddleCenter);
-
-            var sendWaveButton = CreateButton(gauntletPanel.transform, "SendWave", "더 보내기",
-                new Vector2(0.65f, 0.08f), new Vector2(0.97f, 0.92f), icon: ButtonIconBuilder.Start);
+            // Below the strip and only visible when a wave is actually owed, so it is not a button
+            // sitting over the arena for the whole run.
+            var sendWaveButton = CreateButton(canvasObject.transform, "SendWave", "더 보내기",
+                new Vector2(0.38f, 0.775f), new Vector2(0.62f, 0.855f), icon: ButtonIconBuilder.Start);
+            sendWaveButton.gameObject.SetActive(false);
 
             gauntletPanel.SetActive(false);
 
@@ -1084,12 +1166,12 @@ namespace DinoBattle.EditorTools
             s.FindProperty("resultSummaryLabel").objectReferenceValue = resultSummary;
             s.FindProperty("rematchButton").objectReferenceValue = rematchButton;
 
+            s.FindProperty("versusReadouts").objectReferenceValue = liveReadouts.gameObject;
             s.FindProperty("modePanel").objectReferenceValue = modePanel;
             s.FindProperty("versusModeButton").objectReferenceValue = versusModeButton;
             s.FindProperty("gauntletModeButton").objectReferenceValue = gauntletModeButton;
             s.FindProperty("gauntletPanel").objectReferenceValue = gauntletPanel;
             s.FindProperty("tierLabel").objectReferenceValue = tierLabel;
-            s.FindProperty("gauntletBudgetLabel").objectReferenceValue = budgetLabel;
             s.FindProperty("sendWaveButton").objectReferenceValue = sendWaveButton;
             s.ApplyModifiedPropertiesWithoutUndo();
         }

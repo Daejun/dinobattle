@@ -48,24 +48,17 @@ namespace DinoBattle.Data
     {
         [SerializeField] private List<GauntletTierSpec> tiers = new();
 
-        [Tooltip("Total the player may spend across the whole run. Each wave sent costs its own " +
-                 "roster value; when this cannot cover another wave and everyone is dead, the run is " +
-                 "lost. Without a cap the mode cannot be failed, and a climb you cannot fall off is " +
-                 "not a climb.")]
-        [SerializeField] private int runBudget = 5000;
 
         public IReadOnlyList<GauntletTierSpec> Tiers => tiers;
         public int TierCount => tiers.Count;
-        public int RunBudget => runBudget;
 
         public GauntletTierSpec Tier(int index) =>
             index >= 0 && index < tiers.Count ? tiers[index] : null;
 
         /// <summary>Replace the whole ladder. Editor-only path, used by the content builder.</summary>
-        public void SetTiers(List<GauntletTierSpec> newTiers, int budget)
+        public void SetTiers(List<GauntletTierSpec> newTiers)
         {
             tiers = newTiers;
-            runBudget = budget;
         }
     }
 }

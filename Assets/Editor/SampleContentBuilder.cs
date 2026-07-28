@@ -730,7 +730,7 @@ namespace DinoBattle.EditorTools
                 isBoss = true,
             });
 
-            ladder.SetTiers(tiers, 5000);
+            ladder.SetTiers(tiers);
             EditorUtility.SetDirty(ladder);
         }
 

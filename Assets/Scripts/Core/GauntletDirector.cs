@@ -38,13 +38,23 @@ namespace DinoBattle.Core
         /// <summary>Monsters for every tier, spawned up front and switched on tier by tier.</summary>
         private readonly List<List<CreatureUnit>> tierMonsters = new();
 
+        /// <summary>
+        /// Where each monster was posted, so it can go back after it has seen off a wave.
+        ///
+        /// Reported: "전투중 사다리에 있는 적이 이긴 후에 막 달려다닐때가 있음." A fight scatters them
+        /// across the platform — they chase, they get shoved, they end up wherever the last kill
+        /// happened — and with nothing left to fight they simply stopped there. The next wave then
+        /// arrived to find the tier's defenders milling around the ramp mouth instead of waiting in
+        /// formation, which looks like the AI has lost the plot.
+        /// </summary>
+        private readonly Dictionary<CreatureUnit, Vector3> posts = new();
+
         private readonly List<CreatureUnit> wave = new();
         private float advanceTimer;
 
         public GauntletState State { get; private set; } = GauntletState.Ready;
         public int CurrentTier { get; private set; }
         public int TierCount => ladder != null ? ladder.TierCount : 0;
-        public int BudgetRemaining { get; private set; }
         public int WavesSent { get; private set; }
 
         public event Action<GauntletState> StateChanged;
@@ -76,7 +86,6 @@ namespace DinoBattle.Core
 
             CurrentTier = 0;
             WavesSent = 0;
-            BudgetRemaining = ladder.RunBudget;
 
             PreSpawnAllTiers();
 
@@ -139,6 +148,7 @@ namespace DinoBattle.Core
 
                     unit.Died += HandleMonsterDied;
                     monsters.Add(unit);
+                    posts[unit] = position;
 
                     // Off, and therefore out of the registry, until this tier is reached.
                     unit.gameObject.SetActive(false);
@@ -153,35 +163,35 @@ namespace DinoBattle.Core
                     if (unit != null) unit.Died -= HandleMonsterDied;
 
             tierMonsters.Clear();
+
+            // Keyed on units that are about to be destroyed, so it has to go with them. Left behind
+            // it would grow by a full board's worth of dead references on every run.
+            posts.Clear();
         }
 
         // ---------------------------------------------------------------- waves
 
         /// <summary>
-        /// Send what the player has arranged, spending its cost from the run budget.
-        ///
-        /// Returns false when it cannot be afforded, which is how a run is lost: no budget for
-        /// another wave, and nothing of yours left alive.
+        /// Send what the player has arranged. Unlimited — a run ends by reaching the boss, not by
+        /// running out of anything.
         /// </summary>
         public bool SendWave()
         {
             if (!CanSendWave || battleManager == null) return false;
 
             var loadout = battleManager.Loadout;
-            int cost = loadout.SpentBy(Team.Red);
-            if (cost <= 0) return false;
+            if (loadout.CountFor(Team.Red) == 0) return false;
 
-            if (cost > BudgetRemaining)
-            {
-                Debug.Log($"[GauntletDirector] Wave costs {cost}, only {BudgetRemaining} left.");
-                return false;
-            }
-
-            BudgetRemaining -= cost;
+            // Waves are unlimited. The design argued for a run budget on the grounds that a mode you
+            // cannot fail has no tension, and the owner's call was that the tension should come from
+            // the ladder rather than from being cut off — a climb you can keep attempting is a
+            // different, gentler game, and that is the one being built.
+            //
+            // What remains as the record of a run is how far up you got and how many waves it took.
             WavesSent++;
 
             wave.Clear();
-            Vector3 start = arena.StartPlatform != null ? arena.StartPlatform.position : Vector3.zero;
+            Vector3 start = ReinforcementPoint();
 
             int index = 0;
             foreach (var placement in loadout.Placements)
@@ -209,6 +219,26 @@ namespace DinoBattle.Core
             return true;
         }
 
+        /// <summary>
+        /// Where a reinforcing wave comes in: the tier below the one being fought over.
+        ///
+        /// Reported: "추가 공룡 보낼때 너무 멀리서 보내지말고 바로 이전 층에서 보낼수있도록하자."
+        /// Sending every wave from the foot of the board meant that losing on tier seven cost a walk
+        /// past six cleared, empty platforms before anything happened — the punishment for dying was
+        /// boredom rather than difficulty, and it got worse the better the player was doing.
+        ///
+        /// One tier back rather than the contested tier itself, so a wave still arrives from below
+        /// and climbs into the fight. Spawning directly onto the tier under attack would drop
+        /// reinforcements into the middle of the defenders with no approach at all.
+        /// </summary>
+        private Vector3 ReinforcementPoint()
+        {
+            var previous = arena.Tier(CurrentTier - 1);
+            if (previous != null) return previous.ObjectivePosition;
+
+            return arena.StartPlatform != null ? arena.StartPlatform.position : Vector3.zero;
+        }
+
         private static Vector3 StartOffset(int index)
         {
             int row = index / 4;
@@ -223,10 +253,20 @@ namespace DinoBattle.Core
 
             if (AnyAlive(wave)) return;
 
+            // Send the defenders back to their posts. They have just chased a wave all over the
+            // platform and would otherwise stand wherever the last one died — usually clustered at
+            // the ramp mouth, which both looks like confusion and ambushes the next wave at the
+            // exact moment it is most helpless.
+            //
+            // A march order, not a teleport: they walk back, and because MarchTarget is only a
+            // fallback for having no target, the moment the next wave arrives they abandon it and
+            // fight. Arrive stops them at the post rather than orbiting it.
+            ReturnToPosts();
+
             // Everything the player sent is dead. Not a defeat unless they cannot afford to try
             // again — that judgement needs the loadout, which the HUD rebuilds, so it is made when
             // the button is pressed rather than guessed at here.
-            SetState(BudgetRemaining > 0 ? GauntletState.WaveWiped : GauntletState.Defeated);
+            SetState(GauntletState.WaveWiped);
         }
 
         private void HandleMonsterDied(CreatureUnit unit)
@@ -355,6 +395,29 @@ namespace DinoBattle.Core
         {
             var spec = ladder != null ? ladder.Tier(index) : null;
             return spec != null ? spec.isBoss : index >= TierCount - 1;
+        }
+
+        /// <summary>
+        /// Order every surviving monster back to where it was posted.
+        ///
+        /// Applied to all tiers, not just the current one. A tier behind the front can still have
+        /// survivors — the wave is allowed to lose creatures and press on — and those should also be
+        /// standing where they were put rather than at whatever spot they last fought on.
+        /// </summary>
+        private void ReturnToPosts()
+        {
+            foreach (var tier in tierMonsters)
+            {
+                foreach (var unit in tier)
+                {
+                    if (unit == null || unit.IsDead) continue;
+                    if (!unit.gameObject.activeInHierarchy) continue;
+                    if (!posts.TryGetValue(unit, out Vector3 post)) continue;
+
+                    foreach (var brain in unit.GetComponentsInChildren<CreatureBrain>())
+                        brain.MarchTarget = post;
+                }
+            }
         }
 
         private static bool AnyAlive(List<CreatureUnit> units)
