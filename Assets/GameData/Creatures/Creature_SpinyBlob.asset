@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c28d35c407bc3d54e9f95971f3375aa2, type: 3}
+  m_Name: Creature_SpinyBlob
+  m_EditorClassIdentifier: Assembly-CSharp::DinoBattle.Data.CreatureDefinition
+  displayName: Spiny Blob
+  description: Placeholder stat block for Spiny Blob.
+  icon: {fileID: 0}
+  prefab: {fileID: 632287293994606447, guid: 904bc6bd02c08d945890b54a2aae45e6, type: 3}
+  cost: 120
+  footprintRadius: 1.2
+  maxHealth: 900
+  armor: 8
+  moveSpeed: 7.4
+  turnSpeedDegrees: 305.9091
+  mass: 1600
+  attackDamage: 130
+  attackInterval: 0.95
+  attackRange: 2.2
+  attackWindup: 0.2375
+  aggroRange: 90

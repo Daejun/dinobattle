@@ -579,6 +579,8 @@ namespace DinoBattle.EditorTools
                     points.Add(point);
                 }
 
+                AddTierNumber(platform.transform, i + 1, y, z);
+
                 tier.Configure(objective, points);
                 tiers.Add(tier);
 
@@ -633,6 +635,50 @@ namespace DinoBattle.EditorTools
                 var renderer = wall.GetComponent<Renderer>();
                 if (renderer != null) Object.DestroyImmediate(renderer);
             }
+        }
+
+        /// <summary>
+        /// Paint the tier's number onto its floor.
+        ///
+        /// Asked for directly, and it is the better place for it: the HUD had "4층 / 10" in a strip
+        /// over the arena, which is a number about the world sitting on top of the world. On the deck
+        /// it is diegetic — the player reads how high they are by looking at where they are standing,
+        /// and it costs no screen space at all.
+        ///
+        /// A 3D TextMesh rather than a generated texture. It is unlit, it needs no material plumbing,
+        /// and it stays crisp at the distance the camera actually sits — a decal would have to be
+        /// authored at a resolution guessed from that distance.
+        ///
+        /// Laid flat and turned to face back down the board, so it is upright from the direction the
+        /// player is always climbing from.
+        /// </summary>
+        private static void AddTierNumber(Transform platform, int number, float height, float z)
+        {
+            var label = new GameObject($"Number_{number:00}");
+            label.transform.SetParent(platform, false);
+
+            // Just above the deck: coplanar with it would z-fight along the whole platform.
+            label.transform.position = new Vector3(GauntletOriginX, height + 0.02f, z + GauntletPlatformDepth * 0.5f);
+            // Flat on the deck, reading toward the top of the board. The first version was turned
+            // the other way and came out upside down from the only direction anyone approaches from.
+            label.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
+
+            var text = label.AddComponent<TextMesh>();
+            text.text = number.ToString();
+            text.anchor = TextAnchor.MiddleCenter;
+            text.alignment = TextAlignment.Center;
+
+            // Large font size scaled down, rather than a small one scaled up: the glyph is rasterised
+            // at fontSize, so a small font blown up by transform scale is a blurry number.
+            text.fontSize = 96;
+            text.characterSize = 0.16f;
+            text.color = new Color(1f, 0.94f, 0.78f, 0.55f);
+            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+
+            var renderer = label.GetComponent<MeshRenderer>();
+            if (text.font != null) renderer.sharedMaterial = text.font.material;
+            renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            renderer.receiveShadows = false;
         }
 
         private static GameObject AddBoardSlab(Transform parent, string slabName, Vector3 localPosition, Vector3 size)

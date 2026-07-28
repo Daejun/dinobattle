@@ -30,6 +30,13 @@ namespace DinoBattle.EditorTools
         public const string BossRosterPath = "Assets/GameData/Rosters/Roster_Bosses.asset";
 
         public const string GauntletLadderPath = "Assets/GameData/Rosters/GauntletLadder.asset";
+
+        /// <summary>
+        /// The gauntlet's monsters get their own roster for the same reason the bosses do: anything
+        /// in the default roster can be auto-filled onto the player's side, and the premise of the
+        /// climb is that the board supplies the opposition.
+        /// </summary>
+        public const string GauntletRosterPath = "Assets/GameData/Rosters/Roster_Gauntlet.asset";
         private const string PrefabPath = "Assets/Prefabs/Creatures";
 
         [MenuItem("Dino Battle/1. Generate Sample Content", priority = 100)]
@@ -60,17 +67,27 @@ namespace DinoBattle.EditorTools
                 bosses.Add(CreateDefinition(blueprint, safeName, prefab));
             }
 
+            var monsters = new List<CreatureDefinition>();
+
+            foreach (var blueprint in GauntletBlueprints.All)
+            {
+                string safeName = blueprint.Name.Replace(" ", "").Replace("-", "");
+                GameObject prefab = CreatePlaceholderPrefab(blueprint, safeName);
+                monsters.Add(CreateDefinition(blueprint, safeName, prefab));
+            }
+
             var roster = WriteRoster(RosterPath, definitions);
             WriteRoster(BossRosterPath, bosses);
-            WriteGauntletLadder(definitions, bosses);
+            WriteRoster(GauntletRosterPath, monsters);
+            WriteGauntletLadder(monsters, bosses);
 
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
 
             ForceReimportPrefabs();
 
-            Debug.Log($"[SampleContentBuilder] Generated {definitions.Count} creatures and " +
-                      $"{bosses.Count} boss(es).");
+            Debug.Log($"[SampleContentBuilder] Generated {definitions.Count} creatures, " +
+                      $"{bosses.Count} boss(es) and {monsters.Count} gauntlet monster(s).");
             Selection.activeObject = roster;
         }
 
@@ -697,7 +714,19 @@ namespace DinoBattle.EditorTools
             var byCost = new List<CreatureDefinition>(roster);
             byCost.Sort((a, b) => a.cost.CompareTo(b.cost));
 
-            List<CreatureDefinition> Cheapest(int n) => byCost.GetRange(0, Mathf.Min(n, byCost.Count));
+            // A window that slides up the cost-ordered list as the tiers climb, rather than two
+            // fixed buckets. With buckets the pool jumped — the cheapest four for tiers three to
+            // five, then the strongest four from six on — so the middle of the ladder was the same
+            // four monsters three times and tier six changed the cast wholesale. A sliding window
+            // introduces one new species at a time and retires one, so each tier is recognisably the
+            // last one plus something worse.
+            List<CreatureDefinition> Window(float t, int width)
+            {
+                int span = Mathf.Max(1, byCost.Count - width);
+                int start = Mathf.Clamp(Mathf.RoundToInt(t * span), 0, span);
+                return byCost.GetRange(start, Mathf.Min(width, byCost.Count - start));
+            }
+
             List<CreatureDefinition> Strongest(int n) =>
                 byCost.GetRange(Mathf.Max(0, byCost.Count - n), Mathf.Min(n, byCost.Count));
 
@@ -711,9 +740,8 @@ namespace DinoBattle.EditorTools
                 tiers.Add(new GauntletTierSpec
                 {
                     label = $"{i + 1}층",
-                    // Widen the pool as the climb goes on: two cheap species at the bottom, the whole
-                    // roster by the top.
-                    species = i < 2 ? Cheapest(2) : i < 5 ? Cheapest(4) : Strongest(4),
+                    // Slide from the cheap end to the expensive one across the nine combat tiers.
+                    species = Window(i / (float)(counts.Length - 1), 3),
                     count = counts[i],
                     healthScale = health[i],
                     damageScale = damage[i],
@@ -723,7 +751,20 @@ namespace DinoBattle.EditorTools
             tiers.Add(new GauntletTierSpec
             {
                 label = "보스",
-                species = bosses.Count > 0 ? new List<CreatureDefinition> { bosses[0] } : Strongest(1),
+                // The arthropod, by name rather than by index.
+                //
+                // A scorpion was asked for and there is still no getting one: re-checked against
+                // poly.pizza (both the site and its API), the full 45-model Quaternius monster
+                // catalogue, and open search — every hit is paid, account-gated or CC-BY-SA. That is
+                // the same wall ATTRIBUTIONS.md records from the first time this came up, and
+                // nothing has moved.
+                //
+                // Megarachne is the nearest thing the project has: a giant arthropod, eight legs, a
+                // silhouette nothing else in the roster shares, and a real extinct genus that was
+                // itself reclassified as a SEA SCORPION. Picked by name so that reordering the boss
+                // list cannot silently swap the climb's finale back to a repainted T-Rex, which is
+                // what bosses[0] was giving it.
+                species = new List<CreatureDefinition> { PickBoss(bosses, "Megarachne") },
                 count = 1,
                 healthScale = 1f,
                 damageScale = 1f,
@@ -732,6 +773,22 @@ namespace DinoBattle.EditorTools
 
             ladder.SetTiers(tiers);
             EditorUtility.SetDirty(ladder);
+        }
+
+        /// <summary>Boss by display name, falling back to the first so a rename cannot break the ladder.</summary>
+        private static CreatureDefinition PickBoss(List<CreatureDefinition> bosses, string displayName)
+        {
+            foreach (var boss in bosses)
+                if (boss != null && boss.displayName == displayName) return boss;
+
+            if (bosses.Count > 0)
+            {
+                Debug.LogWarning($"[SampleContentBuilder] No boss named '{displayName}'; " +
+                                 $"the gauntlet will end on {bosses[0].displayName} instead.");
+                return bosses[0];
+            }
+
+            return null;
         }
 
         private static CreatureRoster WriteRoster(string path, List<CreatureDefinition> definitions)

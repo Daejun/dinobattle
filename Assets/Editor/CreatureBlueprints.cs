@@ -282,4 +282,111 @@ namespace DinoBattle.EditorTools
             },
         };
     }
+
+    /// <summary>
+    /// What stands on the gauntlet's tiers.
+    ///
+    /// Deliberately not dinosaurs. The player brings dinosaurs, so a tier of Triceratops is the
+    /// versus mode with a slope on it — the climb has to be through somebody else's territory.
+    ///
+    /// All eight are Quaternius Ultimate Monsters (CC0), and all eight were picked for one reason:
+    /// they have a ground walk cycle. The pack's other half are flyers whose locomotion clip is a
+    /// wing beat, and CreatureLocomotion drives a Rigidbody along the floor, so those would have
+    /// slid across the board with their wings out.
+    ///
+    /// They live in their OWN roster. In the main one they would turn up in the player's auto-fill,
+    /// and the premise of the mode is that the board supplies the opposition.
+    ///
+    /// Stats are the base; GauntletLadder multiplies health and damage per tier on top. Sized
+    /// against the player's roster — a T-Rex is 4200 health and 480 damage, a Velociraptor 600 and
+    /// 110 — so the bottom of this ladder is raptor-grade chaff and the top trades with a T-Rex
+    /// before any tier multiplier applies.
+    ///
+    /// Armour stays low and rises far more slowly than health. It is flat subtraction, so on
+    /// creatures this cheap it is the difference between "tough" and "immune to the Velociraptor the
+    /// player actually brought" — the trap the boss table documents at length.
+    /// </summary>
+    internal static class GauntletBlueprints
+    {
+        public static readonly CreatureBlueprint[] All =
+        {
+            new()
+            {
+                // Chaff. Fast, brittle, frightening only in numbers — which is what the early tiers
+                // have and the late ones do not.
+                Name = "Pink Slime", Model = "PinkBlob",
+                Cost = 70, Health = 420f, Armor = 2f,
+                Damage = 85f, Interval = 0.85f, Range = 2.0f,
+                Speed = 8.4f, Mass = 700f,
+                BodySize = new Vector3(1.0f, 1.0f, 1.6f),
+                Tint = new Color(0.92f, 0.42f, 0.62f),
+            },
+            new()
+            {
+                Name = "Spiny Blob", Model = "GreenSpikyBlob",
+                Cost = 120, Health = 900f, Armor = 8f,
+                Damage = 130f, Interval = 0.95f, Range = 2.2f,
+                Speed = 7.4f, Mass = 1600f,
+                BodySize = new Vector3(1.2f, 1.2f, 2.0f),
+                Tint = new Color(0.42f, 0.78f, 0.32f),
+            },
+            new()
+            {
+                Name = "Cactoro", Model = "Cactoro",
+                Cost = 190, Health = 1500f, Armor = 12f,
+                Damage = 195f, Interval = 1.1f, Range = 2.6f,
+                Speed = 6.6f, Mass = 2600f,
+                BodySize = new Vector3(1.3f, 1.8f, 2.4f),
+                Tint = new Color(0.36f, 0.62f, 0.34f),
+            },
+            new()
+            {
+                Name = "Mushnub", Model = "Mushnub_Evolved",
+                Cost = 250, Health = 2000f, Armor = 14f,
+                Damage = 240f, Interval = 1.15f, Range = 2.8f,
+                Speed = 6.2f, Mass = 3200f,
+                BodySize = new Vector3(1.5f, 1.9f, 2.6f),
+                Tint = new Color(0.72f, 0.44f, 0.30f),
+            },
+            new()
+            {
+                // The humanoids run as well as walk, so from here up the tiers can actually chase.
+                Name = "Monkroose", Model = "Monkroose",
+                Cost = 340, Health = 2700f, Armor = 16f,
+                Damage = 320f, Interval = 1.2f, Range = 3.2f,
+                Speed = 6.8f, Mass = 4200f,
+                BodySize = new Vector3(1.4f, 2.2f, 2.6f),
+                Tint = new Color(0.58f, 0.40f, 0.26f),
+            },
+            new()
+            {
+                Name = "Blue Demon", Model = "BlueDemon",
+                Cost = 460, Health = 3600f, Armor = 22f,
+                Damage = 430f, Interval = 1.35f, Range = 3.6f,
+                Speed = 6.4f, Mass = 6000f,
+                BodySize = new Vector3(1.7f, 2.6f, 3.0f),
+                Tint = new Color(0.34f, 0.46f, 0.90f),
+            },
+            new()
+            {
+                Name = "Yeti", Model = "Yeti",
+                Cost = 600, Health = 4700f, Armor = 26f,
+                Damage = 540f, Interval = 1.5f, Range = 3.8f,
+                Speed = 5.6f, Mass = 9000f,
+                BodySize = new Vector3(2.0f, 2.8f, 3.4f),
+                Tint = new Color(0.86f, 0.90f, 0.96f),
+            },
+            new()
+            {
+                // Top of the ladder below the boss. Trades with a T-Rex one-to-one before the tier
+                // multiplier, so it is the ninth tier's x2.4 health that makes it a wall.
+                Name = "Mushroom King", Model = "MushroomKing",
+                Cost = 780, Health = 5800f, Armor = 30f,
+                Damage = 650f, Interval = 1.55f, Range = 4.2f,
+                Speed = 5.2f, Mass = 12000f,
+                BodySize = new Vector3(2.2f, 3.2f, 3.8f),
+                Tint = new Color(0.80f, 0.24f, 0.28f),
+            },
+        };
+    }
 }

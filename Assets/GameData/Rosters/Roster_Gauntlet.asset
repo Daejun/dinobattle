@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a1893f6c385fe4345b2bc2b46ded8512, type: 3}
+  m_Name: Roster_Gauntlet
+  m_EditorClassIdentifier: Assembly-CSharp::DinoBattle.Data.CreatureRoster
+  creatures:
+  - {fileID: 11400000, guid: 2fcf318702665d641bb184517ec5d9e9, type: 2}
+  - {fileID: 11400000, guid: 7eadfd34f326418408cf89a810bbc702, type: 2}
+  - {fileID: 11400000, guid: 2811741cb78803948ab9864000bccace, type: 2}
+  - {fileID: 11400000, guid: ffa8322001355964da52dfc51c158216, type: 2}
+  - {fileID: 11400000, guid: c366e5c7f7b68494c982209cbb0b4bd5, type: 2}
+  - {fileID: 11400000, guid: dfb684ec6f9409640a8cd871e43f2985, type: 2}
+  - {fileID: 11400000, guid: a6e29c4b50a1084409df24efd26043d4, type: 2}
+  - {fileID: 11400000, guid: 933955f2a5c6cb5478e68e40f112731e, type: 2}

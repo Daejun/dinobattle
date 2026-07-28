@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c28d35c407bc3d54e9f95971f3375aa2, type: 3}
+  m_Name: Creature_MushroomKing
+  m_EditorClassIdentifier: Assembly-CSharp::DinoBattle.Data.CreatureDefinition
+  displayName: Mushroom King
+  description: Placeholder stat block for Mushroom King.
+  icon: {fileID: 0}
+  prefab: {fileID: 6493907154871617781, guid: 5d96492c0737b2340ac626baa41c0d9f, type: 3}
+  cost: 780
+  footprintRadius: 2.28
+  maxHealth: 5800
+  armor: 30
+  moveSpeed: 5.2
+  turnSpeedDegrees: 165
+  mass: 12000
+  attackDamage: 650
+  attackInterval: 1.55
+  attackRange: 4.2
+  attackWindup: 0.3875
+  aggroRange: 90

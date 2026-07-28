@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c28d35c407bc3d54e9f95971f3375aa2, type: 3}
+  m_Name: Creature_Cactoro
+  m_EditorClassIdentifier: Assembly-CSharp::DinoBattle.Data.CreatureDefinition
+  displayName: Cactoro
+  description: Placeholder stat block for Cactoro.
+  icon: {fileID: 0}
+  prefab: {fileID: 6913574097148790306, guid: 6ae8e325f7cac344ead112ee6883b5f5, type: 3}
+  cost: 190
+  footprintRadius: 1.44
+  maxHealth: 1500
+  armor: 12
+  moveSpeed: 6.6
+  turnSpeedDegrees: 285.7792
+  mass: 2600
+  attackDamage: 195
+  attackInterval: 1.1
+  attackRange: 2.6
+  attackWindup: 0.275
+  aggroRange: 90

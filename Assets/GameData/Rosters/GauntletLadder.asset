@@ -15,93 +15,88 @@ MonoBehaviour:
   tiers:
   - label: "1\uCE35"
     species:
-    - {fileID: 11400000, guid: 2341b2ca315eb7f47bb8e13c42f5aabe, type: 2}
-    - {fileID: 11400000, guid: 4d1123ceabfc46e4bbb8a1cd1345d583, type: 2}
+    - {fileID: 11400000, guid: 2fcf318702665d641bb184517ec5d9e9, type: 2}
+    - {fileID: 11400000, guid: 7eadfd34f326418408cf89a810bbc702, type: 2}
+    - {fileID: 11400000, guid: 2811741cb78803948ab9864000bccace, type: 2}
     count: 3
     healthScale: 1
     damageScale: 1
     isBoss: 0
   - label: "2\uCE35"
     species:
-    - {fileID: 11400000, guid: 2341b2ca315eb7f47bb8e13c42f5aabe, type: 2}
-    - {fileID: 11400000, guid: 4d1123ceabfc46e4bbb8a1cd1345d583, type: 2}
+    - {fileID: 11400000, guid: 7eadfd34f326418408cf89a810bbc702, type: 2}
+    - {fileID: 11400000, guid: 2811741cb78803948ab9864000bccace, type: 2}
+    - {fileID: 11400000, guid: ffa8322001355964da52dfc51c158216, type: 2}
     count: 4
     healthScale: 1.1
     damageScale: 1
     isBoss: 0
   - label: "3\uCE35"
     species:
-    - {fileID: 11400000, guid: 2341b2ca315eb7f47bb8e13c42f5aabe, type: 2}
-    - {fileID: 11400000, guid: 4d1123ceabfc46e4bbb8a1cd1345d583, type: 2}
-    - {fileID: 11400000, guid: d84caa89649d518449beee268d6b31b8, type: 2}
-    - {fileID: 11400000, guid: 66e0063bd24f5a5429b8beaaa8d0b31e, type: 2}
+    - {fileID: 11400000, guid: 7eadfd34f326418408cf89a810bbc702, type: 2}
+    - {fileID: 11400000, guid: 2811741cb78803948ab9864000bccace, type: 2}
+    - {fileID: 11400000, guid: ffa8322001355964da52dfc51c158216, type: 2}
     count: 5
     healthScale: 1.2
     damageScale: 1.05
     isBoss: 0
   - label: "4\uCE35"
     species:
-    - {fileID: 11400000, guid: 2341b2ca315eb7f47bb8e13c42f5aabe, type: 2}
-    - {fileID: 11400000, guid: 4d1123ceabfc46e4bbb8a1cd1345d583, type: 2}
-    - {fileID: 11400000, guid: d84caa89649d518449beee268d6b31b8, type: 2}
-    - {fileID: 11400000, guid: 66e0063bd24f5a5429b8beaaa8d0b31e, type: 2}
+    - {fileID: 11400000, guid: 2811741cb78803948ab9864000bccace, type: 2}
+    - {fileID: 11400000, guid: ffa8322001355964da52dfc51c158216, type: 2}
+    - {fileID: 11400000, guid: c366e5c7f7b68494c982209cbb0b4bd5, type: 2}
     count: 5
     healthScale: 1.35
     damageScale: 1.1
     isBoss: 0
   - label: "5\uCE35"
     species:
-    - {fileID: 11400000, guid: 2341b2ca315eb7f47bb8e13c42f5aabe, type: 2}
-    - {fileID: 11400000, guid: 4d1123ceabfc46e4bbb8a1cd1345d583, type: 2}
-    - {fileID: 11400000, guid: d84caa89649d518449beee268d6b31b8, type: 2}
-    - {fileID: 11400000, guid: 66e0063bd24f5a5429b8beaaa8d0b31e, type: 2}
+    - {fileID: 11400000, guid: 2811741cb78803948ab9864000bccace, type: 2}
+    - {fileID: 11400000, guid: ffa8322001355964da52dfc51c158216, type: 2}
+    - {fileID: 11400000, guid: c366e5c7f7b68494c982209cbb0b4bd5, type: 2}
     count: 6
     healthScale: 1.5
     damageScale: 1.15
     isBoss: 0
   - label: "6\uCE35"
     species:
-    - {fileID: 11400000, guid: 4d1123ceabfc46e4bbb8a1cd1345d583, type: 2}
-    - {fileID: 11400000, guid: d84caa89649d518449beee268d6b31b8, type: 2}
-    - {fileID: 11400000, guid: 66e0063bd24f5a5429b8beaaa8d0b31e, type: 2}
-    - {fileID: 11400000, guid: 5091c124fbae8e44184dbe3e06fc2876, type: 2}
+    - {fileID: 11400000, guid: ffa8322001355964da52dfc51c158216, type: 2}
+    - {fileID: 11400000, guid: c366e5c7f7b68494c982209cbb0b4bd5, type: 2}
+    - {fileID: 11400000, guid: dfb684ec6f9409640a8cd871e43f2985, type: 2}
     count: 7
     healthScale: 1.7
     damageScale: 1.2
     isBoss: 0
   - label: "7\uCE35"
     species:
-    - {fileID: 11400000, guid: 4d1123ceabfc46e4bbb8a1cd1345d583, type: 2}
-    - {fileID: 11400000, guid: d84caa89649d518449beee268d6b31b8, type: 2}
-    - {fileID: 11400000, guid: 66e0063bd24f5a5429b8beaaa8d0b31e, type: 2}
-    - {fileID: 11400000, guid: 5091c124fbae8e44184dbe3e06fc2876, type: 2}
+    - {fileID: 11400000, guid: c366e5c7f7b68494c982209cbb0b4bd5, type: 2}
+    - {fileID: 11400000, guid: dfb684ec6f9409640a8cd871e43f2985, type: 2}
+    - {fileID: 11400000, guid: a6e29c4b50a1084409df24efd26043d4, type: 2}
     count: 8
     healthScale: 1.9
     damageScale: 1.25
     isBoss: 0
   - label: "8\uCE35"
     species:
-    - {fileID: 11400000, guid: 4d1123ceabfc46e4bbb8a1cd1345d583, type: 2}
-    - {fileID: 11400000, guid: d84caa89649d518449beee268d6b31b8, type: 2}
-    - {fileID: 11400000, guid: 66e0063bd24f5a5429b8beaaa8d0b31e, type: 2}
-    - {fileID: 11400000, guid: 5091c124fbae8e44184dbe3e06fc2876, type: 2}
+    - {fileID: 11400000, guid: c366e5c7f7b68494c982209cbb0b4bd5, type: 2}
+    - {fileID: 11400000, guid: dfb684ec6f9409640a8cd871e43f2985, type: 2}
+    - {fileID: 11400000, guid: a6e29c4b50a1084409df24efd26043d4, type: 2}
     count: 9
     healthScale: 2.1
     damageScale: 1.3
     isBoss: 0
   - label: "9\uCE35"
     species:
-    - {fileID: 11400000, guid: 4d1123ceabfc46e4bbb8a1cd1345d583, type: 2}
-    - {fileID: 11400000, guid: d84caa89649d518449beee268d6b31b8, type: 2}
-    - {fileID: 11400000, guid: 66e0063bd24f5a5429b8beaaa8d0b31e, type: 2}
-    - {fileID: 11400000, guid: 5091c124fbae8e44184dbe3e06fc2876, type: 2}
+    - {fileID: 11400000, guid: dfb684ec6f9409640a8cd871e43f2985, type: 2}
+    - {fileID: 11400000, guid: a6e29c4b50a1084409df24efd26043d4, type: 2}
+    - {fileID: 11400000, guid: 933955f2a5c6cb5478e68e40f112731e, type: 2}
     count: 10
     healthScale: 2.4
     damageScale: 1.4
     isBoss: 0
   - label: "\uBCF4\uC2A4"
     species:
-    - {fileID: 11400000, guid: 4020df1d3af71024b9b61c3a5cbe4e8b, type: 2}
+    - {fileID: 11400000, guid: 97c2aea13c2b655408f0555ba41cedb7, type: 2}
     count: 1
     healthScale: 1
     damageScale: 1

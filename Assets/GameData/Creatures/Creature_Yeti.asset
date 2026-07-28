@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c28d35c407bc3d54e9f95971f3375aa2, type: 3}
+  m_Name: Creature_Yeti
+  m_EditorClassIdentifier: Assembly-CSharp::DinoBattle.Data.CreatureDefinition
+  displayName: Yeti
+  description: Placeholder stat block for Yeti.
+  icon: {fileID: 0}
+  prefab: {fileID: 6907433262131744815, guid: 04b332cc24bebfa4db94ad690f8defac, type: 3}
+  cost: 600
+  footprintRadius: 2.0400002
+  maxHealth: 4700
+  armor: 26
+  moveSpeed: 5.6
+  turnSpeedDegrees: 165
+  mass: 9000
+  attackDamage: 540
+  attackInterval: 1.5
+  attackRange: 3.8
+  attackWindup: 0.375
+  aggroRange: 90

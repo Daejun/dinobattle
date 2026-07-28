@@ -54,6 +54,12 @@ namespace DinoBattle.Placement
             if (battleManager == null) battleManager = BattleManager.Instance;
             if (battleManager == null || battleManager.Phase != BattlePhase.Placement) return;
 
+            // A climb has one side. Filling both would arrange an enemy army on a round arena that
+            // is not even switched on, which is exactly what happened — the button appeared to do
+            // nothing because everything it placed was on the other arena, 600 units away and
+            // invisible.
+            if (battleManager.Mode == GameMode.Gauntlet) { FillGauntletWave(); return; }
+
             battleManager.Loadout.Clear();
 
             // Same headcount on both sides, different armies.
@@ -180,6 +186,46 @@ namespace DinoBattle.Placement
         /// enough budget behind for the slots still to be filled — without that reservation a greedy
         /// first pick of something expensive makes the target count unreachable.
         /// </param>
+        /// <summary>
+        /// Roll one wave for a gauntlet and stand it on the board.
+        ///
+        /// Rolled fresh every time, which is the point: the same button pressed twice should not
+        /// send the same five creatures twice. A climb is a sequence of attempts, and identical
+        /// attempts make it a waiting game rather than a run.
+        ///
+        /// Positions here are for the PREVIEW only — GauntletDirector re-lays the wave on whichever
+        /// tier it is reinforcing when it actually spawns. They still have to be right, because a
+        /// preview standing on the round arena is what made this button look broken.
+        /// </summary>
+        public void FillGauntletWave()
+        {
+            if (battleManager == null) battleManager = BattleManager.Instance;
+            if (battleManager == null) return;
+
+            battleManager.Loadout.Clear();
+
+            var army = ChooseArmy(null);
+            if (army.Count == 0) return;
+
+            Vector3 anchor = battleManager.Gauntlet != null
+                ? battleManager.Gauntlet.WaveEntryPoint
+                : Vector3.zero;
+
+            for (int i = 0; i < army.Count; i++)
+            {
+                int row = i / 4;
+                int column = i % 4;
+
+                battleManager.Loadout.Add(new PlacedCreature
+                {
+                    Definition = army[i],
+                    Team = Team.Red,
+                    Position = anchor + new Vector3((column - 1.5f) * 3f, 0f, -row * 3f),
+                    YawDegrees = 0f,
+                });
+            }
+        }
+
         private List<CreatureDefinition> ChooseArmy(int? matchCount)
         {
             var picks = new List<CreatureDefinition>();

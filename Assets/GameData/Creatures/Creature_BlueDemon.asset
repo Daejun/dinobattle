@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c28d35c407bc3d54e9f95971f3375aa2, type: 3}
+  m_Name: Creature_BlueDemon
+  m_EditorClassIdentifier: Assembly-CSharp::DinoBattle.Data.CreatureDefinition
+  displayName: Blue Demon
+  description: Placeholder stat block for Blue Demon.
+  icon: {fileID: 0}
+  prefab: {fileID: 8590428802478282223, guid: 95d3fbd154c874d4c85ddedb45e0a83a, type: 3}
+  cost: 460
+  footprintRadius: 1.8000001
+  maxHealth: 3600
+  armor: 22
+  moveSpeed: 6.4
+  turnSpeedDegrees: 217.33766
+  mass: 6000
+  attackDamage: 430
+  attackInterval: 1.35
+  attackRange: 3.6
+  attackWindup: 0.3375
+  aggroRange: 90

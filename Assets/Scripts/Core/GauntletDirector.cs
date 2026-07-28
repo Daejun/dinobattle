@@ -179,6 +179,18 @@ namespace DinoBattle.Core
         {
             if (!CanSendWave || battleManager == null) return false;
 
+            // Roll a fresh army for every wave.
+            //
+            // It used to re-send whatever the player arranged the first time, so "더 보내기" sent the
+            // same five creatures over and over — the run had one decision in it and then repeated
+            // that decision until the ladder ran out. Re-rolling makes each attempt its own throw of
+            // the dice, which is the only variety a mode with no unit selection can offer.
+            //
+            // The first wave is excluded: that one is whatever the player set up and looked at on
+            // the placement screen, and replacing it at the moment they press start would be a lie.
+            var placer = FindAnyObjectByType<Placement.AutoPlacer>();
+            if (WavesSent > 0 && placer != null) placer.FillGauntletWave();
+
             var loadout = battleManager.Loadout;
             if (loadout.CountFor(Team.Red) == 0) return false;
 
@@ -231,6 +243,9 @@ namespace DinoBattle.Core
         /// and climbs into the fight. Spawning directly onto the tier under attack would drop
         /// reinforcements into the middle of the defenders with no approach at all.
         /// </summary>
+        /// <summary>Where the next wave will come in. Exposed so the preview stands in the right place.</summary>
+        public Vector3 WaveEntryPoint => ReinforcementPoint();
+
         private Vector3 ReinforcementPoint()
         {
             var previous = arena.Tier(CurrentTier - 1);
@@ -290,6 +305,21 @@ namespace DinoBattle.Core
         {
             if (State is GauntletState.Cleared or GauntletState.Defeated) return;
 
+            // Catch-all for a wave that is gone while the run still thinks it is under way.
+            //
+            // HandleFighterDied is the normal route to WaveWiped, and it depends on every death
+            // raising Died. A creature destroyed some other way — despawned, or its GameObject torn
+            // down — never raises it, and the run would sit in Advancing or Engaging with nothing
+            // alive and no button to press. That is a soft-lock with no message, which is the worst
+            // kind of bug to ship, so it is worth one list walk a frame to make it impossible rather
+            // than merely unlikely.
+            if (State is GauntletState.Advancing or GauntletState.Engaging && !AnyAlive(wave))
+            {
+                ReturnToPosts();
+                SetState(GauntletState.WaveWiped);
+                return;
+            }
+
             if (advanceTimer > 0f)
             {
                 advanceTimer -= Time.deltaTime;
@@ -309,6 +339,19 @@ namespace DinoBattle.Core
         /// <summary>Point the wave at the current tier and let them walk.</summary>
         private void OrderAdvance()
         {
+            // Nobody left to order. This is the deadlock that stranded a run on the fourth tier:
+            // clearing a tier starts an advance timer, and if the last of the wave died during that
+            // delay — a swing already in the air when the tier fell — the timer still expired and
+            // put the run into Advancing with an empty wave. Advancing is not a state that offers
+            // the send button, and nothing was left alive to ever leave it, so the run simply
+            // stopped with no way forward and no message.
+            if (!AnyAlive(wave))
+            {
+                ReturnToPosts();
+                SetState(GauntletState.WaveWiped);
+                return;
+            }
+
             var tier = arena.Tier(CurrentTier);
             if (tier == null)
             {

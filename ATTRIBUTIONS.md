@@ -136,6 +136,47 @@ involved, so nothing to attribute.
 Both carried Jurassic World names until this repository went public; see `Docs/legal.md` for what
 changed and why. The models never came from Universal, only the names did, and those are gone.
 
+## Gauntlet monsters
+
+Eight rigs from Quaternius's [Ultimate Monsters pack](https://quaternius.com/packs/ultimatemonsters.html)
+— **CC0 1.0 Universal**, same author as the dinosaurs, the dragon, the spider and the vegetation.
+Fetched via [poly.pizza](https://poly.pizza/bundle/Ultimate-Monsters-Bundle-5oyGWAmOB6), which
+mirrors the pack as per-model FBX and is the only route to it that does not go through a browser
+download button. Cached at `.assets-cache/quaternius-monsters-ground/`.
+
+| In-game | Model file | Attack clip |
+|---|---|---|
+| Pink Slime | `PinkBlob.fbx` | `Bite_Front` |
+| Spiny Blob | `GreenSpikyBlob.fbx` | `Bite_Front` |
+| Cactoro | `Cactoro.fbx` | `Bite_Front` |
+| Mushnub | `Mushnub_Evolved.fbx` | `Bite_Front` |
+| Monkroose | `Monkroose.fbx` | `Punch` |
+| Blue Demon | `BlueDemon.fbx` | `Punch` |
+| Yeti | `Yeti.fbx` | `Bite_Front` |
+| Mushroom King | `MushroomKing.fbx` | `Punch` |
+
+**Eight of sixteen downloaded.** The pack's other half — Demon, Ghost, Ghost Skull, Dragon Evolved,
+Goleling, Goleling Evolved, Squidle, Hywirl, Armabee Evolved — are flyers. Their locomotion clip is
+`Fast_Flying` and they have no ground walk cycle at all, and `CreatureLocomotion` drives a Rigidbody
+along the floor, so they would have skated across the board with their wings out. They are not in
+the project; only the eight above were copied in.
+
+These rigs name their clips `CharacterArmature|Idle`, with no species token, which is a third
+convention on top of the dinosaurs' `Armature|TRex_Idle` and the dragon's `DragonArmature|Dragon_Flying`.
+`CreatureArtImporter` was matching on `EndsWith("_Idle")` and found nothing on any of them — and a
+model with no idle clip is skipped silently, so the symptom was eight monsters with no controller
+rather than anything pointing at naming. It now matches the action after the bar.
+
+### On the scorpion
+
+Still not obtainable. Re-checked for the gauntlet boss against poly.pizza (site and API), the full
+45-model Quaternius monster catalogue, and open search: every result is paid, account-gated, or
+CC-BY-SA. Same wall as the first search, recorded above under **Boss models**.
+
+The gauntlet therefore ends on **Megarachne**, the giant arthropod already in the project — a real
+extinct genus that was itself reclassified as a *sea scorpion*, which is as close as this repository
+can honestly get.
+
 ## Music
 
 CC0 requires no attribution; recorded here because this file is the only record of where anything

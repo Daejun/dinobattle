@@ -39,6 +39,11 @@ namespace DinoBattle.EditorTools
             ("quaternius-dinosaurs", ModelFolder),
             ("monster",              ModelFolder),
             ("easyenemy",            ModelFolder),
+
+            // Quaternius Ultimate Monsters, CC0. Only the eight rigs that have a ground walk cycle —
+            // the pack's other half are flyers whose locomotion clip is a wing beat, and this game
+            // drives a Rigidbody along the floor, so those would slide.
+            ("quaternius-monsters-ground", ModelFolder),
             ("nature",               ModelFolder + "/Nature"),
         };
 
@@ -266,8 +271,33 @@ namespace DinoBattle.EditorTools
                 .Where(c => !c.name.StartsWith("__preview__"))
                 .ToList();
 
-            AnimationClip Find(string suffix) =>
-                clips.FirstOrDefault(c => c.name.EndsWith(suffix, System.StringComparison.OrdinalIgnoreCase));
+            // Match on the action alone, after dropping the armature prefix.
+            //
+            // Three naming conventions are in play and none of them agree. The dinosaurs ship
+            // "Armature|TRex_Idle", the boss dragon "DragonArmature|Dragon_Flying", and the monster
+            // pack "CharacterArmature|Idle" — no species token at all, so the separator before the
+            // action is a bar rather than an underscore. A plain EndsWith("_Idle") silently found
+            // nothing on the whole monster pack, and a creature with no idle clip is skipped
+            // entirely, so the failure surfaced as monsters with no controller rather than as
+            // anything pointing at naming.
+            //
+            // Exact first, then underscore-separated, then contained. The order matters: BlueDemon
+            // has both "Idle" and "Jump_Idle", and a bare Contains would happily return the latter.
+            static string Tail(string clipName)
+            {
+                int bar = clipName.LastIndexOf('|');
+                return bar >= 0 ? clipName[(bar + 1)..] : clipName;
+            }
+
+            AnimationClip Find(string action)
+            {
+                string want = action.TrimStart('_');
+                var cmp = System.StringComparison.OrdinalIgnoreCase;
+
+                return clips.FirstOrDefault(c => Tail(c.name).Equals(want, cmp))
+                    ?? clips.FirstOrDefault(c => Tail(c.name).EndsWith("_" + want, cmp))
+                    ?? clips.FirstOrDefault(c => Tail(c.name).Contains(want, cmp));
+            }
 
             // Fall back through alternatives per state rather than requiring the dinosaur pack's exact
             // naming. The boss dragon comes from a different pack and has no Idle, Walk or Run at all
@@ -288,7 +318,15 @@ namespace DinoBattle.EditorTools
             var idle = FindAny("_Idle", "_Flying", "_Hover");
             var walk = FindAny("_Walk", "_Flying");
             var run = FindAny("_Run", "_Flying");
-            var attack = FindAny("_Attack", "_Hit");
+            // Bite and Punch before Hit, and this order is load-bearing.
+            //
+            // The monster pack names its attacks "Bite_Front" and "Punch", neither of which contains
+            // "Attack", so the old list fell through to "_Hit" — and in that pack "HitRecieve" and
+            // "HitReact" are the FLINCH, the animation for being hit rather than hitting. Every one
+            // of the eight monsters was built with a controller that played a recoil when it bit.
+            //
+            // "_Hit" stays, last, because the boss dragon's attack clip is genuinely "Dragon_Hit".
+            var attack = FindAny("_Attack", "Bite", "Punch", "Headbutt", "_Hit");
             var death = FindAny("_Death", "_Die");
 
             string species = Path.GetFileNameWithoutExtension(modelPath);

@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c28d35c407bc3d54e9f95971f3375aa2, type: 3}
+  m_Name: Creature_Monkroose
+  m_EditorClassIdentifier: Assembly-CSharp::DinoBattle.Data.CreatureDefinition
+  displayName: Monkroose
+  description: Placeholder stat block for Monkroose.
+  icon: {fileID: 0}
+  prefab: {fileID: 7745715520935596163, guid: 30efd836bb9632149abced3d6ec76a60, type: 3}
+  cost: 340
+  footprintRadius: 1.5600001
+  maxHealth: 2700
+  armor: 16
+  moveSpeed: 6.8
+  turnSpeedDegrees: 253.57143
+  mass: 4200
+  attackDamage: 320
+  attackInterval: 1.2
+  attackRange: 3.2
+  attackWindup: 0.3
+  aggroRange: 90

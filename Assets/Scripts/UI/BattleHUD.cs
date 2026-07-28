@@ -218,13 +218,14 @@ namespace DinoBattle.UI
             var run = battleManager.Gauntlet;
             if (run == null) return;
 
-            // One line. How far up, and how many of yours are still standing — with waves unlimited
-            // there is no third number worth the height a second row costs over the arena.
+            // The tier number is painted on the deck now, so it is not repeated here — the board says
+            // where you are, and the strip only has to say what you have left. What remains is the
+            // survivor count, which nothing in the world can show.
             if (tierLabel != null)
             {
-                string status = run.State == GauntletState.Cleared ? "  클리어!" : "";
-                tierLabel.text = $"{run.CurrentTierLabel} / {run.TierCount}" +
-                                 $"   <color=#7ad07a>{battleManager.AliveCount(Team.Red)}</color>{status}";
+                tierLabel.text = run.State == GauntletState.Cleared
+                    ? "클리어!"
+                    : $"<color=#7ad07a>{battleManager.AliveCount(Team.Red)}</color> 마리";
             }
 
             // Only offer another wave when there is nobody left to send it after, and only when it
