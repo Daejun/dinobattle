@@ -20,7 +20,8 @@ namespace DinoBattle.EditorTools
     /// </summary>
     public static class BattleSceneBuilder
     {
-        private const string ScenePath = "Assets/Scenes/Arena.unity";
+        /// <summary>Public so probes can open the right scene before entering play mode headlessly.</summary>
+        public const string ScenePath = "Assets/Scenes/Arena.unity";
 
         /// <summary>
         /// Radius of the circular playable area.
@@ -626,15 +627,42 @@ namespace DinoBattle.EditorTools
         {
             for (int side = -1; side <= 1; side += 2)
             {
-                var wall = AddBoardSlab(parent, side < 0 ? "Wall_Left" : "Wall_Right",
+                AddInvisibleWall(parent, side < 0 ? "Wall_Left" : "Wall_Right",
                     new Vector3(side * (GauntletWidth * 0.5f + 0.5f), rise * 0.5f + 2f, length * 0.5f),
                     new Vector3(1f, rise + 8f, length));
-
-                // Invisible: a wall this tall alongside the whole board would box the shot in and
-                // there is nothing to see on it. It only has to stop things.
-                var renderer = wall.GetComponent<Renderer>();
-                if (renderer != null) Object.DestroyImmediate(renderer);
             }
+
+            // Both ENDS, which were open.
+            //
+            // Reported: "사다리에서 공룡이 떨어지는데". The sides have been walled since the board was
+            // built, so the only ways off it were the near edge of the start platform and the far
+            // edge of the boss tier — and the far edge is where the heaviest thing in the game swings
+            // at you, which is exactly where being shoved backwards off the world is most likely.
+            //
+            // Falling is not merely a lost creature. A faller is ALIVE, forever, somewhere under the
+            // sea, and the run's test for "is this wave finished" is whether anything in it is alive
+            // — so one creature over the edge is a climb that never advances and never offers the
+            // send button. GauntletDirector.RescueTheFallen is the net under this; this is the fence.
+            AddInvisibleWall(parent, "Wall_Back",
+                new Vector3(0f, rise * 0.5f + 2f, -0.5f),
+                new Vector3(GauntletWidth + 2f, rise + 8f, 1f));
+
+            AddInvisibleWall(parent, "Wall_Front",
+                new Vector3(0f, rise * 0.5f + 2f, length + 0.5f),
+                new Vector3(GauntletWidth + 2f, rise + 8f, 1f));
+        }
+
+        /// <summary>
+        /// A collider with no renderer. A wall tall enough to cover the whole climb would box the
+        /// shot in from every angle the rig permits, and there is nothing to see on it — it only has
+        /// to stop things.
+        /// </summary>
+        private static void AddInvisibleWall(Transform parent, string wallName, Vector3 localPosition, Vector3 size)
+        {
+            var wall = AddBoardSlab(parent, wallName, localPosition, size);
+
+            var renderer = wall.GetComponent<Renderer>();
+            if (renderer != null) Object.DestroyImmediate(renderer);
         }
 
         /// <summary>
@@ -676,9 +704,57 @@ namespace DinoBattle.EditorTools
             text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
 
             var renderer = label.GetComponent<MeshRenderer>();
-            if (text.font != null) renderer.sharedMaterial = text.font.material;
+
+            // NOT text.font.material. That is "GUI/Text Shader", which is ZTest Always — the built-in
+            // font material is built for name tags and debug overlays, where drawing through
+            // everything is the point. On a number lying on the floor it means the number is visible
+            // through the dinosaurs standing on it, which is what was reported.
+            renderer.sharedMaterial = DeckTextMaterial();
             renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             renderer.receiveShadows = false;
+
+            // Binds the material to the live font atlas, and re-binds it when the atlas is rebuilt.
+            label.AddComponent<DinoBattle.UI.DeckNumber>();
+        }
+
+        /// <summary>
+        /// Material for text painted on the board: the font shader with depth testing turned on.
+        ///
+        /// The texture is deliberately left unassigned here. LegacyRuntime.ttf is a dynamic font,
+        /// so its atlas is a runtime object — there is nothing to serialise, and DeckNumber points
+        /// the material at the real one on enable.
+        /// </summary>
+        private static Material DeckTextMaterial()
+        {
+            const string path = "Assets/Art/Materials/Env_DeckText.mat";
+
+            SampleContentBuilder.EnsureFolder("Assets/Art");
+            SampleContentBuilder.EnsureFolder("Assets/Art/Materials");
+
+            var shader = Shader.Find("DinoBattle/DeckText");
+            if (shader == null)
+            {
+                Debug.LogWarning("[BattleSceneBuilder] DeckText shader missing; tier numbers will " +
+                                 "draw through the creatures standing on them.");
+                shader = Shader.Find("GUI/Text Shader");
+            }
+
+            var material = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (material == null)
+            {
+                material = new Material(shader);
+                AssetDatabase.CreateAsset(material, path);
+            }
+            else if (material.shader != shader)
+            {
+                material.shader = shader;
+            }
+
+            // White: the per-tier tint rides on TextMesh.color, which arrives as vertex colour.
+            if (material.HasProperty("_Color")) material.SetColor("_Color", Color.white);
+
+            EditorUtility.SetDirty(material);
+            return material;
         }
 
         private static GameObject AddBoardSlab(Transform parent, string slabName, Vector3 localPosition, Vector3 size)
@@ -1128,9 +1204,9 @@ namespace DinoBattle.EditorTools
             // want to say different things: versus reports two armies' strength, a climb reports how
             // far up you are and what you have left to spend.
             //
-            // "더 보내기" is the whole economy in one button. It is only interactable when everything
-            // sent is dead, so it cannot be used to stack waves — the run is a sequence of attempts,
-            // not a tap-to-win.
+            // "더 보내기" is the whole economy in one button. Free when everything sent is dead, and
+            // on a cooldown while a fight is still going — see GauntletDirector.CanSendWave. It
+            // counts the cooldown down on its own caption, so a greyed button says why.
             // A compact centred strip, not a second full-width bar. Two readouts and a button do not
             // need the whole width, and stacking two opaque bands was what buried the fight.
             var gauntletPanel = CreatePanel(canvasObject.transform, "GauntletPanel",
@@ -1219,6 +1295,8 @@ namespace DinoBattle.EditorTools
             s.FindProperty("gauntletPanel").objectReferenceValue = gauntletPanel;
             s.FindProperty("tierLabel").objectReferenceValue = tierLabel;
             s.FindProperty("sendWaveButton").objectReferenceValue = sendWaveButton;
+            s.FindProperty("sendWaveLabel").objectReferenceValue =
+                sendWaveButton.GetComponentInChildren<Text>();
             s.ApplyModifiedPropertiesWithoutUndo();
         }
 

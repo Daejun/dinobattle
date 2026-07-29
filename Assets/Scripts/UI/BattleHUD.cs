@@ -40,6 +40,11 @@ namespace DinoBattle.UI
         [SerializeField] private Text tierLabel;
         [SerializeField] private Button sendWaveButton;
 
+        [Tooltip("The send button's own caption, so it can count down the reinforcement cooldown. " +
+                 "Optional like every other reference here — with it unset the button simply keeps " +
+                 "its authored label.")]
+        [SerializeField] private Text sendWaveLabel;
+
         [Header("Placement controls")]
         [SerializeField] private AutoPlacer autoPlacer;
         [SerializeField] private Button autoFillButton;
@@ -228,18 +233,28 @@ namespace DinoBattle.UI
                     : $"<color=#7ad07a>{battleManager.AliveCount(Team.Red)}</color> 마리";
             }
 
-            // Only offer another wave when there is nobody left to send it after, and only when it
-            // can actually be paid for. An always-live button would let the player stack waves and
-            // the climb would stop being a climb.
+            // Reinforcements are allowed mid-fight now, so the button is relevant for the whole run
+            // rather than only between attempts, and it stays up.
             //
-            // Hidden rather than greyed out. It sits over the arena, and a permanent dead button
-            // covering the fight is the same complaint that shrank these panels in the first place.
+            // It used to be hidden whenever it could not be pressed, which was right when "cannot be
+            // pressed" meant "the fight is still going" — a button that appears exactly when you need
+            // it. It is wrong for a cooldown: the button would blink out for six seconds every time
+            // it was used, and a control that vanishes the instant you press it reads as broken
+            // rather than as recharging. Greyed with the remaining seconds on it says the same thing
+            // and stays where the thumb left it.
             if (sendWaveButton != null)
             {
-                bool offer = run.CanSendWave && battleManager.Phase == BattlePhase.Fighting;
+                bool fighting = battleManager.Phase == BattlePhase.Fighting
+                                && run.State != GauntletState.Cleared;
 
-                SetActive(sendWaveButton.gameObject, offer);
-                sendWaveButton.interactable = offer;
+                SetActive(sendWaveButton.gameObject, fighting);
+                sendWaveButton.interactable = run.CanSendWave;
+
+                if (fighting && sendWaveLabel != null)
+                {
+                    float wait = run.SecondsUntilSend;
+                    sendWaveLabel.text = wait > 0f ? $"{Mathf.CeilToInt(wait)}초" : "더 보내기";
+                }
             }
         }
 

@@ -117,19 +117,52 @@ namespace DinoBattle.Placement
             });
         }
 
+        /// <summary>
+        /// Scratch buffer for the placement ray. Reused so a tap allocates nothing; sized well past
+        /// the handful of colliders a placement ray can plausibly cross.
+        /// </summary>
+        private readonly RaycastHit[] groundHits = new RaycastHit[16];
+
+        /// <summary>
+        /// The nearest walkable surface under the pointer.
+        ///
+        /// Nearest FLOOR, not nearest collider — the two are different, and the difference is
+        /// invisible until an arena grows a wall between the camera and the ground. The gauntlet
+        /// board is fenced on all four sides with tall invisible slabs so that nothing can be shoved
+        /// off it, and the fence across the near end stands directly between the setup camera and the
+        /// platform the player is trying to place on. A plain Raycast returns the wall, the tap
+        /// resolves to a point in mid-air on its face, and placement appears to be broken.
+        ///
+        /// Rejecting steep hits is also just the correct rule. A creature cannot stand on a vertical
+        /// face, so a vertical face is not somewhere a tap should be able to put one, whatever
+        /// happens to be behind it.
+        /// </summary>
         private bool TryGetGroundPoint(Vector2 screenPosition, out Vector3 point)
         {
             point = Vector3.zero;
             if (placementCamera == null) return false;
 
             Ray ray = placementCamera.ScreenPointToRay(screenPosition);
-            if (!Physics.Raycast(ray, out RaycastHit hit, 500f, groundMask, QueryTriggerInteraction.Ignore))
+            int count = Physics.RaycastNonAlloc(
+                ray, groundHits, 500f, groundMask, QueryTriggerInteraction.Ignore);
+
+            // RaycastNonAlloc does not sort, so the nearest acceptable hit has to be found rather
+            // than read off the front.
+            float nearest = float.MaxValue;
+            bool found = false;
+
+            for (int i = 0; i < count; i++)
             {
-                return false;
+                // Roughly 60 degrees or shallower. The board's ramps are 12, so they stay walkable.
+                if (groundHits[i].normal.y < 0.5f) continue;
+                if (groundHits[i].distance >= nearest) continue;
+
+                nearest = groundHits[i].distance;
+                point = groundHits[i].point;
+                found = true;
             }
 
-            point = hit.point;
-            return true;
+            return found;
         }
 
         /// <summary>

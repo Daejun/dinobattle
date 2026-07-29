@@ -86,3 +86,12 @@ keystore.pass
 
 # Claude Code local overrides (shared settings.json IS committed)
 .claude/settings.local.json
+
+# Dropped into the project by com.unity.test-framework.performance whenever the editor enters
+# play mode — including headless probe runs (GauntletRunProbe). Generated, not authored, and
+# nothing in the game reads them.
+/Assets/Resources/PerformanceTestRunInfo.json*
+/Assets/Resources/PerformanceTestRunSettings.json*
+# The folder itself only exists because of the above. Remove this line if Resources/ ever holds
+# something the game actually loads.
+/Assets/Resources.meta
