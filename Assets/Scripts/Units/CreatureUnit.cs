@@ -215,6 +215,68 @@ namespace DinoBattle.Units
         }
 
         /// <summary>
+        /// Grow or shrink the whole creature.
+        ///
+        /// On the ROOT, so the colliders, the team ring and the reach all follow the body. The
+        /// definition's own numbers — footprintRadius, mass, attackRange — are untouched, so this is
+        /// presentation plus collision, not a stat change; anything that should also hit harder gets
+        /// that separately through the spawn scales.
+        /// </summary>
+        public void Resize(float multiplier)
+        {
+            transform.localScale *= Mathf.Max(0.01f, multiplier);
+        }
+
+        /// <summary>
+        /// Turn this creature into a hero: gold, and a fifth again as large.
+        ///
+        /// Must be called AFTER <see cref="Initialize"/>. Initialize rolls this individual's own hue
+        /// and brightness off the species palette, through the same property block this writes, so a
+        /// hero marked first would simply be repainted its ordinary colour a moment later.
+        ///
+        /// Nearly a flat fill, but not quite. What the last tenth preserves is not shading — the
+        /// shader is lit, so the light gives the body its shape whatever the albedo is — but the
+        /// difference between species: a golden Triceratops and a golden T-Rex stay slightly
+        /// different golds rather than becoming the same paint in two shapes. At 0.85 that leftover
+        /// was enough to pull a green dinosaur to yellow-green and the hero did not read as gold at
+        /// all, which is the one thing it has to do.
+        ///
+        /// Scale goes on the ROOT, so the colliders, the team ring and the reach all grow with the
+        /// body. Note that footprintRadius comes from the definition and does not, so heroes stand a
+        /// little closer together than their size suggests; not worth a special case.
+        /// </summary>
+        public void MarkAsHero(Color gold, float sizeMultiplier)
+        {
+            Resize(sizeMultiplier);
+
+            var model = transform.Find(CreatureRig.ModelVisual);
+            if (model == null) return;
+
+            var block = new MaterialPropertyBlock();
+
+            foreach (var renderer in model.GetComponentsInChildren<Renderer>(true))
+            {
+                var materials = renderer.sharedMaterials;
+
+                for (int i = 0; i < materials.Length; i++)
+                {
+                    if (materials[i] == null || !materials[i].HasProperty(BaseColorId)) continue;
+
+                    renderer.GetPropertyBlock(block, i);
+
+                    // Read from the block, not the shared material: Initialize has already written
+                    // this individual's variation there, and that is the colour being replaced.
+                    Color current = block.HasColor(BaseColorId)
+                        ? block.GetColor(BaseColorId)
+                        : materials[i].GetColor(BaseColorId);
+
+                    block.SetColor(BaseColorId, Color.Lerp(current, gold, 0.93f));
+                    renderer.SetPropertyBlock(block, i);
+                }
+            }
+        }
+
+        /// <summary>
         /// Give a preview its team ring without the rest of Initialize.
         ///
         /// Separate from Initialize deliberately: that configures health, locomotion and weapons from

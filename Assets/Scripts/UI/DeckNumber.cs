@@ -26,10 +26,18 @@ namespace DinoBattle.UI
     [RequireComponent(typeof(MeshRenderer))]
     public class DeckNumber : MonoBehaviour
     {
+        [Tooltip("How tall the number should be, in world units along the deck.")]
+        [SerializeField] private float targetHeight = 7f;
+
+        [Tooltip("How wide it is allowed to get. Two-digit numbers are shrunk to respect this — " +
+                 "which is the whole reason it exists.")]
+        [SerializeField] private float maxWidth = 17f;
+
         private static Material shared;
 
         private TextMesh text;
         private MeshRenderer meshRenderer;
+        private bool fitted;
 
         private void Awake()
         {
@@ -56,6 +64,42 @@ namespace DinoBattle.UI
         private void OnDisable()
         {
             Font.textureRebuilt -= HandleFontRebuilt;
+        }
+
+        /// <summary>
+        /// Scale the number to the deck, once, as soon as there is a mesh to measure.
+        ///
+        /// MEASURED rather than calculated. TextMesh turns fontSize and characterSize into world
+        /// units through the font's own metrics, and working out that constant from the outside is
+        /// exactly the kind of guess that put the number off the edge of the board in the first
+        /// place: it was parented to a cube scaled to (26, 1, 22) and inherited it, so its size was
+        /// decided by the slab's dimensions rather than by anyone's intent. One digit fitted by luck
+        /// and "10" did not.
+        ///
+        /// Reading the mesh that actually came out cannot be wrong about the font, and it handles
+        /// the two-digit case for free.
+        ///
+        /// Height first, width as a ceiling: every tier should carry the same size of number, so
+        /// height sets it, and only "10" is pulled in to stop it reaching the edges. Fitting purely
+        /// to width would draw "1" enormous and "10" small.
+        ///
+        /// In LateUpdate because TextMesh builds its mesh during the frame, not in Awake — bounds
+        /// read any earlier are empty.
+        /// </summary>
+        private void LateUpdate()
+        {
+            if (fitted || meshRenderer == null) return;
+
+            // World-space, and therefore already including the scale being solved for.
+            Vector3 size = meshRenderer.bounds.size;
+
+            // The label lies flat, turned 90 degrees about X, so the glyph's height runs along the
+            // board (Z) and its width across it (X).
+            if (size.x <= 0.0001f || size.z <= 0.0001f) return;
+
+            float scale = Mathf.Min(targetHeight / size.z, maxWidth / size.x);
+            transform.localScale *= scale;
+            fitted = true;
         }
 
         private void HandleFontRebuilt(Font font)

@@ -580,7 +580,12 @@ namespace DinoBattle.EditorTools
                     points.Add(point);
                 }
 
-                AddTierNumber(platform.transform, i + 1, y, z);
+                // Parented to the ROOT, not to the platform. The platform is a primitive cube scaled
+                // to (26, 1, 22), and a child inherits that — so the glyph came out stretched 26x
+                // across the board and 22x along it. Nothing in the code decided how big the number
+                // was; the slab's dimensions did, by accident. One digit happened to fit and "10"
+                // ran off the sides.
+                AddTierNumber(root.transform, i + 1, y, z);
 
                 tier.Configure(objective, points);
                 tiers.Add(tier);
@@ -598,8 +603,16 @@ namespace DinoBattle.EditorTools
             // appearing the first time anyone selected the mode.
             foreach (var child in root.GetComponentsInChildren<Transform>(true))
             {
-                GameObjectUtility.SetStaticEditorFlags(child.gameObject,
-                    StaticEditorFlags.BatchingStatic | StaticEditorFlags.OccludeeStatic);
+                // The tier numbers must NOT be batching-static. Static batching bakes a renderer's
+                // transform at build time, so DeckNumber's runtime fit — the thing that keeps "10"
+                // on the board — would be silently discarded and only this flag would explain why.
+                // Ten small quads sharing one material, of which one or two are ever on screen, is
+                // not a batch worth having anyway.
+                bool sized = child.GetComponent<DinoBattle.UI.DeckNumber>() != null;
+
+                GameObjectUtility.SetStaticEditorFlags(child.gameObject, sized
+                    ? StaticEditorFlags.OccludeeStatic
+                    : StaticEditorFlags.BatchingStatic | StaticEditorFlags.OccludeeStatic);
             }
 
             foreach (var renderer in root.GetComponentsInChildren<Renderer>(true))
@@ -696,10 +709,12 @@ namespace DinoBattle.EditorTools
             text.anchor = TextAnchor.MiddleCenter;
             text.alignment = TextAlignment.Center;
 
-            // Large font size scaled down, rather than a small one scaled up: the glyph is rasterised
-            // at fontSize, so a small font blown up by transform scale is a blurry number.
+            // Rasterised at 96 so the glyph stays sharp; characterSize is left at 1 because it is no
+            // longer what decides the size. DeckNumber measures the mesh that comes out and scales
+            // the transform to fit the deck — see there for why this is measured rather than
+            // calculated.
             text.fontSize = 96;
-            text.characterSize = 0.16f;
+            text.characterSize = 1f;
             text.color = new Color(1f, 0.94f, 0.78f, 0.55f);
             text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
 
@@ -713,8 +728,19 @@ namespace DinoBattle.EditorTools
             renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             renderer.receiveShadows = false;
 
-            // Binds the material to the live font atlas, and re-binds it when the atlas is rebuilt.
-            label.AddComponent<DinoBattle.UI.DeckNumber>();
+            // Binds the material to the live font atlas, re-binds it when the atlas is rebuilt, and
+            // sizes the number to the deck it is painted on.
+            var deckNumber = label.AddComponent<DinoBattle.UI.DeckNumber>();
+            var serialized = new SerializedObject(deckNumber);
+
+            // A third of the platform's depth: big enough to read from the camera's distance,
+            // small enough that the creatures fighting over it are still the subject.
+            serialized.FindProperty("targetHeight").floatValue = GauntletPlatformDepth * 0.33f;
+
+            // The ceiling that "10" hits. Two-thirds of the width leaves a clear margin at both
+            // edges, which is what "사다리 바깥으로 넘어갔어" was about.
+            serialized.FindProperty("maxWidth").floatValue = GauntletWidth * 0.66f;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
         }
 
         /// <summary>
@@ -843,6 +869,21 @@ namespace DinoBattle.EditorTools
             serialized.FindProperty("arena").objectReferenceValue = arena;
             serialized.FindProperty("ladder").objectReferenceValue =
                 AssetDatabase.LoadAssetAtPath<Data.GauntletLadder>(SampleContentBuilder.GauntletLadderPath);
+
+            // Heroes come from the player's own roster — a hero is a dinosaur, not a boss.
+            serialized.FindProperty("heroRoster").objectReferenceValue =
+                AssetDatabase.LoadAssetAtPath<Data.CreatureRoster>(SampleContentBuilder.RosterPath);
+
+            // The tuning values are written HERE rather than left to the C# defaults, and that is not
+            // belt and braces. AddComponent serialises whatever the defaults were on the day the
+            // scene was built, and every later change to a default silently does nothing to the
+            // scene that already exists — this project has been caught by that more than once.
+            // Written explicitly, the scene and the source agree by construction.
+            serialized.FindProperty("reinforceCooldown").floatValue = 3f;
+            serialized.FindProperty("heroCooldown").floatValue = 10f;
+            serialized.FindProperty("broodInterval").floatValue = 5f;
+            serialized.FindProperty("broodLimit").intValue = 5;
+
             serialized.ApplyModifiedPropertiesWithoutUndo();
 
             // Pan box from the board's real extents rather than a guessed constant, with a margin so
@@ -1221,9 +1262,20 @@ namespace DinoBattle.EditorTools
 
             // Below the strip and only visible when a wave is actually owed, so it is not a button
             // sitting over the arena for the whole run.
+            // Two buttons, side by side: bodies on the left, the hero on the right. They are separate
+            // controls because they are separate decisions on separate clocks — 3 seconds and 10 —
+            // and folding them into one would hide the only real choice the mode offers.
             var sendWaveButton = CreateButton(canvasObject.transform, "SendWave", "더 보내기",
-                new Vector2(0.38f, 0.775f), new Vector2(0.62f, 0.855f), icon: ButtonIconBuilder.Start);
+                new Vector2(0.26f, 0.775f), new Vector2(0.49f, 0.855f), icon: ButtonIconBuilder.Start);
             sendWaveButton.gameObject.SetActive(false);
+
+            var heroButton = CreateButton(canvasObject.transform, "SendHero", "영웅",
+                new Vector2(0.51f, 0.775f), new Vector2(0.74f, 0.855f), icon: ButtonIconBuilder.Boss);
+            heroButton.gameObject.SetActive(false);
+
+            // Gold, matching what arrives when it is pressed. The one button on screen that is not
+            // slate grey should be the one that puts a golden dinosaur on the board.
+            heroButton.GetComponent<Image>().color = new Color(0.62f, 0.47f, 0.12f, 0.95f);
 
             gauntletPanel.SetActive(false);
 
@@ -1297,6 +1349,9 @@ namespace DinoBattle.EditorTools
             s.FindProperty("sendWaveButton").objectReferenceValue = sendWaveButton;
             s.FindProperty("sendWaveLabel").objectReferenceValue =
                 sendWaveButton.GetComponentInChildren<Text>();
+            s.FindProperty("heroButton").objectReferenceValue = heroButton;
+            s.FindProperty("heroLabel").objectReferenceValue =
+                heroButton.GetComponentInChildren<Text>();
             s.ApplyModifiedPropertiesWithoutUndo();
         }
 

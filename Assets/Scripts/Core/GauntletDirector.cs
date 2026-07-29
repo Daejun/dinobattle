@@ -35,7 +35,54 @@ namespace DinoBattle.Core
         [Tooltip("Seconds between reinforcements poured into a fight that is still going. Without " +
                  "one the send button is a tap-to-win, and forty creatures on a tier is past what " +
                  "Docs/performance.md measured the phone can hold.")]
-        [SerializeField] private float reinforceCooldown = 6f;
+        [SerializeField] private float reinforceCooldown = 3f;
+
+        [Tooltip("How many of the player's creatures may be alive on the board at once. The send " +
+                 "button goes dead at this number and comes back as they die.")]
+        [SerializeField] private int waveLimit = 20;
+
+        [Header("Heroes")]
+        [Tooltip("Where a hero is drawn from. The player's own roster — a hero is a dinosaur, not a " +
+                 "boss — and the pick is limited to its stronger half so a hero always looks like one.")]
+        [SerializeField] private Data.CreatureRoster heroRoster;
+
+        [Tooltip("Seconds between heroes. Longer than the reinforcement cooldown on purpose: one is " +
+                 "the steady drip that keeps a fight alive, the other is the card you play once.")]
+        [SerializeField] private float heroCooldown = 10f;
+
+        [Tooltip("Gold. What tells the player at a glance that the thing they just paid ten seconds " +
+                 "for is on the board.")]
+        [SerializeField] private Color heroColor = new(1f, 0.79f, 0.26f);
+
+        [Tooltip("A fifth again as large.")]
+        [SerializeField] private float heroScale = 1.2f;
+
+        [Tooltip("A hero that only looked heroic would be a lie — size and colour do nothing on " +
+                 "their own, since reach and mass come from the definition. These are what make it " +
+                 "worth the wait. Health carries most of it, for the same reason the tier ladder " +
+                 "leans on health: it lengthens the fight rather than deleting things.")]
+        [SerializeField] private float heroHealthScale = 2.5f;
+        [SerializeField] private float heroDamageScale = 1.6f;
+
+        [Header("Boss brood")]
+        [Tooltip("Seconds between the boss's summons. Measured against a boss fight that lasts about " +
+                 "fourteen seconds, so this has to be short enough to happen more than once — at " +
+                 "seven it fired a single time and the whole mechanic went unseen.")]
+        [SerializeField] private float broodInterval = 5f;
+
+        [Tooltip("How many of the boss's spiders may be alive at once. Asked for: 최대 5마리. It is a " +
+                 "cap on the LIVING, not a total — kill them and the boss makes more, which is what " +
+                 "turns the fight into a question of whether to clear the brood or push the boss.")]
+        [SerializeField] private int broodLimit = 5;
+
+        [Tooltip("Spiderlings, at a fraction of the boss's size. The boss's own species scaled down, " +
+                 "so they are unmistakably its brood and need no new art.")]
+        [SerializeField] private float broodScale = 0.42f;
+
+        [Tooltip("Against the boss's 44,500 health these make a spiderling worth roughly 2,700 — a " +
+                 "real body that the player's wave can actually kill, rather than five more bosses.")]
+        [SerializeField] private float broodHealthScale = 0.06f;
+        [SerializeField] private float broodDamageScale = 0.22f;
 
         [Tooltip("Below this height a creature has left the board and is falling into the sea. " +
                  "Clear of the start platform's underside (-1) and the sea slab (-3).")]
@@ -68,6 +115,25 @@ namespace DinoBattle.Core
         /// <summary>Game time at which reinforcing a fight in progress is allowed again.</summary>
         private float reinforceReady;
 
+        /// <summary>Game time at which the next hero may be sent.</summary>
+        private float heroReady;
+
+        /// <summary>Last hero species, so two in a row are never the same one.</summary>
+        private CreatureDefinition lastHero;
+
+        /// <summary>
+        /// The boss's living spiders.
+        ///
+        /// Kept OUT of <see cref="tierMonsters"/> on purpose. That list is what "is this tier
+        /// cleared" reads, so putting the brood in it would mean the run only ends once the last
+        /// spiderling is mopped up — and the boss can make more while it lives, so the player would
+        /// be chasing a tail after the fight was decided. Killing the boss wins the run; the brood
+        /// goes with it.
+        /// </summary>
+        private readonly List<CreatureUnit> brood = new();
+
+        private float broodTimer;
+
         private float rescueTimer;
 
         public GauntletState State { get; private set; } = GauntletState.Ready;
@@ -91,11 +157,36 @@ namespace DinoBattle.Core
         /// what keeps it from becoming a tap-to-win, and it is not only a balance concern —
         /// Docs/performance.md measured about twenty-four concurrent creatures as this phone's
         /// ceiling, and an ungated button reaches that in a few seconds of tapping.
+        ///
+        /// The cooldown alone is not enough, and that was measured too: at three seconds a run that
+        /// presses the button whenever it lights up put over a hundred creatures on the board by the
+        /// boss, because nothing was ever removing them. A cooldown limits the RATE; only a cap on
+        /// the living limits the TOTAL, and the total is what the phone has to draw. So the button
+        /// also goes dead at <see cref="waveLimit"/> and comes back as creatures die — which turns
+        /// losing bodies into the thing that lets you send more, rather than a punishment on top of
+        /// a wait.
         /// </summary>
         public bool CanSendWave =>
-            State is GauntletState.Ready or GauntletState.WaveWiped
-            || (State is GauntletState.Advancing or GauntletState.Engaging
-                && Time.time >= reinforceReady);
+            WaveAlive < waveLimit
+            && (State is GauntletState.Ready or GauntletState.WaveWiped
+                || (State is GauntletState.Advancing or GauntletState.Engaging
+                    && Time.time >= reinforceReady));
+
+        /// <summary>How many of the player's creatures are alive on the board.</summary>
+        public int WaveAlive
+        {
+            get
+            {
+                int alive = 0;
+                for (int i = 0; i < wave.Count; i++)
+                    if (wave[i] != null && !wave[i].IsDead) alive++;
+
+                return alive;
+            }
+        }
+
+        /// <summary>True when the send button is dead because the board is full rather than cooling down.</summary>
+        public bool WaveIsFull => WaveAlive >= waveLimit;
 
         /// <summary>
         /// Seconds until reinforcing is allowed, or zero when it already is. Drives the button label,
@@ -103,6 +194,44 @@ namespace DinoBattle.Core
         /// </summary>
         public float SecondsUntilSend =>
             CanSendWave ? 0f : Mathf.Max(0f, reinforceReady - Time.time);
+
+        /// <summary>
+        /// True when a hero may be sent.
+        /// </summary>
+        /// <remarks>
+        /// Its own clock, deliberately not sharing the wave's. Spending one should never cost the
+        /// other — a player who has just sent a hero still needs bodies, and a player who has just
+        /// topped up the wave should not have their hero pushed back for it. Two independent
+        /// cooldowns are also two decisions rather than one, which is most of what there is to do in
+        /// this mode.
+        ///
+        /// <see cref="GauntletState.Ready"/> is excluded: before the run starts there is nothing for
+        /// a hero to climb toward, and the first wave belongs to the placement screen.
+        /// </remarks>
+        public bool CanSendHero =>
+            State is GauntletState.WaveWiped or GauntletState.Advancing or GauntletState.Engaging
+            && Time.time >= heroReady
+            && WaveAlive < waveLimit
+            && heroRoster != null && heroRoster.Creatures.Count > 0;
+
+        /// <summary>Seconds until the next hero, or zero when one is ready.</summary>
+        public float SecondsUntilHero =>
+            CanSendHero ? 0f : Mathf.Max(0f, heroReady - Time.time);
+
+        public int HeroesSent { get; private set; }
+
+        /// <summary>Spiders the boss currently has on the board. Exposed so the probe can watch the cap.</summary>
+        public int BroodAlive
+        {
+            get
+            {
+                int alive = 0;
+                foreach (var spider in brood)
+                    if (spider != null && !spider.IsDead) alive++;
+
+                return alive;
+            }
+        }
 
         private void Awake()
         {
@@ -132,6 +261,9 @@ namespace DinoBattle.Core
             // first thing a new run did was refuse the button.
             advanceTimer = 0f;
             reinforceReady = 0f;
+            heroReady = 0f;
+            lastHero = null;
+            HeroesSent = 0;
 
             PreSpawnAllTiers();
 
@@ -204,6 +336,8 @@ namespace DinoBattle.Core
 
         private void ClearMonsters()
         {
+            ClearBrood();
+
             foreach (var tier in tierMonsters)
             {
                 foreach (var unit in tier)
@@ -324,6 +458,95 @@ namespace DinoBattle.Core
             }
 
             return true;
+        }
+
+        /// <summary>
+        /// Send one hero: a random dinosaur, gold and a fifth again as large.
+        ///
+        /// Arrives at the same place a wave does and climbs the same way, so it reads as a
+        /// reinforcement rather than as a summon appearing in the middle of the fight — and, at that
+        /// size, watching it walk up the board is most of the pleasure of having pressed the button.
+        /// </summary>
+        public bool SendHero()
+        {
+            if (!CanSendHero || battleManager == null) return false;
+
+            var definition = PickHero();
+            if (definition == null) return false;
+
+            bool reinforcing = State is GauntletState.Advancing or GauntletState.Engaging;
+
+            // A step behind the wave's front rank. A hero is the largest thing on the board and
+            // spawning it on top of the others shoves half of them off their feet.
+            var unit = spawner.Spawn(new PlacedCreature
+            {
+                Definition = definition,
+                Team = Team.Red,
+                Position = ReinforcementPoint() + new Vector3(0f, 0f, -5f),
+                YawDegrees = 0f,
+            }, heroHealthScale, heroDamageScale);
+
+            if (unit == null) return false;
+
+            // After Spawn, which runs Initialize, which rolls the ordinary per-individual colour.
+            unit.MarkAsHero(heroColor, heroScale);
+
+            unit.Died += HandleFighterDied;
+            wave.Add(unit);
+
+            foreach (var brain in unit.GetComponentsInChildren<CreatureBrain>())
+                brain.CombatEnabled = true;
+
+            heroReady = Time.time + heroCooldown;
+            lastHero = definition;
+            HeroesSent++;
+
+            // A hero sent to a wiped wave is the wave — it needs the full march order, and the run
+            // has to leave WaveWiped or nothing will ever move it.
+            if (!reinforcing)
+            {
+                OrderAdvance();
+                return true;
+            }
+
+            var contested = arena.Tier(CurrentTier);
+            if (contested != null)
+            {
+                foreach (var brain in unit.GetComponentsInChildren<CreatureBrain>())
+                    brain.MarchTarget = contested.ObjectivePosition;
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// A random hero, from the stronger half of the roster and never the same one twice running.
+        ///
+        /// The half matters. Drawn from the whole roster a hero comes up a Velociraptor often enough
+        /// to be the thing the player remembers, and a golden Velociraptor arriving after a ten
+        /// second wait is a punchline rather than a reward. The no-repeat rule matters for the same
+        /// reason: two identical heroes in a row read as the randomness being broken, whatever the
+        /// distribution says.
+        /// </summary>
+        private CreatureDefinition PickHero()
+        {
+            var all = heroRoster.Creatures;
+
+            var candidates = new List<CreatureDefinition>();
+            foreach (var creature in all)
+                if (creature != null) candidates.Add(creature);
+
+            if (candidates.Count == 0) return null;
+
+            candidates.Sort((a, b) => b.cost.CompareTo(a.cost));
+
+            int pool = Mathf.Max(1, candidates.Count / 2);
+            candidates.RemoveRange(pool, candidates.Count - pool);
+
+            // Only drop the repeat when there is something else to offer.
+            if (candidates.Count > 1 && lastHero != null) candidates.Remove(lastHero);
+
+            return candidates[UnityEngine.Random.Range(0, candidates.Count)];
         }
 
         /// <summary>
@@ -451,6 +674,7 @@ namespace DinoBattle.Core
             }
 
             RescueTheFallen();
+            TickBrood();
 
             if (advanceTimer > 0f)
             {
@@ -515,6 +739,19 @@ namespace DinoBattle.Core
                     PlaceOnBoard(unit, post);
                 }
             }
+
+            // The brood has no post to go back to — it belongs wherever the boss is.
+            var boss = LivingBoss();
+            if (boss == null) return;
+
+            for (int i = 0; i < brood.Count; i++)
+            {
+                var spider = brood[i];
+                if (spider == null || spider.IsDead) continue;
+                if (spider.transform.position.y >= fallRescueHeight) continue;
+
+                PlaceOnBoard(spider, boss.transform.position);
+            }
         }
 
         private static void PlaceOnBoard(CreatureUnit unit, Vector3 destination)
@@ -533,6 +770,113 @@ namespace DinoBattle.Core
 
             unit.transform.position = destination;
             Debug.Log($"[GauntletDirector] Recovered {unit.name} from off the board.");
+        }
+
+        /// <summary>
+        /// The boss calls for its brood while it is alive and the fight is on it.
+        ///
+        /// Only while <see cref="GauntletState.Engaging"/> the boss tier: summoning during the climb
+        /// would send spiders down the board to meet the wave halfway, which turns the boss's own
+        /// fight into a corridor skirmish and lets the player farm them from a safe tier.
+        ///
+        /// The cap is on the LIVING, and that is the whole mechanic. Clear the brood and the boss
+        /// simply makes more; ignore it and five spiders chew through the wave while the boss does.
+        /// Neither is free, which is the choice worth having.
+        /// </summary>
+        private void TickBrood()
+        {
+            var boss = LivingBoss();
+            if (boss == null)
+            {
+                // The boss is down. Nothing it made outlives it — leaving five spiders loose on a
+                // won board is a victory screen with a fight still going on behind it.
+                if (brood.Count > 0) ClearBrood();
+                return;
+            }
+
+            if (State != GauntletState.Engaging) return;
+
+            // Drop the dead so the cap counts bodies on the field, not summons ever made.
+            for (int i = brood.Count - 1; i >= 0; i--)
+                if (brood[i] == null || brood[i].IsDead) brood.RemoveAt(i);
+
+            broodTimer -= Time.deltaTime;
+            if (broodTimer > 0f) return;
+
+            broodTimer = broodInterval;
+
+            var definition = boss.Definition;
+            if (definition == null) return;
+
+            // Top the brood back UP TO the cap rather than adding one.
+            //
+            // One at a time made the cap decorative: measured, the boss fight lasts about fourteen
+            // seconds and a spiderling lives a good deal less than one summon interval, so the board
+            // never held more than a single spider and "최대 5마리" described a number nobody would
+            // ever see. Refilling to the limit makes the cap the number the player actually reads —
+            // the boss calls its brood, the wave clears it, the boss calls it again.
+            int wanted = broodLimit - brood.Count;
+            if (wanted <= 0) return;
+
+            for (int i = 0; i < wanted; i++)
+            {
+                // Fanned out beside and behind the boss, alternating sides, so they do not all pile
+                // out of one spot and shove each other off their feet on arrival.
+                float side = i % 2 == 0 ? 1f : -1f;
+                Vector3 position = boss.transform.position
+                                 + new Vector3(side * (4f + i * 1.2f), 0f, -3f - i * 1.4f);
+
+                var spider = spawner.Spawn(new PlacedCreature
+                {
+                    Definition = definition,
+                    Team = Team.Blue,
+                    Position = position,
+                    YawDegrees = 180f,
+                }, broodHealthScale, broodDamageScale);
+
+                if (spider == null) continue;
+
+                spider.Resize(broodScale);
+
+                foreach (var brain in spider.GetComponentsInChildren<CreatureBrain>())
+                    brain.CombatEnabled = true;
+
+                brood.Add(spider);
+            }
+        }
+
+        /// <summary>The boss, if the run is on its tier and it is still standing.</summary>
+        private CreatureUnit LivingBoss()
+        {
+            if (CurrentTier < 0 || CurrentTier >= tierMonsters.Count) return null;
+            if (!IsBossTier(CurrentTier)) return null;
+
+            foreach (var unit in tierMonsters[CurrentTier])
+            {
+                if (unit == null || unit.IsDead) continue;
+                if (!unit.gameObject.activeInHierarchy) continue;
+
+                return unit;
+            }
+
+            return null;
+        }
+
+        private void ClearBrood()
+        {
+            foreach (var spider in brood)
+            {
+                if (spider == null) continue;
+
+                // Deactivate before destroying, for the same reason ClearMonsters does: Destroy only
+                // lands at the end of the frame, and until then the spider is still in the registry
+                // and still a target.
+                spider.gameObject.SetActive(false);
+                Destroy(spider.gameObject);
+            }
+
+            brood.Clear();
+            broodTimer = 0f;
         }
 
         /// <summary>Point the wave at the current tier and let them walk.</summary>
@@ -680,6 +1024,16 @@ namespace DinoBattle.Core
 
             State = next;
             StateChanged?.Invoke(next);
+
+            // Report the win through the same door a match uses.
+            //
+            // A climb stays in BattlePhase.Fighting the whole way up, which is what lets the HUD, the
+            // music and the camera work without knowing this mode exists — but it also meant that
+            // killing the boss just stopped, with no result screen and no celebration, because every
+            // one of those systems is waiting on Finished. Asked for: "클리어됐을때 춤추면서 축하하는
+            // 모션나오도록".
+            if (next == GauntletState.Cleared && battleManager != null)
+                battleManager.DeclareGauntletCleared();
         }
 
         /// <summary>

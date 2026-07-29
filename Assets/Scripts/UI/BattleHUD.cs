@@ -45,6 +45,11 @@ namespace DinoBattle.UI
                  "its authored label.")]
         [SerializeField] private Text sendWaveLabel;
 
+        [Tooltip("Sends one golden hero. Its own button and its own cooldown, because it is a " +
+                 "separate decision from topping the wave up.")]
+        [SerializeField] private Button heroButton;
+        [SerializeField] private Text heroLabel;
+
         [Header("Placement controls")]
         [SerializeField] private AutoPlacer autoPlacer;
         [SerializeField] private Button autoFillButton;
@@ -141,6 +146,7 @@ namespace DinoBattle.UI
             HookButton(versusModeButton, () => battleManager.SetMode(GameMode.Versus));
             HookButton(gauntletModeButton, () => battleManager.SetMode(GameMode.Gauntlet));
             HookButton(sendWaveButton, () => battleManager.SendGauntletWave());
+            HookButton(heroButton, () => battleManager.SendGauntletHero());
 
             battleManager.ModeChanged += HandleModeChanged;
 
@@ -182,6 +188,7 @@ namespace DinoBattle.UI
             // The send button is not parented to the gauntlet strip — it sits over the arena so it
             // can be big enough to hit — so leaving the mode has to take it down explicitly.
             if (!gauntlet && sendWaveButton != null) SetActive(sendWaveButton.gameObject, false);
+            if (!gauntlet && heroButton != null) SetActive(heroButton.gameObject, false);
 
             // Versus-only controls. A boss battle arranges two armies on the round arena, which is
             // not the board, and the fight-bar replay restarts a match rather than a run.
@@ -252,8 +259,26 @@ namespace DinoBattle.UI
 
                 if (fighting && sendWaveLabel != null)
                 {
+                    // "가득" and a countdown are different refusals and the player can act on the
+                    // difference: one clears by waiting, the other by creatures dying.
                     float wait = run.SecondsUntilSend;
-                    sendWaveLabel.text = wait > 0f ? $"{Mathf.CeilToInt(wait)}초" : "더 보내기";
+                    sendWaveLabel.text = run.WaveIsFull ? "가득"
+                                       : wait > 0f ? $"{Mathf.CeilToInt(wait)}초"
+                                       : "더 보내기";
+                }
+
+                if (heroButton != null)
+                {
+                    SetActive(heroButton.gameObject, fighting);
+                    heroButton.interactable = run.CanSendHero;
+
+                    if (fighting && heroLabel != null)
+                    {
+                        float wait = run.SecondsUntilHero;
+                        heroLabel.text = run.WaveIsFull ? "가득"
+                                       : wait > 0f ? $"{Mathf.CeilToInt(wait)}초"
+                                       : "영웅";
+                    }
                 }
             }
         }

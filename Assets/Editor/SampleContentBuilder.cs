@@ -21,7 +21,8 @@ namespace DinoBattle.EditorTools
     public static class SampleContentBuilder
     {
         private const string CreatureDataPath = "Assets/GameData/Creatures";
-        private const string RosterPath = "Assets/GameData/Rosters/Roster_Default.asset";
+        /// <summary>Public because the gauntlet draws its heroes from it — see BattleSceneBuilder.</summary>
+        public const string RosterPath = "Assets/GameData/Rosters/Roster_Default.asset";
 
         /// <summary>
         /// Bosses live in their own roster. Anything that fills a team walks the default roster, and

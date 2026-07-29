@@ -306,7 +306,66 @@ namespace DinoBattle.Core
             return true;
         }
 
+        /// <summary>Send one hero up the board. Returns false while the hero is still on cooldown.</summary>
+        public bool SendGauntletHero()
+        {
+            if (Mode != GameMode.Gauntlet || gauntlet == null) return false;
+            if (!gauntlet.SendHero()) return false;
+
+            UnitCountChanged?.Invoke();
+            return true;
+        }
+
         public GauntletDirector Gauntlet => gauntlet;
+
+        /// <summary>
+        /// End a climb the way a match ends: the player won.
+        ///
+        /// Asked for: "클리어됐을때 춤추면서 축하하는 모션나오도록". A gauntlet deliberately stays in
+        /// <see cref="BattlePhase.Fighting"/> from the first wave to the boss, so every system that
+        /// celebrates a win — the dance, the result panel, the music, the camera — was waiting on a
+        /// phase change that a climb never made. Killing the boss simply stopped the run.
+        ///
+        /// Rather than teach each of those about gauntlet states, the run reports its win through the
+        /// same door a match does. <see cref="VictoryDance"/> then needs no knowledge of this mode at
+        /// all: it looks for Finished and a winning team, and both are now true.
+        ///
+        /// It cannot reuse <see cref="DeclareResult"/>, which counts heads to decide the winner and
+        /// stands survivors down through <c>activeUnits</c> — a list a gauntlet never fills, because
+        /// the director owns its creatures. Here the winner is known and the registry is the roll.
+        /// </summary>
+        public void DeclareGauntletCleared()
+        {
+            if (Phase != BattlePhase.Fighting) return;
+
+            Winner = Team.Red;
+
+            StandDown(Team.Red);
+            StandDown(Team.Blue);
+
+            Time.timeScale = 1f;
+            SetPhase(BattlePhase.Finished);
+            BattleEnded?.Invoke(Winner);
+        }
+
+        /// <summary>Switch off the AI for one team's survivors, so nothing keeps fighting a won board.</summary>
+        private static void StandDown(Team team)
+        {
+            // AliveOf hands back the registry's own list, not a copy. Setting CombatEnabled is a
+            // plain property assignment and cannot remove anything from it — but iterating backwards
+            // costs nothing and means a future side effect on that setter cannot turn this into an
+            // index-skipping bug that only shows up on a won board.
+            var survivors = UnitRegistry.AliveOf(team);
+
+            for (int i = survivors.Count - 1; i >= 0; i--)
+            {
+                var unit = survivors[i];
+                if (unit == null) continue;
+
+                foreach (var brain in unit.GetComponentsInChildren<CreatureBrain>())
+                    brain.CombatEnabled = false;
+            }
+        }
 
         private void RecordStartingHealth()
         {

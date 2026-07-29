@@ -94,6 +94,15 @@ namespace DinoBattle.EditorTools
 
         /// <summary>Waves spent as of the last tier change, to tell a wall from a stall.</summary>
         private static int wavesAtTierChange;
+
+        /// <summary>Most spiders the boss had alive at once. Must never exceed the cap.</summary>
+        private static int peakBrood;
+
+        /// <summary>Worst-case creature count seen. The number Docs/performance.md cares about.</summary>
+        private static int peakOnBoard;
+
+        /// <summary>Shots taken during the boss fight, budgeted separately from the climb's.</summary>
+        private static int bossShots;
         private static readonly List<string> log = new();
 
         [MenuItem("Dino Battle/Advanced/Probe Gauntlet Run", priority = 224)]
@@ -146,6 +155,9 @@ namespace DinoBattle.EditorTools
             wavesAtTierChange = 0;
             lastTier = -1;
             deadTierSince = -1f;
+            peakBrood = 0;
+            peakOnBoard = 0;
+            bossShots = 0;
             shotsTaken = 0;
             nextShot = 0f;
             log.Clear();
@@ -203,23 +215,70 @@ namespace DinoBattle.EditorTools
                 lastState = run.State;
                 Note(run, "progress");
 
-                // One frame of the first real fight, so the board can be looked at rather than
-                // reasoned about. The tier numbers are painted on the deck the creatures fight on,
-                // which makes "does the number draw through them" a question only a picture answers.
-                if (run.State == GauntletState.Engaging && shotsTaken < 3)
+                // Frames of the fights worth looking at, because several of the things being built
+                // here are visual and a picture is the only honest check: the tier number painted on
+                // the deck the creatures stand on, the gold on a hero, and the boss's spiders.
+                //
+                // The boss tier gets its own shots — that is where the brood and, by then, a hero or
+                // two will be on screen together.
+                bool bossFight = run.CurrentTier >= run.TierCount - 1;
+                if (run.State == GauntletState.Engaging && (shotsTaken < 2 || bossFight))
+                {
+                    // The boss gets its own budget. Sharing one counter, the early tiers spent all
+                    // eight shots before the climb was a third done and the boss fight — the only
+                    // place the brood exists — went unphotographed.
+                    if (bossFight) bossShots = 0;
                     nextShot = Time.time + 1.5f;
+                }
             }
 
             if (nextShot > 0f && Time.time >= nextShot)
             {
+                bool bossFight = run.CurrentTier >= run.TierCount - 1;
+
                 nextShot = 0f;
                 Capture($"tier-{run.CurrentTier + 1}-{shotsTaken}");
-                if (shotsTaken < 3) nextShot = Time.time + 2f;
+                if (bossFight) bossShots++;
+
+                // A short burst rather than one frame: a fight moves, and a single sample lands as
+                // often as not on a moment where nothing of interest is facing the camera.
+                bool more = bossFight ? bossShots < 5 : shotsTaken < 4;
+                if (more) nextShot = Time.time + (bossFight ? 2.5f : 3f);
+            }
+
+            // The boss's brood, on the tier it belongs to. Recorded rather than asserted: how many
+            // are out at any moment is a fight detail, but "did the cap ever break" is not.
+            if (run.State == GauntletState.Engaging && run.BroodAlive > peakBrood)
+            {
+                peakBrood = run.BroodAlive;
+                log.Add($"  brood peaked at {peakBrood} on tier {run.CurrentTier + 1}");
+            }
+
+            // How many creatures are actually on the board at the worst moment.
+            //
+            // This is the number Docs/performance.md is about, and it is the one thing here that
+            // cannot be judged by watching: a screenshot showed a hundred-odd creatures at the boss
+            // and that was the first anyone knew the three-second cooldown had no ceiling. Measured
+            // every tick, it is a fact rather than an impression.
+            int onBoard = manager.AliveCount(Team.Red) + manager.AliveCount(Team.Blue);
+            if (onBoard > peakOnBoard)
+            {
+                peakOnBoard = onBoard;
+                if (peakOnBoard % 10 == 0)
+                    log.Add($"  {peakOnBoard} creatures on the board (tier {run.CurrentTier + 1})");
             }
 
             if (run.State == GauntletState.Cleared)
             {
-                Finish(true, $"reached the top in {wavesPressed} extra wave(s)");
+                // The celebration is the point of clearing, and it hangs off the match ending
+                // properly rather than the run simply stopping — so the phase is what to check.
+                string ending = manager.Phase == BattlePhase.Finished && manager.Winner == Team.Red
+                    ? "match declared won (dance and result screen fire)"
+                    : $"BUT the match did not end — phase {manager.Phase}, winner {manager.Winner}";
+
+                Finish(manager.Phase == BattlePhase.Finished,
+                    $"reached the top in {wavesPressed} extra wave(s) and {run.HeroesSent} hero(es); " +
+                    $"peak brood {peakBrood}; peak {peakOnBoard} creatures on the board; {ending}");
                 return;
             }
 
@@ -250,6 +309,11 @@ namespace DinoBattle.EditorTools
             {
                 deadTierSince = -1f;
             }
+
+            // Heroes are always pressed, in both modes. They are on their own cooldown and cost
+            // nothing else, so there is no version of playing well that leaves the button alone —
+            // and it means every run exercises MarkAsHero and the gold-and-larger path.
+            if (run.CanSendHero && manager.SendGauntletHero()) return;
 
             // Press it the instant it is offered. A player would too, and a run that only survives
             // because the tester hesitated is not a run that survives.
