@@ -22,6 +22,20 @@ namespace DinoBattle.EditorTools
         private const string ModelFolder = "Assets/Art/Models";
 
         /// <summary>
+        /// Seconds an attack animation is allowed to take, whatever the clip was authored at.
+        ///
+        /// Sized against the damage timing rather than by eye: damage lands at
+        /// <c>attackInterval * 0.25</c>, which is 0.4s for a T-Rex, so a 0.8s swing puts the bite
+        /// near the middle of the motion instead of a third of the way in with a long recovery
+        /// after it. Fast enough to stop reading as slow, slow enough that a nine-tonne animal does
+        /// not twitch.
+        /// </summary>
+        private const float AttackWindow = 0.8f;
+
+        /// <summary>Ceiling on the speed-up, so a long clip is shortened rather than made frantic.</summary>
+        private const float MaxAttackSpeedUp = 1.6f;
+
+        /// <summary>
         /// Which cached download folder lands where under <see cref="ModelFolder"/>.
         ///
         /// An explicit table rather than a flat sweep, because the destination is not uniform:
@@ -373,6 +387,29 @@ namespace DinoBattle.EditorTools
                 var attackState = machine.AddState("Attack");
                 attackState.motion = attack;
 
+                // Play the swing faster than authored, fitted to a fixed window.
+                //
+                // Reported: "티라노 계열애들이 공격할때 달린다음 무는 모션을 하는데 너무 오래걸림 —
+                // 가만히 서서 무는건없나?". There is no standing bite to switch to: every model in
+                // this pack ships exactly one attack clip, and TRex_Attack is 28 frames of lunge
+                // and bite with the step forward baked into it. The clip is the only one there is.
+                //
+                // What can change is how long it takes. At authored speed the bite occupies most of
+                // the 1.6s attack interval, and damage lands at windup (interval * 0.25 = 0.4s)
+                // roughly a third of the way in — so most of what the player watches is the
+                // recovery, after the hit has already happened. Fitting the clip into AttackWindow
+                // puts the contact near the middle and cuts the tail.
+                //
+                // Measured from the clip rather than a guessed multiplier, because these clips are
+                // not all the same length, and clamped at 1 so a model with an already-short attack
+                // is never slowed down to meet the target.
+                // Banded, not just floored. Apatosaurus and Stegosaurus author a 1.9s attack, which
+                // the window alone would drive to 2.3x — past the point where a heavy animal reads
+                // as fast and into where it reads as a glitch. Neither is in the roster today, so
+                // this is a guard for the next model rather than a fix for a visible problem.
+                if (attack.length > AttackWindow)
+                    attackState.speed = Mathf.Min(attack.length / AttackWindow, MaxAttackSpeedUp);
+
                 var toAttack = machine.AddAnyStateTransition(attackState);
                 toAttack.AddCondition(UnityEditor.Animations.AnimatorConditionMode.If, 0f, "Attack");
 
@@ -385,10 +422,14 @@ namespace DinoBattle.EditorTools
                 toAttack.hasExitTime = false;
                 toAttack.canTransitionToSelf = false;
 
+                // Leave earlier too. The last stretch of the clip is the creature straightening up
+                // from a bite that already landed, and standing through it is the other half of
+                // "너무 오래걸림". Blending out at 70% hands the tail off to the locomotion state,
+                // which is where it was going anyway.
                 var backToLocomotion = attackState.AddTransition(locomotion);
                 backToLocomotion.hasExitTime = true;
-                backToLocomotion.exitTime = 0.85f;
-                backToLocomotion.duration = 0.15f;
+                backToLocomotion.exitTime = 0.7f;
+                backToLocomotion.duration = 0.12f;
             }
 
             if (death != null)

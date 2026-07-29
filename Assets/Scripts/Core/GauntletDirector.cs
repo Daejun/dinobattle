@@ -62,8 +62,15 @@ namespace DinoBattle.Core
                  "for is on the board.")]
         [SerializeField] private Color heroColor = new(1f, 0.79f, 0.26f);
 
-        [Tooltip("A fifth again as large.")]
-        [SerializeField] private float heroScale = 1.2f;
+        [Tooltip("How much bigger the hero stands than the largest creature the player can field — " +
+                 "1.2 is a fifth again.\n\n" +
+                 "This is a RATIO AGAINST THE ROSTER, not a multiplier on the hero's own size, and " +
+                 "the difference is what was reported as 말폼드렉스 너무크다. Malformed Rex is drawn " +
+                 "at a body length of 12.5 against a T-Rex's 5.0, so scaling its own size by 1.2 " +
+                 "produced something three times the length of everything around it. Measured " +
+                 "against the roster instead, the hero comes out a fifth larger than the biggest " +
+                 "dinosaur on the board whatever species either of them happens to be.")]
+        [SerializeField] private float heroSizeAdvantage = 1.2f;
 
         [Tooltip("Left at 1, and that is a change. The hero used to be a random dinosaur off the " +
                  "player's roster, which needed 2.5x health to be worth the wait. " +
@@ -504,7 +511,7 @@ namespace DinoBattle.Core
             if (unit == null) return false;
 
             // After Spawn, which runs Initialize, which rolls the ordinary per-individual colour.
-            unit.MarkAsHero(heroColor, heroScale);
+            unit.MarkAsHero(heroColor, HeroScaleFor(definition));
 
             unit.Died += HandleFighterDied;
             wave.Add(unit);
@@ -531,6 +538,38 @@ namespace DinoBattle.Core
             }
 
             return true;
+        }
+
+        /// <summary>
+        /// What to multiply the hero's own size by so it stands a fifth taller than the board.
+        ///
+        /// footprintRadius is the size proxy because it is exactly the design body length times 0.6
+        /// for every creature in the game, so it tracks the visual faithfully and — unlike the
+        /// blueprint's BodySize — it is on the definition, where the runtime can reach it.
+        ///
+        /// Measured against the LARGEST thing the player can field rather than the average. A hero
+        /// is supposed to out-size the board; sized off the mean it would come out the same length
+        /// as a Bio T-Rex and stop reading as a hero at all.
+        ///
+        /// Note the one thing this does NOT change: footprintRadius itself is read from the shared
+        /// definition asset, which must not be mutated, so a shrunk hero still keeps neighbours at
+        /// the spacing of a full-size Malformed Rex. It leaves a little more room around it than its
+        /// new size suggests.
+        /// </summary>
+        private float HeroScaleFor(CreatureDefinition hero)
+        {
+            if (hero == null || hero.footprintRadius <= 0f) return 1f;
+
+            var roster = battleManager != null ? battleManager.Roster : null;
+            if (roster == null) return 1f;
+
+            float biggest = 0f;
+            foreach (var creature in roster.Creatures)
+                if (creature != null) biggest = Mathf.Max(biggest, creature.footprintRadius);
+
+            if (biggest <= 0f) return 1f;
+
+            return heroSizeAdvantage * biggest / hero.footprintRadius;
         }
 
         /// <summary>

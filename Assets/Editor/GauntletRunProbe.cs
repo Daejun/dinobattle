@@ -444,8 +444,12 @@ namespace DinoBattle.EditorTools
             {
                 if (unit == null || unit.IsDead || unit.Team != Team.Red) continue;
 
-                // Heroes are the only thing on the board scaled past 1.
-                if (unit.transform.localScale.x < 1.1f) continue;
+                // By species, not by scale. Heroes used to be the only thing on the board bigger than
+                // 1x, but the hero is now SHRUNK — Malformed Rex is drawn at two and a half times a
+                // T-Rex, so standing a fifth over the roster means scaling it to about 0.5. A scale
+                // test would quietly match nothing and this sampler would report an empty run as a
+                // clean one.
+                if (unit.Definition == null || unit.Definition.displayName != "Malformed Rex") continue;
 
                 var model = unit.transform.Find("Visual_Model");
                 if (model == null)
@@ -464,7 +468,7 @@ namespace DinoBattle.EditorTools
                                 : Color.magenta;
 
                     string source = block.HasColor(id) ? "block" : "material (NO BLOCK SET)";
-                    log.Add($"  hero t={Time.time:0} age={unit.transform.localScale.x:0.00}x " +
+                    log.Add($"  hero t={Time.time:0} scale={unit.transform.localScale.x:0.000} " +
                             $"{renderer.name} = ({c.r:0.00},{c.g:0.00},{c.b:0.00}) from {source}");
                     return;
                 }

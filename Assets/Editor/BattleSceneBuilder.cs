@@ -874,6 +874,7 @@ namespace DinoBattle.EditorTools
             serialized.FindProperty("heroRoster").objectReferenceValue =
                 AssetDatabase.LoadAssetAtPath<Data.CreatureRoster>(SampleContentBuilder.BossRosterPath);
             serialized.FindProperty("heroName").stringValue = "Malformed Rex";
+            serialized.FindProperty("heroSizeAdvantage").floatValue = 1.2f;
             serialized.FindProperty("heroHealthScale").floatValue = 1f;
             serialized.FindProperty("heroDamageScale").floatValue = 1f;
 
