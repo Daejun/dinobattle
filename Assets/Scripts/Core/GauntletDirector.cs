@@ -42,12 +42,20 @@ namespace DinoBattle.Core
         [SerializeField] private int waveLimit = 20;
 
         [Header("Heroes")]
-        [Tooltip("Where a hero is drawn from. The player's own roster — a hero is a dinosaur, not a " +
-                 "boss — and the pick is limited to its stronger half so a hero always looks like one.")]
+        [Tooltip("Where the hero is looked up. The boss roster, because the hero IS one of them.")]
         [SerializeField] private Data.CreatureRoster heroRoster;
 
-        [Tooltip("Seconds between heroes. Longer than the reinforcement cooldown on purpose: one is " +
-                 "the steady drip that keeps a fight alive, the other is the card you play once.")]
+        [Tooltip("The hero, by display name rather than by index, so reordering the roster cannot " +
+                 "silently swap it for something else. Asked for as 디스토르투스 렉스 — the Jurassic " +
+                 "World creature of that name is trademarked and off limits (CLAUDE.md, " +
+                 "Docs/legal.md), and Malformed Rex is this project's own take on that silhouette, " +
+                 "which is what the model actually is.")]
+        [SerializeField] private string heroName = "Malformed Rex";
+
+        [Tooltip("Seconds between heroes. Much longer than the reinforcement cooldown on purpose: " +
+                 "one is the steady drip that keeps a fight alive, the other is the card you play " +
+                 "once. The first one is charged for too — the clock starts when the run does, so a " +
+                 "run does not open with a free hero.")]
         [SerializeField] private float heroCooldown = 10f;
 
         [Tooltip("Gold. What tells the player at a glance that the thing they just paid ten seconds " +
@@ -57,12 +65,13 @@ namespace DinoBattle.Core
         [Tooltip("A fifth again as large.")]
         [SerializeField] private float heroScale = 1.2f;
 
-        [Tooltip("A hero that only looked heroic would be a lie — size and colour do nothing on " +
-                 "their own, since reach and mass come from the definition. These are what make it " +
-                 "worth the wait. Health carries most of it, for the same reason the tier ladder " +
-                 "leans on health: it lengthens the fight rather than deleting things.")]
-        [SerializeField] private float heroHealthScale = 2.5f;
-        [SerializeField] private float heroDamageScale = 1.6f;
+        [Tooltip("Left at 1, and that is a change. The hero used to be a random dinosaur off the " +
+                 "player's roster, which needed 2.5x health to be worth the wait. " +
+                 "Malformed Rex arrives with 38,500 health of its own — roughly nine times a T-Rex " +
+                 "— so scaling it as well would put it past every tier on the ladder at once and " +
+                 "there would be nothing left to play.")]
+        [SerializeField] private float heroHealthScale = 1f;
+        [SerializeField] private float heroDamageScale = 1f;
 
         [Header("Boss brood")]
         [Tooltip("Seconds between the boss's summons. Measured against a boss fight that lasts about " +
@@ -77,12 +86,19 @@ namespace DinoBattle.Core
 
         [Tooltip("Spiderlings, at a fraction of the boss's size. The boss's own species scaled down, " +
                  "so they are unmistakably its brood and need no new art.")]
-        [SerializeField] private float broodScale = 0.42f;
+        [SerializeField] private float broodScale = 0.5f;
 
-        [Tooltip("Against the boss's 44,500 health these make a spiderling worth roughly 2,700 — a " +
-                 "real body that the player's wave can actually kill, rather than five more bosses.")]
-        [SerializeField] private float broodHealthScale = 0.06f;
-        [SerializeField] private float broodDamageScale = 0.22f;
+        [Tooltip("Off the boss's 44,500 health and 790 damage, so a spiderling is about 5,300 and " +
+                 "275. Reported as 좀 약한듯 and it was — at 0.06 they were worth 2,700, a fifth of " +
+                 "an ordinary tier nine monster, which is backwards for the final boss's own brood. " +
+                 "But the first correction went to 0.25 (tier-nine class) and took the boss fight " +
+                 "from 14 seconds to 117. Refilling FIVE of them every five seconds is a tap, not " +
+                 "an encounter: the player has to out-damage the refill before the boss's own health " +
+                 "even starts coming down, and until they do the fight cannot end. The strength of " +
+                 "one spider and the rate they are replaced multiply — this is the number that has " +
+                 "to stay modest because broodInterval is what makes them relentless.")]
+        [SerializeField] private float broodHealthScale = 0.12f;
+        [SerializeField] private float broodDamageScale = 0.35f;
 
         [Tooltip("Below this height a creature has left the board and is falling into the sea. " +
                  "Clear of the start platform's underside (-1) and the sea slab (-3).")]
@@ -117,9 +133,6 @@ namespace DinoBattle.Core
 
         /// <summary>Game time at which the next hero may be sent.</summary>
         private float heroReady;
-
-        /// <summary>Last hero species, so two in a row are never the same one.</summary>
-        private CreatureDefinition lastHero;
 
         /// <summary>
         /// The boss's living spiders.
@@ -261,8 +274,10 @@ namespace DinoBattle.Core
             // first thing a new run did was refuse the button.
             advanceTimer = 0f;
             reinforceReady = 0f;
-            heroReady = 0f;
-            lastHero = null;
+            // The first hero is charged for like every other one: the clock starts with the run.
+            // Left at zero the button was already lit on the placement screen's heels, so every run
+            // opened with a free hero and the twenty seconds only began to mean anything afterwards.
+            heroReady = Time.time + heroCooldown;
             HeroesSent = 0;
 
             PreSpawnAllTiers();
@@ -498,7 +513,6 @@ namespace DinoBattle.Core
                 brain.CombatEnabled = true;
 
             heroReady = Time.time + heroCooldown;
-            lastHero = definition;
             HeroesSent++;
 
             // A hero sent to a wiped wave is the wave — it needs the full march order, and the run
@@ -520,33 +534,31 @@ namespace DinoBattle.Core
         }
 
         /// <summary>
-        /// A random hero, from the stronger half of the roster and never the same one twice running.
+        /// The hero, by name.
         ///
-        /// The half matters. Drawn from the whole roster a hero comes up a Velociraptor often enough
-        /// to be the thing the player remembers, and a golden Velociraptor arriving after a ten
-        /// second wait is a punchline rather than a reward. The no-repeat rule matters for the same
-        /// reason: two identical heroes in a row read as the randomness being broken, whatever the
-        /// distribution says.
+        /// This used to roll a random dinosaur from the stronger half of the player's roster. It is
+        /// now one specific creature, which is a smaller and better idea: a hero the player
+        /// recognises on sight is worth waiting for, where a lottery is only worth
+        /// waiting for on the rolls that come up well.
+        ///
+        /// By display name rather than index, for the same reason the gauntlet's boss is picked that
+        /// way — reordering the roster should not be able to quietly change what the button does.
         /// </summary>
         private CreatureDefinition PickHero()
         {
-            var all = heroRoster.Creatures;
+            var found = heroRoster.FindByName(heroName);
+            if (found != null) return found;
 
-            var candidates = new List<CreatureDefinition>();
-            foreach (var creature in all)
-                if (creature != null) candidates.Add(creature);
+            foreach (var creature in heroRoster.Creatures)
+            {
+                if (creature == null) continue;
 
-            if (candidates.Count == 0) return null;
+                Debug.LogWarning($"[GauntletDirector] No hero named '{heroName}' in the roster; " +
+                                 $"using {creature.displayName} instead.");
+                return creature;
+            }
 
-            candidates.Sort((a, b) => b.cost.CompareTo(a.cost));
-
-            int pool = Mathf.Max(1, candidates.Count / 2);
-            candidates.RemoveRange(pool, candidates.Count - pool);
-
-            // Only drop the repeat when there is something else to offer.
-            if (candidates.Count > 1 && lastHero != null) candidates.Remove(lastHero);
-
-            return candidates[UnityEngine.Random.Range(0, candidates.Count)];
+            return null;
         }
 
         /// <summary>

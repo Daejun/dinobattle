@@ -101,6 +101,12 @@ namespace DinoBattle.EditorTools
         /// <summary>Worst-case creature count seen. The number Docs/performance.md cares about.</summary>
         private static int peakOnBoard;
 
+        /// <summary>Next time the hero colour is sampled.</summary>
+        private static float nextColourSample;
+
+        /// <summary>Game time the boss tier was first engaged, for reporting how long the boss lasts.</summary>
+        private static float bossFightStart = -1f;
+
         /// <summary>Shots taken during the boss fight, budgeted separately from the climb's.</summary>
         private static int bossShots;
         private static readonly List<string> log = new();
@@ -157,6 +163,8 @@ namespace DinoBattle.EditorTools
             deadTierSince = -1f;
             peakBrood = 0;
             peakOnBoard = 0;
+            nextColourSample = 0f;
+            bossFightStart = -1f;
             bossShots = 0;
             shotsTaken = 0;
             nextShot = 0f;
@@ -222,6 +230,12 @@ namespace DinoBattle.EditorTools
                 // The boss tier gets its own shots — that is where the brood and, by then, a hero or
                 // two will be on screen together.
                 bool bossFight = run.CurrentTier >= run.TierCount - 1;
+
+                // How long the boss lasts is the number that says whether its brood is worth
+                // anything — a boss that dies in fourteen seconds cannot use five spiders.
+                if (bossFight && run.State == GauntletState.Engaging && bossFightStart < 0f)
+                    bossFightStart = Time.time;
+
                 if (run.State == GauntletState.Engaging && (shotsTaken < 2 || bossFight))
                 {
                     // The boss gets its own budget. Sharing one counter, the early tiers spent all
@@ -278,7 +292,8 @@ namespace DinoBattle.EditorTools
 
                 Finish(manager.Phase == BattlePhase.Finished,
                     $"reached the top in {wavesPressed} extra wave(s) and {run.HeroesSent} hero(es); " +
-                    $"peak brood {peakBrood}; peak {peakOnBoard} creatures on the board; {ending}");
+                    $"peak brood {peakBrood}; peak {peakOnBoard} creatures on the board; " +
+                    $"boss lasted {(bossFightStart < 0f ? 0f : Time.time - bossFightStart):0.0}s; {ending}");
                 return;
             }
 
@@ -309,6 +324,8 @@ namespace DinoBattle.EditorTools
             {
                 deadTierSince = -1f;
             }
+
+            SampleHeroColour(run);
 
             // Heroes are always pressed, in both modes. They are on their own cooldown and cost
             // nothing else, so there is no version of playing well that leaves the button alone —
@@ -399,6 +416,59 @@ namespace DinoBattle.EditorTools
 
             shotsTaken++;
             log.Add($"  shot -> {path}");
+        }
+
+        /// <summary>
+        /// Read the colour a hero is ACTUALLY being drawn with, and keep reading it.
+        ///
+        /// Reported: "영웅 금색이 왜 없어지지". Judging this from a screenshot is how the question
+        /// arose and is no way to answer it — the roster has naturally yellow-green dinosaurs, so a
+        /// hero that was never tinted at all and one that was tinted perfectly can look the same at
+        /// thumbnail size, and I had already read one frame as "distinctly gold" on that basis.
+        ///
+        /// The property block is the ground truth. A hero is found by its scale rather than by
+        /// asking the director, so this measures what the renderer got rather than what the code
+        /// intended, and sampling repeatedly is what distinguishes "never applied" from "applied and
+        /// then lost".
+        /// </summary>
+        private static void SampleHeroColour(GauntletDirector run)
+        {
+            if (Time.time < nextColourSample) return;
+
+            nextColourSample = Time.time + 2f;
+
+            var block = new UnityEngine.MaterialPropertyBlock();
+            int id = Shader.PropertyToID("_Color");
+
+            foreach (var unit in Object.FindObjectsByType<Units.CreatureUnit>(FindObjectsSortMode.None))
+            {
+                if (unit == null || unit.IsDead || unit.Team != Team.Red) continue;
+
+                // Heroes are the only thing on the board scaled past 1.
+                if (unit.transform.localScale.x < 1.1f) continue;
+
+                var model = unit.transform.Find("Visual_Model");
+                if (model == null)
+                {
+                    log.Add("  HERO has no Visual_Model child — MarkAsHero returns before tinting");
+                    return;
+                }
+
+                foreach (var renderer in model.GetComponentsInChildren<Renderer>(true))
+                {
+                    renderer.GetPropertyBlock(block, 0);
+
+                    Color c = block.HasColor(id) ? block.GetColor(id)
+                            : renderer.sharedMaterial != null && renderer.sharedMaterial.HasProperty(id)
+                                ? renderer.sharedMaterial.GetColor(id)
+                                : Color.magenta;
+
+                    string source = block.HasColor(id) ? "block" : "material (NO BLOCK SET)";
+                    log.Add($"  hero t={Time.time:0} age={unit.transform.localScale.x:0.00}x " +
+                            $"{renderer.name} = ({c.r:0.00},{c.g:0.00},{c.b:0.00}) from {source}");
+                    return;
+                }
+            }
         }
 
         private static void Note(GauntletDirector run, string what)

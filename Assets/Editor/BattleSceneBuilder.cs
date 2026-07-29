@@ -870,9 +870,12 @@ namespace DinoBattle.EditorTools
             serialized.FindProperty("ladder").objectReferenceValue =
                 AssetDatabase.LoadAssetAtPath<Data.GauntletLadder>(SampleContentBuilder.GauntletLadderPath);
 
-            // Heroes come from the player's own roster — a hero is a dinosaur, not a boss.
+            // The hero is Malformed Rex, which lives in the boss roster.
             serialized.FindProperty("heroRoster").objectReferenceValue =
-                AssetDatabase.LoadAssetAtPath<Data.CreatureRoster>(SampleContentBuilder.RosterPath);
+                AssetDatabase.LoadAssetAtPath<Data.CreatureRoster>(SampleContentBuilder.BossRosterPath);
+            serialized.FindProperty("heroName").stringValue = "Malformed Rex";
+            serialized.FindProperty("heroHealthScale").floatValue = 1f;
+            serialized.FindProperty("heroDamageScale").floatValue = 1f;
 
             // The tuning values are written HERE rather than left to the C# defaults, and that is not
             // belt and braces. AddComponent serialises whatever the defaults were on the day the
@@ -883,6 +886,9 @@ namespace DinoBattle.EditorTools
             serialized.FindProperty("heroCooldown").floatValue = 10f;
             serialized.FindProperty("broodInterval").floatValue = 5f;
             serialized.FindProperty("broodLimit").intValue = 5;
+            serialized.FindProperty("broodScale").floatValue = 0.5f;
+            serialized.FindProperty("broodHealthScale").floatValue = 0.12f;
+            serialized.FindProperty("broodDamageScale").floatValue = 0.35f;
 
             serialized.ApplyModifiedPropertiesWithoutUndo();
 
